@@ -31,6 +31,20 @@
   .rtd-badge{ color:#00c000; font-weight:800; }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+<script>
+  const FIREBASE_CONFIG = {
+    apiKey: "AIzaSyCA8Q8athqYIsY3By5wPxcU97GjDBR6DAs",
+    authDomain: "mds-sulawesi.firebaseapp.com",
+    projectId: "mds-sulawesi",
+    storageBucket: "mds-sulawesi.firebasestorage.app",
+    messagingSenderId: "511949021685",
+    appId: "1:511949021685:web:bc32007af0555449e7c0bc"
+  };
+  firebase.initializeApp(FIREBASE_CONFIG);
+  const db = firebase.firestore();
+</script>
 </head>
 <body>
 
@@ -70,6 +84,7 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', ()=>{
+  loadStoreDataFromFirestore();
   document.getElementById('toggleTradisional').addEventListener('click', ()=>{
     document.getElementById('toggleTradisional').classList.add('active');
     document.getElementById('toggleModern').classList.remove('active');
@@ -829,9 +844,76 @@ function generateModernPdf(selectedSalesNames, groups, cabang, start, end){
    Upload file .xlsx dengan kolom: CustomerSISiteGroupDesc,
    CustomerSODesc, namasalesman, ItemGroup, KeteranganInvoice, Tahun, Bulan, Tanggal
    Akan membangun ulang STORE_DATA & STORE_DATA_MODERN dari file baru,
-   menggantikan data lama (hanya untuk sesi browser ini, tidak permanen).
+   lalu menyimpannya ke Firestore agar tersinkron untuk semua orang.
    ============================================================ */
 let DATA_UPDATE_LABEL = "30 Juni 2026";
+
+const FIRESTORE_CHUNK_SIZE = 1500; // stores per doc, stays well under 1MB/doc limit
+
+async function loadStoreDataFromFirestore(){
+  try{
+    const metaSnap = await db.collection('focusData').doc('meta').get();
+    if (!metaSnap.exists) return; // no cloud data yet, keep baked-in defaults
+    const meta = metaSnap.data();
+
+    const loadChunks = async (prefix, count)=>{
+      const docs = await Promise.all(
+        Array.from({length: count}, (_, i)=> db.collection('focusData').doc(prefix + i).get())
+      );
+      let out = [];
+      docs.forEach(d=>{ if (d.exists) out = out.concat(JSON.parse(d.data().data)); });
+      return out;
+    };
+
+    const [storeData, storeDataModern] = await Promise.all([
+      loadChunks('tradisional_', meta.tradisionalChunks || 0),
+      loadChunks('modern_', meta.modernChunks || 0)
+    ]);
+
+    STORE_DATA = storeData;
+    STORE_DATA_MODERN = storeDataModern;
+    if (meta.updateLabel){
+      DATA_UPDATE_LABEL = meta.updateLabel;
+      document.getElementById('dataUpdateLabel').textContent = 'Data update per ' + DATA_UPDATE_LABEL + '.';
+    }
+  }catch(err){
+    console.error('Gagal memuat data dari cloud, memakai data bawaan.', err);
+  }
+}
+
+async function saveStoreDataToFirestore(storeData, storeDataModern, updateLabel, statusEl){
+  const chunk = (arr, size)=>{
+    const out = [];
+    for (let i=0; i<arr.length; i+=size) out.push(arr.slice(i, i+size));
+    return out;
+  };
+  const tradisionalChunks = chunk(storeData, FIRESTORE_CHUNK_SIZE);
+  const modernChunks = chunk(storeDataModern, FIRESTORE_CHUNK_SIZE);
+
+  if (statusEl) statusEl.innerHTML = 'Menyimpan ke cloud...';
+
+  const metaSnap = await db.collection('focusData').doc('meta').get();
+  const prevMeta = metaSnap.exists ? metaSnap.data() : { tradisionalChunks: 0, modernChunks: 0 };
+
+  const batchWrites = [];
+  tradisionalChunks.forEach((c, i)=> batchWrites.push(db.collection('focusData').doc('tradisional_' + i).set({ data: JSON.stringify(c) })));
+  modernChunks.forEach((c, i)=> batchWrites.push(db.collection('focusData').doc('modern_' + i).set({ data: JSON.stringify(c) })));
+
+  // remove leftover chunk docs from a previous, larger import
+  for (let i = tradisionalChunks.length; i < (prevMeta.tradisionalChunks || 0); i++){
+    batchWrites.push(db.collection('focusData').doc('tradisional_' + i).delete());
+  }
+  for (let i = modernChunks.length; i < (prevMeta.modernChunks || 0); i++){
+    batchWrites.push(db.collection('focusData').doc('modern_' + i).delete());
+  }
+
+  await Promise.all(batchWrites);
+  await db.collection('focusData').doc('meta').set({
+    tradisionalChunks: tradisionalChunks.length,
+    modernChunks: modernChunks.length,
+    updateLabel
+  });
+}
 
 const CABANG_NORMALIZE_MAP = {
   'BORWITA CITRA PRIMA - MANADO, PT': 'BORWITA CITRA PRIMA - MANADO (ASO GRUP)',
@@ -912,7 +994,7 @@ function handleImportFile(e){
   reader.readAsArrayBuffer(file);
 }
 
-function processImportRows(rows, statusEl){
+async function processImportRows(rows, statusEl){
   const storeMap = {}; // key: cabang||toko -> {cabang, toko, sales, itemsSet}
   let maxDate = null;
 
@@ -964,7 +1046,13 @@ function processImportRows(rows, statusEl){
     document.getElementById('dataUpdateLabel').textContent = 'Data update per ' + DATA_UPDATE_LABEL + '.';
   }
 
-  statusEl.innerHTML = `<b style="color:#1a7a1a;">Berhasil!</b> ${newStoreData.length} toko Tradisional & ${newStoreDataModern.length} toko Modern ter-update. Data update per ${DATA_UPDATE_LABEL}.`;
+  try{
+    await saveStoreDataToFirestore(newStoreData, newStoreDataModern, DATA_UPDATE_LABEL, statusEl);
+    statusEl.innerHTML = `<b style="color:#1a7a1a;">Berhasil!</b> ${newStoreData.length} toko Tradisional & ${newStoreDataModern.length} toko Modern ter-update dan tersimpan ke cloud. Data update per ${DATA_UPDATE_LABEL}.`;
+  }catch(err){
+    statusEl.innerHTML = `<b style="color:#c0392b;">Gagal menyimpan ke cloud:</b> ${err.message}. Data tetap ter-update untuk sesi ini saja.`;
+    return;
+  }
   setTimeout(closeExportSelect, 2000);
 }
 </script>
