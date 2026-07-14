@@ -51,7 +51,7 @@
 <div style="display:flex; justify-content:space-between; align-items:flex-start;">
   <div>
     <h2 style="margin-bottom:4px;">Export Item Fokus</h2>
-    <p style="color:var(--muted); font-size:13px;">Data toko: hasil olah <b>database_ea_10_varian_dan_5_varian.xlsx</b> (periode 1 Apr – 30 Jun 2026, exclude retur). <b id="dataUpdateLabel">Data update per 30 Juni 2026.</b></p>
+    <p style="color:var(--muted); font-size:13px;"><b id="dataUpdateLabel">Periode 1 Apr - 30 Jun 2026</b></p>
   </div>
   <button type="button" id="openImportData" style="padding:9px 16px; border:1px solid var(--line); background:#fff; border-radius:8px; font-size:13px; font-weight:700; cursor:pointer; white-space:nowrap;">⇪ Import Data</button>
 </div>
@@ -858,7 +858,7 @@ function generateModernPdf(selectedSalesNames, groups, cabang, start, end){
    Akan membangun ulang STORE_DATA & STORE_DATA_MODERN dari file baru,
    lalu menyimpannya ke Firestore agar tersinkron untuk semua orang.
    ============================================================ */
-let DATA_UPDATE_LABEL = "30 Juni 2026";
+let DATA_UPDATE_LABEL = "Periode 1 Apr 2026 - 30 Jun 2026";
 
 const FIRESTORE_CHUNK_SIZE = 1500; // stores per doc, stays well under 1MB/doc limit
 
@@ -886,7 +886,7 @@ async function loadStoreDataFromFirestore(){
     STORE_DATA_MODERN = storeDataModern;
     if (meta.updateLabel){
       DATA_UPDATE_LABEL = meta.updateLabel;
-      document.getElementById('dataUpdateLabel').textContent = 'Data update per ' + DATA_UPDATE_LABEL + '.';
+      document.getElementById('dataUpdateLabel').textContent = DATA_UPDATE_LABEL;
     }
   }catch(err){
     console.error('Gagal memuat data dari cloud, memakai data bawaan.', err);
@@ -1008,6 +1008,7 @@ function handleImportFile(e){
 
 async function processImportRows(rows, statusEl){
   const storeMap = {}; // key: cabang||toko -> {cabang, toko, sales, itemsSet}
+  let minDate = null;
   let maxDate = null;
 
   rows.forEach(r=>{
@@ -1028,6 +1029,7 @@ async function processImportRows(rows, statusEl){
     if (bn && th && tgl){
       const d = new Date(th, bn-1, tgl);
       if (!maxDate || d > maxDate) maxDate = d;
+      if (!minDate || d < minDate) minDate = d;
     }
   });
 
@@ -1053,14 +1055,15 @@ async function processImportRows(rows, statusEl){
 
   STORE_DATA = newStoreData;
   STORE_DATA_MODERN = newStoreDataModern;
-  if (maxDate){
-    DATA_UPDATE_LABEL = maxDate.toLocaleDateString('id-ID', {day:'numeric', month:'long', year:'numeric'});
-    document.getElementById('dataUpdateLabel').textContent = 'Data update per ' + DATA_UPDATE_LABEL + '.';
+  if (minDate && maxDate){
+    const fmt = d => d.toLocaleDateString('id-ID', {day:'numeric', month:'short', year:'numeric'});
+    DATA_UPDATE_LABEL = `Periode ${fmt(minDate)} - ${fmt(maxDate)}`;
+    document.getElementById('dataUpdateLabel').textContent = DATA_UPDATE_LABEL;
   }
 
   try{
     await saveStoreDataToFirestore(newStoreData, newStoreDataModern, DATA_UPDATE_LABEL, statusEl);
-    statusEl.innerHTML = `<b style="color:#1a7a1a;">Berhasil!</b> ${newStoreData.length} toko Tradisional & ${newStoreDataModern.length} toko Modern ter-update dan tersimpan ke cloud. Data update per ${DATA_UPDATE_LABEL}.`;
+    statusEl.innerHTML = `<b style="color:#1a7a1a;">Berhasil!</b> ${newStoreData.length} toko Tradisional & ${newStoreDataModern.length} toko Modern ter-update dan tersimpan ke cloud. ${DATA_UPDATE_LABEL}.`;
   }catch(err){
     statusEl.innerHTML = `<b style="color:#c0392b;">Gagal menyimpan ke cloud:</b> ${err.message}. Data tetap ter-update untuk sesi ini saja.`;
     return;
