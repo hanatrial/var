@@ -599,7 +599,12 @@ function generateCabangPdf(selectedSalesNames, groups, cabang, start, end){
     const sortedList = [...list].sort((a,b)=> hitungFokusCabang(b, cabang).count - hitungFokusCabang(a, cabang).count);
     const tableRows = sortedList.map(s=>{
       const fst = hitungFokusCabang(s, cabang);
-      return `<tr><td>${s.toko}</td><td>${fst.count}/${threshold}</td><td>${fst.missing.map(i=>FOCUS_ABBR[i]||i).join(' / ')}</td></tr>`;
+      const missingSorted = [...fst.missing].sort((a,b)=> (b.includes('TEA') - a.includes('TEA')));
+      const missingHtml = missingSorted.map(i=>{
+        const label = FOCUS_ABBR[i]||i;
+        return i.includes('TEA') ? `<span style="color:#1a7a1a;">${label}</span>` : label;
+      }).join(' / ');
+      return `<tr><td>${s.toko}</td><td>${fst.count}/${threshold}</td><td>${missingHtml}</td></tr>`;
     }).join('');
     return `
       <div class="print-sales-group">
