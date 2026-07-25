@@ -66,6 +66,10 @@
     style="padding:11px 20px; border:1px solid var(--ns-orange); background:var(--ns-orange); color:#fff; border-radius:8px; font-size:14px; font-weight:700; cursor:pointer;">
     Export PDF Item Fokus Tradisional
   </button>
+  <button type="button" id="exportSalesAchievementExcel"
+    style="padding:11px 20px; border:1px solid var(--line); background:#fff; color:var(--ink); border-radius:8px; font-size:14px; font-weight:700; cursor:pointer; margin-left:8px;">
+    Export Excel Pencapaian Sales
+  </button>
 </div>
 
 <div id="panelModern" style="display:none;">
@@ -357,6 +361,33 @@ const FOCUS_ABBR = {
 
 document.getElementById('exportPdfAlert').addEventListener('click', ()=>{
   openCabangSelect();
+});
+
+document.getElementById('exportSalesAchievementExcel').addEventListener('click', ()=>{
+  const bySales = {}; // sales -> { totalToko, capai5 }
+  STORE_DATA.forEach(s=>{
+    if (!s.sales) return;
+    if (!bySales[s.sales]) bySales[s.sales] = { totalToko: 0, capai5: 0 };
+    bySales[s.sales].totalToko++;
+    const fst = hitungFokusCabang(s, s.cabang);
+    if (fst.count >= 5) bySales[s.sales].capai5++;
+  });
+
+  const rows = Object.keys(bySales).sort().map(sn=>{
+    const d = bySales[sn];
+    return {
+      'Nama Sales': sn,
+      'Total Toko': d.totalToko,
+      'Toko Capai >=5 Varian': d.capai5,
+      'Persentase': d.totalToko ? Math.round((d.capai5 / d.totalToko) * 1000) / 10 + '%' : '0%'
+    };
+  });
+
+  const ws = XLSX.utils.json_to_sheet(rows);
+  ws['!cols'] = [{wch:28},{wch:12},{wch:22},{wch:12}];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Pencapaian Sales');
+  XLSX.writeFile(wb, `Pencapaian Sales Item Fokus Tradisional - ${DATA_UPDATE_LABEL}.xlsx`);
 });
 
 const SEHAT_INDAH_CABANG = 'SEHAT INDAH - GORONTALO, UD';
