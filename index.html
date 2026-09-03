@@ -1113,13 +1113,16 @@ async function processImportRows(rows, statusEl){
     if (!cabangRaw || !toko) return;
     const cabang = CABANG_NORMALIZE_MAP[cabangRaw] || cabangRaw;
     const key = cabang + '||' + toko;
-    if (!storeMap[key]) storeMap[key] = { cabang, toko, sales: r['namasalesman']||'', itemsSet: new Set() };
+    if (!storeMap[key]) storeMap[key] = { cabang, toko, sales: r['namasalesman']||'', itemsSet: new Set(), itemsSetAgustus: new Set() };
+    const bn = BULAN_MAP[(r['Bulan']||'').toString().trim().toUpperCase()];
     const ket = r['KeteranganInvoice'];
     if (ket !== 'RETUR'){
       const item = r['ItemGroup'];
-      if (item) storeMap[key].itemsSet.add(item);
+      if (item){
+        storeMap[key].itemsSet.add(item);
+        if (bn === 8) storeMap[key].itemsSetAgustus.add(item);
+      }
     }
-    const bn = BULAN_MAP[(r['Bulan']||'').toString().trim().toUpperCase()];
     const th = r['Tahun'];
     const tgl = r['Tanggal'];
     if (bn && th && tgl){
@@ -1129,14 +1132,14 @@ async function processImportRows(rows, statusEl){
     }
   });
 
-  const allStores = Object.values(storeMap).map(s=>({ cabang:s.cabang, toko:s.toko, sales:s.sales, items:Array.from(s.itemsSet) }));
+  const allStores = Object.values(storeMap).map(s=>({ cabang:s.cabang, toko:s.toko, sales:s.sales, items:Array.from(s.itemsSet), itemsAgustus:Array.from(s.itemsSetAgustus) }));
 
-  // Rebuild STORE_DATA (Tradisional, per-cabang item list)
+  // Rebuild STORE_DATA (Tradisional, per-cabang item list) — Agustus saja, apapun periode filenya
   const newStoreData = [];
   allStores.forEach(s=>{
     const fokusItems = CABANG_ITEM_FOKUS[s.cabang];
     if (!fokusItems) return;
-    const matched = s.items.filter(it => fokusItems.includes(it));
+    const matched = s.itemsAgustus.filter(it => fokusItems.includes(it));
     if (!matched.length) return;
     newStoreData.push({ cabang:s.cabang, toko:s.toko, sales:s.sales, items:matched });
   });
