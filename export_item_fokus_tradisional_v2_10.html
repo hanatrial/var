@@ -509,6 +509,7 @@ function openPasswordCheck(cabang){
 function openThresholdSelect(cabang){
   const card = document.getElementById('exportSelectCard');
   const totalVarian = CABANG_ITEM_FOKUS[cabang].length;
+  const thresholdOptions = cabang === 'BORWITA CITRA PRIMA - PALOPO, PT' ? [5,6,7,10] : [5,6,7];
   card.innerHTML = `
     <div class="detail-head">
       <div>
@@ -519,7 +520,7 @@ function openThresholdSelect(cabang){
     </div>
     <div class="detail-body">
       <div style="display:flex; gap:8px; margin-bottom:14px;">
-        ${[5,6,7].map(n=>`
+        ${thresholdOptions.map(n=>`
           <button type="button" class="threshold-choice" data-n="${n}" style="flex:1; padding:14px 8px; border:1px solid var(--line); border-radius:8px; background:#fff; cursor:pointer; font-size:14px; font-weight:700;">
             ≥${n} varian
           </button>
