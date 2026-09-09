@@ -4,15 +4,34 @@
 <meta charset="UTF-8">
 <title>Export Item Fokus Tradisional</title>
 <style>
-  :root{ --ns-orange:#e8631c; --line:#e5e0d3; --ink:#2a2a2a; --muted:#8a8578; }
-  body{ font-family:-apple-system,Segoe UI,Roboto,sans-serif; background:#faf8f3; padding:24px; color:var(--ink); }
-  .overlay{ position:fixed; inset:0; background:rgba(0,0,0,.45); display:none; align-items:center; justify-content:center; z-index:999; }
+  :root{
+    --ns-orange:#e8631c; --ns-orange-dark:#c9500f; --line:#ece7db; --ink:#2a2a2a; --muted:#8a8578;
+    --card:#ffffff; --shell-bg:#f3efe4; --radius:14px; --radius-sm:10px;
+    --shadow-sm:0 1px 2px rgba(40,30,10,.06);
+    --shadow-md:0 6px 20px rgba(40,30,10,.08);
+    --shadow-lg:0 20px 60px rgba(40,30,10,.18);
+  }
+  *{ box-sizing:border-box; }
+  body{
+    font-family:-apple-system,Segoe UI,Roboto,sans-serif; color:var(--ink);
+    margin:0; padding:32px 16px; min-height:100vh;
+    background:radial-gradient(circle at 15% 0%, #fff7ec 0%, var(--shell-bg) 55%);
+  }
+  #appShell{
+    max-width:760px; margin:0 auto; background:var(--card); border-radius:20px;
+    box-shadow:var(--shadow-md); border:1px solid var(--line); padding:28px 28px 32px;
+  }
+  h2{ letter-spacing:-0.01em; }
+
+  .overlay{ position:fixed; inset:0; background:rgba(30,20,5,.5); backdrop-filter:blur(2px); display:none; align-items:center; justify-content:center; z-index:999; padding:16px; }
   .overlay.show{ display:flex; }
-  .detail-card{ background:#fff; border-radius:12px; max-height:85vh; overflow-y:auto; width:90%; box-shadow:0 10px 40px rgba(0,0,0,.2); }
-  .detail-head{ display:flex; justify-content:space-between; align-items:center; padding:16px 20px; border-bottom:1px solid var(--line); }
-  .detail-body{ padding:20px; }
-  .closer{ border:none; background:none; font-size:18px; cursor:pointer; }
-  .meta{ font-size:12px; color:var(--muted); margin-top:2px; }
+  .detail-card{ background:#fff; border-radius:18px; max-height:85vh; overflow-y:auto; width:90%; max-width:480px; box-shadow:var(--shadow-lg); border:1px solid var(--line); }
+  .detail-head{ display:flex; justify-content:space-between; align-items:center; padding:18px 22px; border-bottom:1px solid var(--line); }
+  .detail-body{ padding:22px; }
+  .closer{ border:none; background:#f4f1e8; width:30px; height:30px; border-radius:50%; font-size:15px; cursor:pointer; color:var(--muted); transition:background .15s; }
+  .closer:hover{ background:var(--line); }
+  .meta{ font-size:12px; color:var(--muted); margin-top:3px; }
+
   @media print {
     body * { visibility:hidden; }
     #printArea, #printArea * { visibility:visible; }
@@ -26,9 +45,25 @@
     .print-sales-group th, .print-sales-group td { border:1px solid #ccc; padding:4px 6px; text-align:left; }
     .print-sales-group th { background:#eee; }
   }
-  .toggle-btn{ padding:10px 18px; border:1px solid var(--line); background:#fff; border-radius:8px; font-size:13.5px; font-weight:700; cursor:pointer; color:var(--ink); }
-  .toggle-btn.active{ background:var(--ns-orange); border-color:var(--ns-orange); color:#fff; }
+
+  .toggle-btn{ padding:11px 20px; border:1px solid var(--line); background:#faf8f3; border-radius:var(--radius-sm); font-size:13.5px; font-weight:700; cursor:pointer; color:var(--ink); transition:all .15s; }
+  .toggle-btn:hover{ border-color:var(--ns-orange); }
+  .toggle-btn.active{ background:var(--ns-orange); border-color:var(--ns-orange); color:#fff; box-shadow:var(--shadow-sm); }
   .rtd-badge{ color:#00c000; font-weight:800; }
+
+  /* Modern-look override for every button/select/input generated inline throughout the app,
+     without needing to touch each JS template string individually. */
+  button[type="button"]{
+    border-radius:var(--radius-sm) !important;
+    box-shadow:var(--shadow-sm) !important;
+    transition:transform .12s ease, box-shadow .12s ease, filter .12s ease !important;
+  }
+  button[type="button"]:hover{ filter:brightness(1.04); box-shadow:var(--shadow-md) !important; transform:translateY(-1px); }
+  button[type="button"]:active{ transform:translateY(0); filter:brightness(.98); }
+  select, input[type="text"], input[type="password"], input[type="file"]{
+    border-radius:var(--radius-sm) !important;
+    box-shadow:inset 0 1px 2px rgba(0,0,0,.03) !important;
+  }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
@@ -47,33 +82,36 @@
 </script>
 </head>
 <body>
+<div id="appShell">
 
-<div style="display:flex; justify-content:space-between; align-items:flex-start;">
+<div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:24px;">
   <div>
-    <h2 style="margin-bottom:4px;">Export Item Fokus</h2>
-    <p style="color:var(--muted); font-size:13px;"><b id="dataUpdateLabel">Periode 1 Apr - 30 Jun 2026</b></p>
+    <h2 style="margin:0 0 6px; font-size:22px;">Export Item Fokus</h2>
+    <p style="color:var(--muted); font-size:13px; margin:0;"><b id="dataUpdateLabel">Periode 1 Apr - 30 Jun 2026</b></p>
   </div>
-  <button type="button" id="openImportData" style="padding:9px 16px; border:1px solid var(--line); background:#fff; border-radius:8px; font-size:13px; font-weight:700; cursor:pointer; white-space:nowrap;">⇪ Import Data</button>
+  <button type="button" id="openImportData" style="padding:10px 18px; border:1px solid var(--line); background:#faf8f3; border-radius:10px; font-size:13px; font-weight:700; cursor:pointer; white-space:nowrap;">⇪ Import Data</button>
 </div>
 
-<div style="display:flex; gap:8px; margin-bottom:16px;">
+<div style="display:flex; gap:10px; margin-bottom:22px;">
   <button type="button" id="toggleTradisional" class="toggle-btn active">Item Fokus Tradisional</button>
   <button type="button" id="toggleModern" class="toggle-btn">Item Fokus Modern</button>
 </div>
 
-<div id="panelTradisional">
+<div id="panelTradisional" style="background:#faf8f3; border:1px solid var(--line); border-radius:16px; padding:22px;">
   <button type="button" id="exportPdfAlert"
-    style="padding:11px 20px; border:1px solid var(--ns-orange); background:var(--ns-orange); color:#fff; border-radius:8px; font-size:14px; font-weight:700; cursor:pointer;">
+    style="padding:13px 22px; border:none; background:var(--ns-orange); color:#fff; border-radius:12px; font-size:14.5px; font-weight:700; cursor:pointer;">
     Export PDF Item Fokus Tradisional
   </button>
 </div>
 
-<div id="panelModern" style="display:none;">
-  <p style="color:var(--muted); font-size:13px;">18 varian item fokus (TS DiabTX/Classic, RTD, HiLo Teen/School/Active) · threshold 5 varian · 3.095 toko tercakup.</p>
+<div id="panelModern" style="display:none; background:#faf8f3; border:1px solid var(--line); border-radius:16px; padding:22px;">
+  <p style="color:var(--muted); font-size:13px; margin:0 0 16px;">18 varian item fokus (TS DiabTX/Classic, RTD, HiLo Teen/School/Active) · threshold 5 varian · 3.095 toko tercakup.</p>
   <button type="button" id="exportPdfModern"
-    style="padding:11px 20px; border:1px solid var(--ns-orange); background:var(--ns-orange); color:#fff; border-radius:8px; font-size:14px; font-weight:700; cursor:pointer;">
+    style="padding:13px 22px; border:none; background:var(--ns-orange); color:#fff; border-radius:12px; font-size:14.5px; font-weight:700; cursor:pointer;">
     Export PDF Item Fokus Modern
   </button>
+</div>
+
 </div>
 
 <div class="overlay" id="exportSelectOverlay">
