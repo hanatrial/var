@@ -34,6 +34,14 @@
   .mkt-tabs{display:flex;gap:5px;background:rgba(255,255,255,.04);border:1px solid var(--line);padding:5px;border-radius:14px;margin-bottom:14px}
   .mkt-tabs button{flex:1;padding:10px 4px;border-radius:10px;border:none;background:transparent;color:var(--muted);font-family:inherit;font-weight:700;font-size:.76rem;cursor:pointer;transition:all .2s ease}
   .mkt-tabs button.active{background:linear-gradient(135deg,var(--lime),#a8e02f);color:#0d1a08;box-shadow:0 6px 16px rgba(205,241,92,.22)}
+  .search{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:8px}
+  .search span{font-size:.9rem}
+  .search input{flex:1;min-width:0;background:transparent;border:none;outline:none;color:var(--text);font-family:inherit;font-size:.85rem}
+  .search input::placeholder{color:var(--muted)}
+  .search button{background:rgba(255,255,255,.08);border:none;color:var(--text);border-radius:8px;padding:4px 9px;font-size:.75rem;cursor:pointer}
+  .cnt{font-size:.72rem;color:var(--muted);margin:0 2px 10px}
+  .nores{text-align:center;color:var(--muted);padding:30px 10px;font-size:.82rem;line-height:2}
+  .nores button{background:rgba(205,241,92,.12);border:1px solid rgba(205,241,92,.35);color:var(--lime);border-radius:10px;padding:8px 12px;margin:4px;font-family:inherit;font-size:.76rem;font-weight:700;cursor:pointer}
 
   .mkts{display:flex;gap:6px;background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:14px;padding:5px;margin-bottom:14px}
   .mkts button{flex:1;padding:9px 0;border-radius:10px;border:none;background:transparent;color:var(--muted);font-weight:700;font-size:.75rem;font-family:inherit;cursor:pointer;transition:all .22s ease}
@@ -130,6 +138,8 @@
     <button data-m="US">🇺🇸 Saham US</button>
     <button data-m="CRYPTO">₿ Crypto</button>
   </div>
+  <div class="search"><span>🔍</span><input id="q" type="search" placeholder="Cari ticker / nama… mis. BBCA, bitcoin, Tesla" autocomplete="off"><button id="qx" hidden>✕</button></div>
+  <div class="cnt" id="cnt"></div>
   <div class="hint">👆 <b>Ketuk kartu</b> untuk analisa mendalam</div>
   <div class="list" id="list"></div>
   <section class="guide" id="guide"></section>
@@ -406,12 +416,39 @@ function tags(s){
 }
 
 const list=document.getElementById("list");
-let curMkt="IDX";
+const qEl=document.getElementById("q");
+const cntEl=document.getElementById("cnt");
+const qxEl=document.getElementById("qx");
+let curMkt="IDX", query="";
+const norm = x => String(x||"").toLowerCase();
+const matches = (s,t) => norm(s.ticker).includes(t) || norm(s.name).includes(t) || norm(s.sector).includes(t) || norm(s.symbol).includes(t);
 function renderList(m){
-  curMkt=m;
+  if(m) curMkt=m;
   list.innerHTML="";
-  const items=DATA.map((s,gi)=>({s,gi})).filter(x=>x.s.market===m);
-  if(!items.length){ list.innerHTML='<div style="text-align:center;color:var(--muted);padding:36px 0">Belum ada data untuk pasar ini.</div>'; return; }
+  const t=norm(query.trim());
+  const items=DATA.map((s,gi)=>({s,gi})).filter(x=>x.s.market===curMkt && (!t || matches(x.s,t)));
+  // hitung hasil di semua pasar (biar jalan walau beda tab)
+  const hits = t ? DATA.map((s,gi)=>({s,gi})).filter(x=>matches(x.s,t)) : [];
+  const inMkt = hits.filter(x=>x.s.market===curMkt).length;
+  const other = hits.filter(x=>x.s.market!==curMkt);
+  const tabNames={IDX:"Indo",US:"US",CRYPTO:"Crypto"};
+  if(t){
+    cntEl.innerHTML = hits.length
+      ? `${hits.length} hasil${inMkt&&other.length?` · ${inMkt} di tab ini, ${other.length} lainnya`:``}`
+      : "";
+  } else cntEl.innerHTML="";
+  if(!items.length){
+    if(!t){
+      list.innerHTML='<div class="nores">Belum ada data untuk pasar ini.</div>';
+    } else if(hits.length){
+      list.innerHTML=`<div class="nores">Tidak ada hasil di tab ${tabNames[curMkt]}. Tapi ada ${hits.length} di pasar lain:<br>${
+        other.map(x=>`<button data-gi="${x.gi}">${x.s.ticker} · ${(x.s.name||"").slice(0,22)} (${x.s.market})</button>`).join("")
+      }</div>`;
+    } else {
+      list.innerHTML=`<div class="nores">Tidak ditemukan: <b>${qEl.value.trim()}</b><br>Coba simbol lain atau kosongkan pencarian.</div>`;
+    }
+    return;
+  }
   items.forEach(({s,gi})=>{
     const c=document.createElement("div");
     c.className="card"+(s.excluded?" excluded":"");
@@ -541,7 +578,20 @@ function openModal(i){
   body.scrollTop=0;
 }
 function closeModal(){overlay.classList.remove("show");modal.classList.remove("show");}
-list.addEventListener("click",e=>{const c=e.target.closest(".card"); if(c) openModal(+c.dataset.i);});
+list.addEventListener("click",e=>{
+  const b=e.target.closest("button[data-gi]");
+  if(b){ openModal(+b.dataset.gi); return; }
+  const c=e.target.closest(".card"); if(c) openModal(+c.dataset.i);
+});
+/* pencarian: ketik → filter langsung; ✕ → bersihkan */
+let qT=null;
+qEl.addEventListener("input",()=>{
+  qxEl.hidden=!qEl.value;
+  clearTimeout(qT);
+  qT=setTimeout(()=>{ query=qEl.value; renderList(); },140);
+});
+qEl.addEventListener("keydown",e=>{ if(e.key==="Enter"){ clearTimeout(qT); query=qEl.value; renderList(); } });
+qxEl.addEventListener("click",()=>{ qEl.value=""; query=""; qxEl.hidden=true; renderList(); qEl.focus(); });
 document.getElementById("closeBtn").addEventListener("click",closeModal);
 overlay.addEventListener("click",closeModal);
 
