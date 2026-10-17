@@ -4,7 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
 <title>Screener &amp; Analisa — Saham Indo · US · Crypto</title>
-<link rel="manifest" href="manifest.webmanifest">
+<link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0a1410">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="icon" href="icon-192.png">
@@ -147,9 +147,28 @@
   .news .n .m .s.u{color:var(--muted);border-color:var(--line)}
 
   footer{text-align:center;color:var(--muted);font-size:.7rem;margin:26px 0 10px}
+  #installGate{position:fixed;inset:0;z-index:99;background:radial-gradient(120% 50% at 50% 0%,#1a3320 0%,#08100b 60%);display:flex;align-items:center;justify-content:center;padding:22px}
+  #installGate[hidden]{display:none}
+  #installGate .igCard{max-width:340px;width:100%;background:linear-gradient(180deg,#16271c,#0f1c14);border:1px solid rgba(205,241,92,.28);border-radius:20px;padding:22px 20px;text-align:center}
+  #installGate img{border-radius:16px;margin-bottom:10px}
+  #installGate h2{font-size:1.05rem;margin-bottom:8px;color:#eaf3e6}
+  #installGate p{font-size:.82rem;color:#8ba487;line-height:1.5}
+  #installGate #igBtn{display:block;width:100%;margin-top:16px;padding:13px;border-radius:13px;border:none;font-family:inherit;font-weight:800;font-size:.9rem;color:#0d1a08;background:linear-gradient(135deg,#cdf15c,#a8e02f);cursor:pointer}
+  #installGate #igSteps{margin-top:12px;font-size:.78rem;color:#cfe0c9;background:rgba(205,241,92,.08);border:1px solid rgba(205,241,92,.25);border-radius:12px;padding:11px 13px;text-align:left;line-height:1.55}
+  #installGate #igSkip{display:block;width:100%;margin-top:10px;background:transparent;border:none;color:#8ba487;font-family:inherit;font-size:.72rem;text-decoration:underline;cursor:pointer}
 </style>
 </head>
 <body>
+<div id="installGate" hidden>
+  <div class="igCard">
+    <img src="icon-192.png" width="72" height="72" alt="Screener">
+    <h2>📲 Pasang aplikasi dulu</h2>
+    <p id="igMsg">Agar bisa dibuka layar penuh &amp; tahan offline seperti aplikasi, pasang screener ini ke layar utama HP kamu.</p>
+    <button id="igBtn">Pasang sekarang</button>
+    <div id="igSteps" style="display:none"></div>
+    <button id="igSkip">Lanjut di browser (tidak disarankan)</button>
+  </div>
+</div>
 <div class="wrap">
   <header>
     <h1>🔬 Screener &amp; <span>Analisa Mendalam</span></h1>
@@ -986,5 +1005,31 @@ document.getElementById("guide").innerHTML=`
 renderList("IDX");
 </script>
 <script>if("serviceWorker" in navigator){navigator.serviceWorker.register("./sw.js").catch(function(){});}</script>
+<script>
+(function(){
+  var gate=document.getElementById("installGate");
+  if(!gate) return;
+  var standalone = (window.matchMedia&&window.matchMedia("(display-mode: standalone)").matches) || window.navigator.standalone===true;
+  var ua=navigator.userAgent||"";
+  var isMobile=/Android|iPhone|iPad|iPod|Mobile/i.test(ua) || ((window.matchMedia&&matchMedia("(pointer:coarse)").matches) && window.innerWidth<900);
+  if(!isMobile || standalone) return;                       // desktop / sudah terpasang → tidak diganggu
+  if(sessionStorage.getItem("igSkip")==="1") return;
+  gate.hidden=false; document.body.style.overflow="hidden";
+  var btn=document.getElementById("igBtn"), steps=document.getElementById("igSteps"), skip=document.getElementById("igSkip");
+  var isiOS=/iPhone|iPad|iPod/i.test(ua);
+  var deferred=null;
+  window.addEventListener("beforeinstallprompt", function(e){ e.preventDefault(); deferred=e; });
+  function close(){ gate.hidden=true; document.body.style.overflow=""; }
+  if(isiOS){ btn.style.display="none"; steps.style.display="block";
+    steps.innerHTML="Di iPhone/iPad (<b>Safari</b>): ketuk tombol <b>Bagikan</b> \u2191 \u2192 <b>Tambahkan ke Layar Utama</b> \u2192 <b>Tambah</b>.<br><br>Kalau saat ini terbuka di dalam aplikasi lain (WA/IG), buka dulu tautannya di Safari.";
+  }
+  btn.addEventListener("click", async function(){
+    if(deferred){ deferred.prompt(); try{ var c=await deferred.userChoice; if(c && c.outcome==="accepted"){ close(); } }catch(e){} deferred=null; }
+    else { steps.style.display="block"; steps.innerHTML="Kalau tak ada tombol pasang: buka menu browser \u22ee \u2192 <b>Install app</b> / <b>Tambahkan ke Layar Utama</b>."; }
+  });
+  window.addEventListener("appinstalled", close);
+  skip.addEventListener("click", function(){ sessionStorage.setItem("igSkip","1"); close(); });
+})();
+</script>
 </body>
 </html>
