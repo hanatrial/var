@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<title>Screener &amp; Analisa — Saham Indo · US · Crypto</title>
+<style>
+  :root{--bg:#0a1410;--card:#132018;--card2:#16271c;--line:rgba(255,255,255,.08);--text:#eaf3e6;--muted:#8ba487;--lime:#cdf15c;--red:#ff6b6b;--blue:#6cc5ff;--purple:#c9a7ff;}
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{font-family:-apple-system,"Segoe UI",system-ui,sans-serif;background:radial-gradient(120% 40% at 50% 0%,#1a3320 0%,#08100b 55%);background-attachment:fixed;color:var(--text);padding:18px;line-height:1.5}
+  .wrap{max-width:760px;margin:0 auto}
+  header{text-align:center;margin-bottom:18px}
+  header h1{font-size:1.4rem}
+  header h1 span{color:var(--lime)}
+  header .sub{color:var(--muted);font-size:.78rem;margin-top:6px}
+  .notice{background:rgba(255,107,107,.1);border:1px solid rgba(255,107,107,.3);border-radius:14px;padding:12px 16px;font-size:.76rem;color:#ffb3b3;margin-bottom:18px}
+  .notice b{color:#fff}
+  .regime{border-radius:14px;padding:11px 14px;font-size:.76rem;margin-bottom:16px;line-height:1.45}
+  .regime.bear{background:rgba(255,107,107,.1);border:1px solid rgba(255,107,107,.32);color:#ffb3b3}
+  .regime.bull{background:rgba(205,241,92,.08);border:1px solid rgba(205,241,92,.28);color:#dff0c4}
+  .warnb{display:inline-block;background:rgba(255,180,60,.16);border:1px solid rgba(255,180,60,.45);color:#ffd08a;border-radius:8px;padding:2px 8px;font-size:.68rem;font-weight:700;margin:2px 4px 2px 0}
+  .warnb.red{background:rgba(255,107,107,.14);border-color:rgba(255,107,107,.45);color:#ff9b9b}
+  .guide{margin-top:22px;background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:16px;padding:16px 16px 10px}
+  .guide h2{font-size:.95rem;margin-bottom:6px}
+  .guide h3{font-size:.82rem;margin:15px 0 6px;color:var(--lime)}
+  .guide p,.guide li{font-size:.75rem;color:var(--muted);line-height:1.55}
+  .guide ul{margin-left:16px}
+  .guide table{width:100%;border-collapse:collapse;margin-top:8px;font-size:.71rem}
+  .guide th,.guide td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:right;color:var(--text)}
+  .guide th:first-child,.guide td:first-child{text-align:left}
+  .guide th{color:var(--muted);font-weight:600}
+  .hint{text-align:center;font-size:.76rem;color:var(--muted);margin-bottom:14px}
+  .hint b{color:var(--lime)}
+  .mkt-tabs{display:flex;gap:5px;background:rgba(255,255,255,.04);border:1px solid var(--line);padding:5px;border-radius:14px;margin-bottom:14px}
+  .mkt-tabs button{flex:1;padding:10px 4px;border-radius:10px;border:none;background:transparent;color:var(--muted);font-family:inherit;font-weight:700;font-size:.76rem;cursor:pointer;transition:all .2s ease}
+  .mkt-tabs button.active{background:linear-gradient(135deg,var(--lime),#a8e02f);color:#0d1a08;box-shadow:0 6px 16px rgba(205,241,92,.22)}
+  .search{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:8px}
+  .search span{font-size:.9rem}
+  .search input{flex:1;min-width:0;background:transparent;border:none;outline:none;color:var(--text);font-family:inherit;font-size:.85rem}
+  .search input::placeholder{color:var(--muted)}
+  .search button{background:rgba(255,255,255,.08);border:none;color:var(--text);border-radius:8px;padding:4px 9px;font-size:.75rem;cursor:pointer}
+  .cnt{font-size:.72rem;color:var(--muted);margin:0 2px 10px}
+  .nores{text-align:center;color:var(--muted);padding:30px 10px;font-size:.82rem;line-height:2}
+  .nores button{background:rgba(205,241,92,.12);border:1px solid rgba(205,241,92,.35);color:var(--lime);border-radius:10px;padding:8px 12px;margin:4px;font-family:inherit;font-size:.76rem;font-weight:700;cursor:pointer}
+
+  .mkts{display:flex;gap:6px;background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:14px;padding:5px;margin-bottom:14px}
+  .mkts button{flex:1;padding:9px 0;border-radius:10px;border:none;background:transparent;color:var(--muted);font-weight:700;font-size:.75rem;font-family:inherit;cursor:pointer;transition:all .22s ease}
+  .mkts button.active{background:linear-gradient(135deg,var(--lime),#a8e02f);color:#0d1a08;box-shadow:0 6px 16px rgba(205,241,92,.22)}
+  .list{display:flex;flex-direction:column;gap:10px}
+  .card{background:linear-gradient(180deg,var(--card2),var(--card));border:1px solid var(--line);border-radius:16px;padding:14px 16px;cursor:pointer;transition:transform .15s ease,border-color .2s ease;position:relative}
+  .card:active{transform:scale(.985)}
+  .card:hover{border-color:rgba(205,241,92,.35)}
+  .card .row1{display:flex;align-items:center;gap:10px}
+  .card .rk{width:26px;height:26px;border-radius:8px;background:rgba(205,241,92,.12);color:var(--lime);font-size:.72rem;font-weight:800;display:grid;place-items:center;flex-shrink:0}
+  .card .tk{font-weight:800;font-size:1.02rem;color:var(--lime)}
+  .card .nm{font-size:.78rem;color:var(--muted);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .card .sc{font-weight:800;font-size:.85rem;color:var(--lime);flex-shrink:0}
+  .card .row2{display:flex;align-items:baseline;gap:9px;margin-top:8px}
+  .card .px{font-size:1.15rem;font-weight:800;font-variant-numeric:tabular-nums}
+  .card .chg{font-size:.74rem;font-weight:700}
+  .card .mini{margin-left:auto;display:flex;gap:4px;align-items:center;font-size:.68rem;color:var(--muted)}
+  .up{color:var(--lime)} .down{color:var(--red)}
+  .card .tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:9px}
+  .tag{font-size:.62rem;font-weight:700;padding:3px 8px;border-radius:999px;border:1px solid}
+  .tag.good{color:var(--lime);border-color:rgba(205,241,92,.3);background:rgba(205,241,92,.09)}
+  .tag.trend{color:var(--blue);border-color:rgba(108,197,255,.3);background:rgba(108,197,255,.09)}
+  .tag.bandar{color:var(--purple);border-color:rgba(201,167,255,.3);background:rgba(201,167,255,.09)}
+  .tag.warn{color:var(--red);border-color:rgba(255,107,107,.3);background:rgba(255,107,107,.09)}
+  .tag.commod{color:#ffce6b;border-color:rgba(255,206,107,.3);background:rgba(255,206,107,.09)}
+  .tag.bb{color:#0d1a08;border-color:#cdf15c;background:linear-gradient(135deg,#cdf15c,#a8e02f);font-weight:800;box-shadow:0 2px 10px rgba(205,241,92,.35)}
+  .tag.bb2{color:#dff0c4;border-color:rgba(205,241,92,.45);background:rgba(205,241,92,.12);font-weight:800}
+  .card.isbb2{border-color:rgba(205,241,92,.32)}
+  .card.isbb{border-color:rgba(205,241,92,.5);box-shadow:0 0 0 1px rgba(205,241,92,.18),0 8px 22px rgba(0,0,0,.28)}
+  .bbbar{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+  .bbbtn{font-family:inherit;font-weight:800;font-size:.76rem;padding:9px 14px;border-radius:11px;border:1px solid rgba(205,241,92,.4);background:rgba(205,241,92,.1);color:var(--lime);cursor:pointer;transition:all .18s ease}
+  .bbbtn.active{background:linear-gradient(135deg,var(--lime),#a8e02f);color:#0d1a08;box-shadow:0 6px 16px rgba(205,241,92,.25)}
+  .bbcnt{font-size:.72rem;color:var(--muted)}
+  .bbbox{border-radius:14px;padding:13px 15px;font-size:.82rem;margin:12px 0 4px;line-height:1.5}
+  .bbbox.ok{background:linear-gradient(135deg,rgba(205,241,92,.14),rgba(205,241,92,.06));border:1px solid rgba(205,241,92,.4);color:#e9f7cf}
+  .bbbox.no{background:rgba(255,255,255,.03);border:1px solid var(--line);color:#c9d5c3}
+  .bbbox b{color:var(--lime)}
+  .bbbox .bbt{font-weight:800;font-size:.9rem;margin-bottom:6px;display:flex;align-items:center;gap:7px}
+  .bbbox ul{margin:6px 0 0 16px}
+  .bbbox li{font-size:.77rem;margin:3px 0;color:#cfe0c9}
+  .bbbox li.blk{color:#ff9b9b}
+  .card.excluded{opacity:.6;border-color:rgba(255,107,107,.35)}
+  .card .chev{position:absolute;right:14px;bottom:14px;color:var(--muted);font-size:1rem;opacity:.5}
+
+  /* Modal */
+  .overlay{position:fixed;inset:0;background:rgba(3,8,5,.72);backdrop-filter:blur(4px);opacity:0;pointer-events:none;transition:opacity .25s ease;z-index:40}
+  .overlay.show{opacity:1;pointer-events:auto}
+  .modal{position:fixed;left:0;right:0;bottom:0;top:6%;max-width:760px;margin:0 auto;background:linear-gradient(180deg,#14271b,#0b1710);border-radius:26px 26px 0 0;border:1px solid var(--line);border-bottom:none;transform:translateY(102%);transition:transform .4s cubic-bezier(.22,1,.36,1);z-index:50;display:flex;flex-direction:column;overflow:hidden}
+  .modal.show{transform:translateY(0)}
+  .modal .bar{padding:12px 18px 8px;flex-shrink:0;background:linear-gradient(180deg,#14271b,rgba(20,39,27,.85));position:relative}
+  .modal .grab{width:42px;height:5px;border-radius:3px;background:rgba(255,255,255,.18);margin:0 auto 12px}
+  .modal .m-tk{font-weight:800;font-size:1.15rem;color:var(--lime)}
+  .modal .m-nm{font-size:.8rem;color:var(--muted)}
+  .modal .m-px{font-size:1.9rem;font-weight:800;margin:6px 0 2px;font-variant-numeric:tabular-nums}
+  .modal .m-chg{font-size:.82rem;font-weight:700}
+  .modal .close{position:absolute;top:16px;right:18px;width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.08);border:none;color:var(--text);font-size:1.1rem;display:grid;place-items:center;cursor:pointer}
+  .modal .body{padding:4px 18px 30px;overflow-y:auto;-webkit-overflow-scrolling:touch}
+  .modal svg.mchart{width:100%;height:130px;display:block;margin:6px 0 4px}
+  .mrange{display:flex;justify-content:space-between;font-size:.66rem;color:var(--muted);margin-bottom:14px}
+  .sec{margin-top:16px}
+  .sec h3{font-size:.86rem;display:flex;align-items:center;gap:8px;margin-bottom:8px;letter-spacing:.2px}
+  .sec h3 .ico{width:22px;height:22px;border-radius:7px;display:grid;place-items:center;font-size:.72rem;background:rgba(255,255,255,.06)}
+  .sec p{font-size:.83rem;color:#cfe0c9;margin-bottom:6px}
+  .sec ul{margin-left:16px}
+  .sec li{font-size:.82rem;color:#cfe0c9;margin:5px 0}
+  .sec li b{color:#fff}
+  .kv{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0}
+  .kv .it{background:rgba(255,255,255,.04);border-radius:10px;padding:8px 11px}
+  .kv .it .k{font-size:.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
+  .kv .it .v{font-size:.9rem;font-weight:700;font-variant-numeric:tabular-nums}
+  .scoregrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:6px 0 4px}
+  .sbar{background:rgba(255,255,255,.04);border-radius:11px;padding:9px 12px}
+  .sbar .top{display:flex;justify-content:space-between;font-size:.68rem;color:var(--muted);margin-bottom:6px}
+  .sbar .top b{color:var(--lime)}
+  .sbar .tr{height:6px;background:rgba(255,255,255,.08);border-radius:99px;overflow:hidden}
+  .sbar .fl{height:100%;border-radius:99px;background:linear-gradient(90deg,#7fae2a,var(--lime))}
+  .lvl{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0}
+  .lvl .b{background:rgba(255,255,255,.04);border-radius:12px;padding:10px;text-align:center;border-top:3px solid}
+  .lvl .b.sl{border-color:var(--red)} .lvl .b.en{border-color:var(--blue)} .lvl .b.tp{border-color:var(--lime)}
+  .lvl .b .k{font-size:.6rem;color:var(--muted);text-transform:uppercase}
+  .lvl .b .v{font-size:.95rem;font-weight:800;margin-top:2px;font-variant-numeric:tabular-nums}
+  .verdict{background:rgba(205,241,92,.08);border:1px solid rgba(205,241,92,.25);border-radius:12px;padding:12px 14px;font-size:.84rem;color:#e6f3df;margin-top:6px}
+  .verdict b{color:var(--lime)}
+  .news{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+  .news .n{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.05);border-radius:11px;padding:10px 12px;display:block;text-decoration:none;color:inherit;transition:border-color .2s ease}
+  .news .n:hover{border-color:rgba(205,241,92,.3)}
+  .news .n .t{font-size:.8rem;color:#e6f3df;line-height:1.35}
+  .news .n .m{display:flex;gap:7px;align-items:center;margin-top:6px;font-size:.62rem;color:var(--muted);flex-wrap:wrap}
+  .news .n .m .s{font-weight:700;padding:2px 8px;border-radius:99px;border:1px solid}
+  .news .n .m .s.p{color:var(--lime);border-color:rgba(205,241,92,.35);background:rgba(205,241,92,.08)}
+  .news .n .m .s.n{color:var(--red);border-color:rgba(255,107,107,.35);background:rgba(255,107,107,.08)}
+  .news .n .m .s.u{color:var(--muted);border-color:var(--line)}
+
+  footer{text-align:center;color:var(--muted);font-size:.7rem;margin:26px 0 10px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🔬 Screener &amp; <span>Analisa Mendalam</span></h1>
+    <div class="sub" id="genAt"></div>
+    <div class="sub" style="margin-top:5px">📚 <a href="backtest-laporan.html" style="color:#cdea3f">Laporan Backtest (uji 5 tahun)</a></div>
+    <div class="sub" style="margin-top:5px">🧪 <a href="strategi-laporan.html" style="color:#cdea3f">Perbandingan Strategi (eksperimen CAGR 20%)</a></div>
+  </header>
+  <div class="notice">
+    <b>⚠️ Bukan rekomendasi jual/beli.</b> Data otomatis dari Yahoo Finance (bisa delay/keliru).
+    "Aliran volume" = heuristik volume/OBV/MFI, bukan data orang dalam.
+  </div>
+  <div id="regimeBar"></div>
+  <div class="mkts" id="mktTabs">
+    <button data-m="IDX" class="active">🇮🇩 Saham Indo</button>
+    <button data-m="US">🇺🇸 Saham US</button>
+    <button data-m="CRYPTO">₿ Crypto</button>
+  </div>
+  <div class="bbbar">
+    <button id="bbToggle" class="bbbtn" aria-pressed="false">⭐ BEST BUY / SIAP</button>
+    <span id="bbCnt" class="bbcnt"></span>
+  </div>
+  <div class="search"><span>🔍</span><input id="q" type="search" placeholder="Cari ticker / nama… mis. BBCA, bitcoin, Tesla" autocomplete="off"><button id="qx" hidden>✕</button></div>
+  <div class="cnt" id="cnt"></div>
+  <div class="hint">👆 <b>Ketuk kartu</b> untuk analisa mendalam</div>
+  <div class="list" id="list"></div>
+  <section class="guide" id="guide"></section>
+  <footer id="foot"></footer>
+</div>
+
+<div class="overlay" id="overlay"></div>
+<div class="modal" id="modal">
+  <div class="bar">
+    <div class="grab"></div>
+    <button class="close" id="closeBtn">✕</button>
+    <div class="m-tk" id="mTk"></div>
+    <div class="m-nm" id="mNm"></div>
+    <div class="m-px" id="mPx"></div>
+    <div class="m-chg" id="mChg"></div>
+  </div>
+  <div class="body" id="mBody"></div>
+</div>
+
+<script>
+const DATA = /*__DATA__*/;
+const REGIME = /*__REGIME__*/;
+
+/* ---------- util ---------- */
+const ID = (x, d=0) => (x==null? "—" : Number(x).toLocaleString("id-ID",{minimumFractionDigits:d,maximumFractionDigits:d}));
+const RP = (x) => (x==null? "—" : "Rp "+Math.round(x).toLocaleString("id-ID"));
+const CUR = (s, x) => {
+  if(x==null) return "—";
+  const isIDR = s && (s.cur==="IDR" || s.market==="IDX");
+  if(isIDR) return "Rp "+Math.round(Number(x)).toLocaleString("id-ID");
+  const dec = Math.abs(x) < 1 ? 6 : 2;
+  return "$" + Number(x).toLocaleString("en-US", {minimumFractionDigits:0, maximumFractionDigits:dec});
+};
+const BIG = (s, x) => { if(x==null) return "—"; const v=Number(x);
+  if(s && (s.cur==="IDR" || s.market==="IDX")){ const t=v/1e12; return t>=1? "Rp "+t.toFixed(2)+" T" : "Rp "+(v/1e9).toFixed(1)+" M"; }
+  const b=v/1e9; return b>=1000? "$"+(b/1000).toFixed(2)+" T" : "$"+b.toFixed(1)+" M"; };
+const PCT = (x, d=2) => (x==null? "—" : (x>=0?"+":"")+Number(x).toFixed(d)+"%");
+const pctf = (x, d=1) => (x==null? "—" : (x*100).toFixed(d)+"%");
+/* pembanding yang BENAR per pasar: IDX→IHSG, US→S&P 500, CRYPTO→BTC
+   (sebelumnya semua pasar salah dibandingkan dengan IHSG) */
+const BENCH = (mkt) => {
+  const b = (REGIME && REGIME.bench && REGIME.bench[mkt]) || null;
+  if (b) return b;
+  // fallback untuk JSON lama yang belum punya regime.bench
+  return { label: "IHSG", px: REGIME?REGIME.px:null, chg1d: REGIME?REGIME.chg1d:null,
+           ma200: REGIME?REGIME.ma200:null, bearish: !!(REGIME&&REGIME.bearish) };
+};
+const normDiv = (x) => (x==null? null : (x<1 ? x*100 : x));
+
+/* ---------- chart ---------- */
+function drawChart(svg, series, color="#cdf15c"){
+  const vals = series.map(p=>p.c);
+  const w=320,h=130,pad=12;
+  const min=Math.min(...vals),max=Math.max(...vals),span=(max-min)||1;
+  const pts=vals.map((v,i)=>[pad+i*(w-pad*2)/(vals.length-1), (h-pad)-((v-min)/span)*(h-pad*2)]);
+  let d=`M ${pts[0][0]} ${pts[0][1]}`;
+  for(let i=0;i<pts.length-1;i++){const [x0,y0]=pts[i],[x1,y1]=pts[i+1],mx=(x0+x1)/2;d+=` C ${mx} ${y0}, ${mx} ${y1}, ${x1} ${y1}`;}
+  const area=`${d} L ${pts[pts.length-1][0]} ${h} L ${pts[0][0]} ${h} Z`;
+  const up = vals[vals.length-1] >= vals[0];
+  const col = up? color : "#ff6b6b";
+  svg.innerHTML=`<defs><linearGradient id="gg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${col}" stop-opacity="0.3"/><stop offset="100%" stop-color="${col}" stop-opacity="0"/></linearGradient></defs>
+  <path d="${area}" fill="url(#gg)"/><path d="${d}" fill="none" stroke="${col}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>`;
+}
+
+/* ---------- analisa ---------- */
+function analyze(s){
+  const RP = (v)=>CUR(s, v);
+  const px=s.px;
+  const dv = normDiv(s.divYield);
+
+  // ===== Verdict =====
+  let verdict="";
+  const cheap = s.pe!=null && s.pe>0 && s.pe<12;
+  const veryCheap = s.pb!=null && s.pb<1;
+  const uptrend = s.ma20&&s.ma50&&s.px>s.ma20&&s.ma20>s.ma50;
+  const accum = s.accum!=null && s.accum>0.55;
+  if(cheap&&uptrend&&accum) verdict="Kombinasi menarik: <b>valuasi murah</b>, <b>tren naik</b>, dan <b>indikasi akumulasi</b> — profil klasik saham yang \"belum banyak dilirik tapi mulai dikumpulkan\".";
+  else if(cheap&&uptrend) verdict="Valuasi <b>murah</b> dan tren <b>naik</b>. Sinyal teknikal positif; akumulasi belum kuat, jadi butuh konfirmasi volume.";
+  else if(cheap&&accum) verdict="Valuasi <b>murah</b> dengan indikasi <b>akumulasi</b>, tapi tren harga belum solid. Cocok untuk watchlist, tunggu breakout.";
+  else if(uptrend) verdict="Tren <b>naik</b>, namun valuasi sudah tidak murah lagi. Momentum bagus — jaga disiplin stop-loss.";
+  else verdict="Belum ada konfirmasi kuat (valuasi/tren/akumulasi). Perlakukan sebagai pantauan, bukan sinyal beli.";
+  const flags = (s.score && s.score.flags) || {};
+  if(flags.crash) verdict = "⚠️ Harga <b>jatuh tajam</b> (≤ −7% sehari atau ≤ −15% sepekan). Skor <b>tren &amp; momentum direset 0</b> sampai ada tanda stabilisasi — hindari menangkap \"pisau jatuh\".";
+  if(flags.suspect) verdict += " ⚠️ <b>Data mencurigakan</b>: perubahan harian >25% tanpa konfirmasi volume — verifikasi ke aplikasi sekuritas (kemungkinan bug penyesuaian dividen/split).";
+  if(flags.mislead) verdict += ` ℹ️ Perubahan harian dari kutipan Yahoo (${PCT(s.chg1d)}) berbeda jauh dari seri harga harian (${PCT(s.ret1d)}) — kemungkinan <b>ex-dividen</b> atau data telat.`;
+  const BM = BENCH(s.market);
+  if(BM && BM.chg1d!=null && s.chg1d!=null){
+    const rel = s.chg1d - BM.chg1d;
+    if(rel > 3) verdict += ` 📈 Hari ini <b>lebih kuat dari ${BM.label}</b> (${PCT(s.chg1d)} vs ${BM.label} ${PCT(BM.chg1d)}).`;
+    else if(rel < -3) verdict += ` 📉 Hari ini <b>lebih lemah dari ${BM.label}</b> (${PCT(s.chg1d)} vs ${BM.label} ${PCT(BM.chg1d)}).`;
+  }
+  if(s.rsi!=null && s.rsi>72 && !flags.crash) verdict += " ⚠️ RSI sudah <b>overbought</b> — waspadai koreksi jangka pendek.";
+
+  // ===== Fundamental =====
+  const F=[];
+  if(s.market==="CRYPTO"){
+    F.push(`<li><b>Kapitalisasi pasar ${BIG(s,s.mcap)}</b> → ${s.mcap>5e10?"aset besar/dominan":s.mcap>5e9?"kelas menengah":"kapitalisasi kecil (lebih volatil)"}.</li>`);
+    if(s.high52&&s.low52) F.push(`<li><b>Rentang 52 minggu:</b> ${CUR(s,s.low52)} – ${CUR(s,s.high52)} → harga di <b>${((s.px-s.low52)/(s.high52-s.low52)*100).toFixed(0)}%</b> dari dasar rentang.</li>`);
+    F.push(`<li><b>Catatan:</b> kripto tidak punya laba/dividen — PER, PBV, ROE tidak berlaku. Penilaian berbasis tren, momentum &amp; likuiditas.</li>`);
+  }
+  const peW = s.pe==null? null : s.pe<=0? "negatif (perusahaan merugi)" : s.pe<8? "sangat murah" : s.pe<12? "murah" : s.pe<18? "wajar" : s.pe<25? "agak mahal":"mahal";
+  if(s.pe!=null) F.push(`<li><b>PER ${s.pe.toFixed(1)}×</b> → <b>${peW}</b>. ${s.pe<12? "Pasar membayar laba dengan harga diskon.":""}</li>`);
+  if(s.pb!=null) F.push(`<li><b>PBV ${s.pb.toFixed(2)}×</b> → ${s.pb<1? "di bawah nilai buku (aset lebih besar dari harga pasar)":"premium "+s.pb.toFixed(2)+"× dari nilai buku"}.</li>`);
+  if(s.roe!=null) F.push(`<li><b>ROE ${pctf(s.roe)}</b> → ${s.roe>0.2?"sangat baik (efisien menghasilkan laba)":s.roe>0.12?"baik":s.roe>0.06?"cukup":"lemah"}.</li>`);
+  if(s.margin!=null) F.push(`<li><b>Margin laba bersih ${pctf(s.margin)}</b> → ${s.margin>0.15?"tebal":s.margin>0.07?"sehat":"tipis"}.</li>`);
+  if(s.revGrowth!=null) F.push(`<li><b>Pertumbuhan pendapatan ${pctf(s.revGrowth)}</b> (yoy) → ${s.revGrowth>0.15?"kuat":s.revGrowth>0.05?"positif":s.revGrowth>0?"stagnan":"menurun"}.</li>`);
+  if(s.earnGrowth!=null) F.push(`<li><b>Pertumbuhan laba ${s.earnGrowth!=null?pctf(s.earnGrowth):"—"}</b> (yoy) → ${s.earnGrowth>0.15?"kuat":s.earnGrowth>0?"positif":s.earnGrowth> -0.1?"melemah":"menurun tajam"}.</li>`);
+  if(dv!=null) F.push(`<li><b>Dividen ±${dv.toFixed(2)}%</b> → ${dv>5?"tinggi (daya tarik pendapatan)":dv>3?"lumayan":"kecil"}.</li>`);
+  if(s.debtToEquity!=null) F.push(`<li><b>DER ${s.debtToEquity.toFixed(0)}%</b> → ${s.debtToEquity>150?"utang relatif tinggi":s.debtToEquity>80?"utang moderat":"utang terkendali"}.</li>`);
+  if(s.floatPct!=null && s.floatPct<0.15) F.push(`<li><b>Free float tipis (${(s.floatPct*100).toFixed(0)}%)</b> → harga mudah digerakkan, rawan pola \"gorengan\".</li>`);
+  if(s.exDiv) F.push(`<li><b>📅 Ex-dividen:</b> ${s.exDiv} — di hari ex, harga turun sebesar dividen (sering memicu lonjakan semu di data Yahoo).</li>`);
+  if(flags.commodity) F.push(`<li><b>Catatan sektor komoditas:</b> untuk energi/material/perkebunan, <b>PER rendah sering menandai puncak siklus</b> harga komoditas, bukan \"murah\". Valuasi sengaja dibobot separuh — pantau harga komoditasnya.</li>`);
+  if(flags.illiquid) F.push(`<li><b>Likuiditas rendah:</b> nilai transaksi &lt; Rp5 miliar/hari → sulit masuk/keluar tanpa menggerakkan harga. Skor dipotong 30%.</li>`);
+  if(s.fxConverted) F.push(`<li><b>💱 Mata uang laporan ${s.finCur||"asing"}:</b> nilai buku/EPS dikonversi ke ${s.cur||"IDR"} dengan kurs Yahoo sebelum PBV/PER dihitung (tanpa ini, PBV bisa salah ribuan kali).</li>`);
+
+  // ===== Teknikal =====
+  const T=[];
+  if(s.ma20&&s.ma50&&s.ma200){
+    let st = px>s.ma20&&s.ma20>s.ma50&&s.ma50>s.ma200 ? "sangat sehat (harga > MA20 > MA50 > MA200)"
+           : px>s.ma20&&s.ma20>s.ma50 ? "naik (di atas MA20 & MA50)"
+           : px<s.ma20&&s.ma20<s.ma50 ? "turun (di bawah MA20 & MA50)" : "sideways/campuran";
+    T.push(`<li><b>Struktur tren:</b> ${st}.</li>`);
+  }
+  if(s.rsi!=null){ let z = s.rsi<30?"oversold (potensi rebound)":s.rsi<45?"lemah":s.rsi<55?"netral":s.rsi<68?"bullish sehat":"overbought (>70)"; T.push(`<li><b>RSI ${s.rsi.toFixed(0)}</b> → ${z}.</li>`);}
+  if(s.mfi!=null){ let z = s.mfi<20?"uang keluar sangat deras (oversold)":s.mfi<50?"aliran uang lemah":s.mfi<80?"aliran uang masuk sehat":"uang masuk berlebihan (rawan jenuh)"; T.push(`<li><b>MFI ${s.mfi.toFixed(0)}</b> → ${z}.</li>`);}
+  if(s.ret1m!=null) T.push(`<li><b>Return 1 bulan ${PCT(s.ret1m)}</b>, <b>3 bulan ${PCT(s.ret3m)}</b>, <b>6 bulan ${PCT(s.ret6m)}</b> → momentum ${s.ret3m>10?"kuat":s.ret3m>0?"positif":"negatif"}.</li>`);
+  if(s.offHigh!=null) T.push(`<li><b>Posisi vs high 20-hari:</b> ${s.offHigh.toFixed(1)}% → ${s.offHigh>-3?"menempel resistance, awas breakout/pullback":"masih ada ruang naik ke resistance"}.</li>`);
+
+  // ===== Bandar =====
+  const B=[];
+  if(s.accum!=null){ let z = s.accum>0.6?"akumulasi kuat":s.accum>0.55?"akumulasi":s.accum>0.45?"netral (seimbang)":"distribusi (lebih banyak dijual)"; B.push(`<li><b>Rasio akumulasi ${(s.accum*100).toFixed(0)}%</b> → ${z}. Volume hari naik vs hari turun 20 hari terakhir.</li>`);}
+  if(s.obv!=null) B.push(`<li><b>OBV (On-Balance Volume):</b> ${s.obv>0.15?"cenderung naik — volume menumpuk di hari kenaikan":s.obv>0?"sedikit naik":"cenderung turun — tekanan jual"}.</li>`);
+  if(s.volSpike!=null) B.push(`<li><b>Volume hari ini ${s.volSpike.toFixed(2)}× rata-rata</b> → ${s.volSpike>2?"lonjakan besar, cek berita/korporasi":s.volSpike>1.4?"di atas normal":"normal"}.</li>`);
+  const avgVol = s.avgVol||0;
+  B.push(`<li><b>Likuiditas:</b> rata-rata volume ${avgVol>1e7?"sangat likuid":avgVol>3e6?"likuid":avgVol>1e6?"cukup":"tipis"} (${ID(avgVol/1e6,1)} jt/hari).</li>`);
+
+  // ===== Level =====
+  const supports=[s.lo20, s.ma50, s.ma200].filter(x=>x!=null&&x<px).sort((a,b)=>b-a);
+  const support1 = supports[0] || px*0.95;
+  const support2 = supports[1] || support1*0.95;
+  const res1 = s.hi20 && s.hi20>px ? s.hi20 : px*1.03;
+  const res2 = s.high52 && s.high52>res1 ? s.high52 : res1*1.05;
+  const sl = support1*0.97;
+  let entryTxt;
+  if(s.rsi!=null && s.rsi>72) entryTxt = `Harga sudah panas (RSI ${s.rsi.toFixed(0)}). Lebih baik <b>tunggu koreksi</b> ke area ${CUR(s,s.ma20||support1)} (MA20) atau ${CUR(s,support1)} sebelum masuk.`;
+  else if(s.offHigh!=null && s.offHigh>-2) entryTxt = `Harga menempel resistance ${CUR(s,res1)}. <b>Entry saat breakout</b> di atas ${CUR(s,res1)} dengan volume besar, atau beli saat pullback ke ${CUR(s,s.ma20||support1)}.`;
+  else entryTxt = `Bisa <b>entry bertahap</b> di area ${CUR(s,Math.min(s.ma20||px, px))}–${CUR(s,support1)} selama tren naik bertahan, atau saat breakout ${CUR(s,res1)}.`;
+  const rr = Math.max(0,(res1-px))/Math.max(1,(px-sl));
+
+  // ===== Exit Plan =====
+  const entryRef = (s.rsi!=null && s.rsi>72 && s.ma20) ? s.ma20 : px;
+  const entry2 = Math.min(s.ma20||entryRef, entryRef);
+  const tp1 = res1;
+  const tp2 = res2;
+  const tp3 = res2*1.08;
+  const slPct = ((entry2 - sl)/entry2)*100;
+  const portVal = (s.cur==="IDR") ? 10000000 : 10000;
+  const riskAmt = portVal*0.01;
+  const posSize = riskAmt / Math.max(0.0001,(entry2 - sl)/entry2);
+  const exit = { entry2, entryRef, tp1, tp2, tp3, slPct, posSize, portVal, riskAmt };
+
+  // ===== Risiko =====
+  const RISK=[];
+  const RF=(s.score&&s.score.flags)||{};
+  if(RF.crash) RISK.push("⚠️ <b>Sedang jatuh tajam</b> — tren &amp; momentum direset. Tunggu 2–3 hari tanpa low baru sebelum masuk.");
+  if(RF.suspect) RISK.push("⚠️ <b>Data mencurigakan</b> (lonjakan &gt;25% tanpa volume) — verifikasi ke aplikasi sekuritas sebelum bertindak.");
+  if(RF.commodity) RISK.push("Sektor komoditas: harga saham mengikuti harga komoditas, bukan PER. PER rendah bisa menyesatkan.");
+  if(RF.illiquid) RISK.push("Likuiditas tipis — spread lebar, sulit keluar saat pasar sedang buruk.");
+  const RB = BENCH(s.market);
+  if(RB && RB.bearish){
+    const lvl = (RB.ma200!=null && RB.px!=null && RB.ma200>0)
+      ? ` (${RB.label} di bawah MA200)` : "";
+    RISK.push(`<b>Rezim ${s.market==="IDX"?"pasar bearish":s.market==="US"?"pasar AS bearish":"crypto bearish"}</b>${lvl} — peluang tiap sinyal lebih kecil; kurangi ukuran posisi.`);
+  }
+  if(s.market!=="IDX" && REGIME && REGIME.us && REGIME.us.riskOff)
+    RISK.push("<b>Risk-off global</b> (S&amp;P 500 di bawah MA200 / VIX &gt;30) — aset berisiko tertekan; skor sudah otomatis dikali 0,90.");
+  if(s.rsi!=null && s.rsi>70) RISK.push("RSI overbought — rawan koreksi jangka pendek.");
+  if(s.earnGrowth!=null && s.earnGrowth<0) RISK.push("Laba sedang menurun (earnings growth negatif) — waspadai <i>value trap</i>.");
+  if(s.revGrowth!=null && s.revGrowth<0) RISK.push("Pendapatan turun — permintaan melemah.");
+  if(s.accum!=null && s.accum<0.45) RISK.push("Indikasi distribusi (tekanan jual lebih besar).");
+  if(s.debtToEquity!=null && s.debtToEquity>150) RISK.push("Beban utang relatif tinggi (DER >150%).");
+  if(avgVol<2e6) RISK.push("Likuiditas tipis — harga mudah bergerak liar & sulit keluar.");
+  if(s.mfi!=null && s.mfi>85) RISK.push("Aliran uang jenuh (MFI >85) — bisa berbalik.");
+  if(!RISK.length) RISK.push("Tidak ada bendera merah mencolok, tapi tetap gunakan stop-loss.");
+
+  return {verdict, F, T, B, support1, support2, res1, res2, sl, rr, entryTxt, RISK, dv, exit};
+}
+
+/* ---------- berita ---------- */
+// Klasifikasi kata kunci (negatif/positif) + skor sentimen -10..+10 dengan bobot umur berita
+const NEWS_POS = ["buyback","treasuri","treasury","share repurchase","dividen naik","naikkan dividen","raises dividend","dividend increase","kontrak baru","laba melonjak","laba naik","cetak laba","beat estimates","beats estimates","raises guidance","record revenue","masuk indeks","masuk bursa","join s&p 500","melonjak","cuan","untung","tumbuh","melesat","menguat","rekomendasi beli","target harga naik","price target raised","prospek","inflow","net buy","rekor","ekspansi","akuisisi"," mengakuisisi","diakuisisi","bullish","surge","rally","gain","profit","upgrade","etf approval","etf inflows","mainnet","token burn"];
+const NEWS_NEG = ["suspensi","suspend","pkpu","pailit","bangkrut","bankruptcy","chapter 11","going concern","rights issue","private placement","secondary offering","follow-on offering","at-the-market","convertible notes","lock-up expir","restatement","auditor resign","delisting","delist","below $1","bid price deficiency","fca","papan pemantauan","gagal bayar","audit disclaimer","opini disclaimer","gagal","anjlok","rugi","misses estimates","cuts guidance","koreksi","dilepas","cabut","outflow","net sell","melemah","tekanan","phk","sanksi","utang","sengketa","default","jeblok","merah","bearish","crash","dump","plunge","turun","penurunan","downgrade","hack","exploit","depeg","token unlock","monitoring tag","rug pull","honeypot"];
+function newsHit(x, keys){ let c=0; keys.forEach(k=>{ if(new RegExp("(^|[^a-z0-9])"+k.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"([^a-z0-9]|$)","i").test(x)) c++; }); return c; }
+// hanya berita yang benar-benar menyebut emiten (ticker / kata nama unik) yang dinilai —
+// judul "Rekomendasi: MYOR, BSDE, PWON" tidak lagi menaikkan skor ketiganya
+const NEWS_STOP=new Set(["inc","corp","corporation","company","companies","group","holdings","holding","technology","technologies","limited","plc","sa","ltd","nv","ag","co","intl","international","global","digital","capital","financial","systems","network","networks","labs","energy","therapeutics","pharma","bio","platforms","communication","consumer","services","tbk","pt"]);
+function newsRelevant(s,t){
+  const x=(t||"").toLowerCase();
+  const tk=String(s.ticker||"").toLowerCase();
+  if(tk && new RegExp("(^|[^a-z0-9])"+tk+"([^a-z0-9]|$)").test(x)) return true;
+  const words=String(s.name||"").toLowerCase().replace(/[^a-z0-9 ]/g," ").split(/\s+/).filter(w=>w.length>=5&&!NEWS_STOP.has(w));
+  return words.some(w=>x.includes(w));
+}
+function newsSent(t){
+  const x=(t||"").toLowerCase(); const p=newsHit(x,NEWS_POS), n=newsHit(x,NEWS_NEG);
+  return p>n?"p":n>p?"n":"u";
+}
+// skor sentimen -10..+10; berita <=7 hari bobot penuh, lebih tua bobot 0,5; hanya yang relevan
+function newsScore(arr,s){
+  let sc=0;
+  arr.forEach(x=>{ if(s && !newsRelevant(s,x.title)) return;
+    const c=newsSent(x.title);
+    let base = c==="p"?2: c==="n"?-2: 0;
+    let w=0.5;
+    if(x.date){ const days=(Date.now()-new Date(x.date).getTime())/86400000; if(days<=7) w=1; }
+    sc += base*w;
+  });
+  return Math.max(-10, Math.min(10, Math.round(sc*10)/10));
+}
+function newsHTML(s){
+  const arr=s.news||[];
+  if(!arr.length) return `<p>Belum ada berita terbaru untuk ${s.ticker}.</p>`;
+  let p=0,n=0,u=0;
+  const items=arr.map(x=>{ const c=newsSent(x.title); c==="p"?p++:c==="n"?n++:u++;
+    const lab=c==="p"?"Positif":c==="n"?"Negatif":"Netral";
+    return `<a class="n" href="${x.link}" target="_blank" rel="noopener"><div class="t">${x.title}</div><div class="m"><span class="s ${c}">${lab}</span>${x.src?`<span>${x.src}</span>`:""}${x.date?`<span>${x.date}</span>`:""}</div></a>`;
+  }).join("");
+  const sc=newsScore(arr,s);
+  const scCol = sc>0?"var(--lime)": sc<0?"var(--red)":"var(--muted)";
+  const scLab = sc>0.5?"cenderung positif": sc<-0.5?"cenderung negatif":"netral";
+  return `<p style="font-size:.78rem;color:var(--muted)">Sentimen: <b style="color:var(--lime)">${p} positif</b> · <b style="color:var(--red)">${n} negatif</b> · ${u} netral · <b style="color:${scCol}">skor ${sc>0?"+":""}${sc}</b> (${scLab}, dari ${arr.length} berita — berita >7 hari berbobot separuh)</p><div class="news">${items}</div>`;
+}
+
+/* ---------- aksi korporasi / event (per pasar) ---------- */
+function caHTML(s){
+  const ca=s.ca||{score:0,notes:[],flags:[]};
+  const sc=ca.score;
+  const col=sc>0?"var(--lime)":sc<0?"var(--red)":"var(--muted)";
+  const notes=(ca.notes&&ca.notes.length)?`<ul>${ca.notes.map(n=>`<li>${n}</li>`).join("")}</ul>`:`<p>Tidak ada event menonjol terdeteksi.</p>`;
+  const exc=s.excluded?`<p style="color:#ff9b9b;font-weight:700">⛔ DIKECUALIKAN dari rekomendasi.</p>`:"";
+  if(s.market==="IDX"){
+    const arb=s.arb||{};
+    const lim = arb.limitPct!=null ? `ARB ±${arb.limitPct}% · ARA ±${arb.araPct}%` : `batas absolut Rp${arb.limitRp} (harga ≤ Rp10)`;
+    return `<p style="font-size:.78rem;color:var(--muted)">Skor aksi korporasi: <b style="color:${col}">${sc>0?"+":""}${sc}</b> · Batas hari ini: <b>${lim}</b>${arb.isArb?" · ⛔ <b style=\"color:var(--red)\">menyentuh ARB hari ini</b>":""}${arb.streak>1?` · ARB ${arb.streak} hari berturut-turut`:""}.</p>${exc}${notes}<p style="font-size:.66rem;color:var(--muted)">Sumber: kata kunci judul berita + riwayat dividen/split Yahoo. Halaman KI idx.co.id tidak bisa diakses otomatis → ini <b>proxy</b>, bukan data resmi. Selalu verifikasi.</p>`;
+  }
+  if(s.market==="US"){
+    const ed=(s.edgar&&s.edgar.notes&&s.edgar.notes.length)?`<p style="font-size:.72rem;color:var(--muted)">Filing resmi SEC EDGAR (60 hari terakhir) sudah termasuk di atas.</p>`:"";
+    const earn=s.earnDate?`<p style="font-size:.78rem;color:var(--muted)">Earnings: <b>${s.earnDate}</b>${s.earnInDays!=null?(s.earnInDays>=0?` (${s.earnInDays} hari lagi)`:` (${-s.earnInDays} hari lalu)`):""}${s.earnInDays!=null&&s.earnInDays>=0&&s.earnInDays<=3?` · ⚠ <b style="color:var(--red)">risiko gap — jangan buka posisi baru</b>`:""}.</p>`:"";
+    const sh=s.shortPct!=null?`<p style="font-size:.78rem;color:var(--muted)">Short interest: <b>${(s.shortPct>1?s.shortPct:s.shortPct*100).toFixed(1)}%</b> dari float${s.daysToCover!=null?` · days to cover <b>${s.daysToCover.toFixed(1)}</b>`:""}.</p>`:"";
+    const mo=s.mom121!=null?`<p style="font-size:.78rem;color:var(--muted)">Momentum 12-1 (faktor terkuat AS): <b>${s.mom121>=0?"+":""}${s.mom121.toFixed(1)}%</b>.</p>`:"";
+    return `<p style="font-size:.78rem;color:var(--muted)">Skor event AS: <b style="color:${col}">${sc>0?"+":""}${sc}</b> (EDGAR + earnings + corporate actions; AS <b>tanpa ARA/ARB</b>).</p>${exc}${earn}${sh}${mo}${notes}${ed}<p style="font-size:.66rem;color:var(--muted)">Pajak dividen AS 30% (15% dgn W-8BEN) &amp; risiko kurs USD/IDR belum masuk skor — hitung manual.</p>`;
+  }
+  // CRYPTO
+  const cy=s.cycle?`<p style="font-size:.78rem;color:var(--muted)">Siklus BTC: <b>${s.cycle.monthsHalving} bln</b> pasca-halving Apr-2024 → fase <b>${s.cycle.phase}</b>.</p>`:"";
+  const fg=s.fng?`<p style="font-size:.78rem;color:var(--muted)">Fear &amp; Greed: <b>${s.fng.v} (${s.fng.label})</b>${s.btcDom!=null?` · dominasi BTC <b>${s.btcDom}%</b>`:""}${s.ddHigh!=null?` · dari high 52-mggu <b>${s.ddHigh.toFixed(1)}%</b>`:""}.</p>`:"";
+  return `<p style="font-size:.78rem;color:var(--muted)">Skor event crypto: <b style="color:${col}">${sc>0?"+":""}${sc}</b> (tokenomics/listing/keamanan).</p>${exc}${cy}${fg}${notes}<p style="font-size:.66rem;color:var(--muted)">Ukuran posisi disarankan: BTC/ETH ≤15% portofolio, altcoin ≤5% per koin. Pajak Indonesia: PPh final 0,21% (platform domestik) / 1% (luar negeri).</p>`;
+}
+
+/* ---------- render list ---------- */
+function tags(s){
+  const t=[];
+  const f=(s.score&&s.score.flags)||{};
+  if(s.excluded) t.push(["⛔ Dikecualikan","warn"]);
+  if(s.arb && s.arb.isArb) t.push(["Sentuh ARB","warn"]);
+  if(s.ca && Array.isArray(s.ca.flags)){
+    const g=s.ca.flags;
+    if(g.includes("buyback")) t.push(["Buyback","good"]);
+    if(g.includes("tender")) t.push(["Tender offer","good"]);
+    if(g.includes("insider_beli")) t.push(["Insider beli","good"]);
+    if(g.includes("dilusi_potensial")) t.push(["Risiko dilusi","warn"]);
+    if(g.includes("reverse_split")) t.push(["Reverse split","warn"]);
+    if(g.includes("gadai")) t.push(["Gadai saham","warn"]);
+    if(g.includes("ipo_baru")) t.push(["IPO baru","warn"]);
+    if(g.includes("spekulatif")) t.push(["Spekulatif","warn"]);
+    if(g.includes("earnings_dekat")) t.push(["Earnings dekat","warn"]);
+    if(g.includes("short_tinggi")) t.push(["Short tinggi","warn"]);
+    if(g.includes("subdollar")) t.push(["Di bawah $1","warn"]);
+    if(g.includes("waspada_bursa")) t.push(["Waspada bursa","warn"]);
+    if(g.includes("arbToday")) t.push(["ARB hari ini","bad"]);
+    if(g.includes("valueTrap")) t.push(["Value trap","bad"]);
+    if(g.includes("bearishRegime")) t.push(["Rezim bearish","warn"]);
+  }
+  if(f.crash) t.push(["⚠ Turun tajam","warn"]);
+  if(f.suspect) t.push(["⚠ Data mencurigakan","warn"]);
+  if(f.mislead) t.push(["Data tak konsisten","warn"]);
+  if(f.illiquid) t.push(["Illikuid","warn"]);
+  if(f.commodity) t.push(["Komoditas","bandar"]);
+  if(s.pe!=null&&s.pe>0&&s.pe<10&&!f.commodity) t.push(["Murah","good"]);
+  if(s.pb!=null&&s.pb<1) t.push(["< PBV","good"]);
+  if(s.px>s.ma20&&s.ma20>s.ma50&&!f.crash) t.push(["Tren naik","trend"]);
+  if(s.ma50>s.ma200&&!f.crash) t.push(["Golden cross","trend"]);
+  if(s.accum>0.58) t.push(["Akumulasi","bandar"]);
+  if(s.volSpike>1.5) t.push(["Vol spike","bandar"]);
+  if(s.mfi!=null&&s.mfi>60&&s.mfi<85) t.push(["Uang masuk","bandar"]);
+  if(s.rsi!=null&&s.rsi>70) t.push(["Overbought","warn"]);
+  const TB = BENCH(s.market);
+  if(TB && TB.chg1d!=null && s.chg1d!=null){
+    const rel = s.chg1d - TB.chg1d;
+    if(rel > 3) t.push(["Kuat vs "+TB.label,"good"]);
+    else if(rel < -3) t.push(["Lemah vs "+TB.label,"warn"]);
+  }
+  if(s.score && s.score.rel>=9) t.push(["Unggul 1 bln vs "+TB.label,"good"]);
+  else if(s.score && s.score.rel<=0 && s.score.rel!=null) t.push(["Tertinggal 1 bln","warn"]);
+  if(s.fxConverted) t.push(["Laporan non-IDR","warn"]);
+  return t;
+}
+
+/* ---------- BEST BUY ---------- */
+const BB_MIN={IDX:80,US:90,CRYPTO:70};
+function bestBuy(s){
+  const min=BB_MIN[s.market]!=null?BB_MIN[s.market]:80;
+  const f=(s.score&&s.score.flags)||{}, cf=(s.ca&&s.ca.flags)||[];
+  const BM=BENCH(s.market);
+  const good=[],blocks=[],warns=[];
+  if(BM&&BM.bearish) blocks.push(`${BM.label} di bawah MA200 (rejim bearish)`);
+  else good.push(`${BM.label} di atas MA200 (rejim sehat)`);
+  if(s.market==="IDX"&&REGIME&&REGIME.ma50&&REGIME.px<REGIME.ma50) blocks.push("IHSG di bawah MA50");
+  if(s.score.total>=min) good.push(`Skor ${s.score.total} ≥ ambang ${min}`); else blocks.push(`Skor ${s.score.total} < ambang ${min}`);
+  const nearHigh = (s.high52&&s.high52>0)?s.px/s.high52:null;
+  if(nearHigh!=null && nearHigh>=0.94) good.push(`Dekat/cetak high 52 minggu (${(nearHigh*100).toFixed(0)}% dari puncak)`);
+  else blocks.push(nearHigh!=null?`Jauh dari high 52 minggu (${(nearHigh*100).toFixed(0)}% dari puncak, butuh ≥94%)`:"Data high 52 minggu tak ada");
+  const vs = (s.volSpike!=null)?s.volSpike:(s.score.bandar>=15?1.6:null);
+  const volOK = vs!=null && vs>=1.5;
+  if(volOK) good.push(`Volume ${vs.toFixed(1)}× rata-rata (≥1,5×) — konfirmasi masuk`);
+  else warns.push(vs!=null?`Volume ${vs.toFixed(1)}× (<1,5×) — tunggu lonjakan volume sebelum entry`:"Volume belum terkonfirmasi");
+  if(s.score.trend>=20) good.push("Tren kuat (≥20/28)"); else blocks.push("Tren lemah (<20/28)");
+  if(s.score.rel>=8) good.push(`Kekuatan relatif kuat vs ${BM.label} (≥8/12)`); else blocks.push("Kekuatan relatif lemah (<8/12)");
+  if(s.excluded) blocks.push("Dikecualikan screener");
+  if(f.crash) blocks.push("Sedang turun tajam");
+  if(f.suspect) blocks.push("Data harian mencurigakan");
+  if(f.illiquid) blocks.push("Likuiditas tipis");
+  if(cf.includes("valueTrap")) blocks.push("Terindikasi value trap");
+  if(cf.includes("arbToday")) blocks.push("ARB hari ini");
+  if(f.arbToday||(s.arb&&s.arb.isArb)) blocks.push("Menyentuh ARB");
+  if(cf.includes("dilusi_potensial")) blocks.push("Risiko dilusi");
+  if(cf.includes("reverse_split")) blocks.push("Reverse split");
+  if(cf.includes("gadai")) blocks.push("Gadai saham pengendali");
+  if(cf.includes("earnings_dekat")) blocks.push("Earnings ≤3 hari lagi");
+  if(cf.includes("waspada_bursa")||cf.includes("spekulatif")) blocks.push("Status bursa berisiko");
+  if(f.usRiskOff) blocks.push("Risk-off global");
+  if(s.rsi!=null&&s.rsi>72) warns.push(`RSI ${s.rsi.toFixed(0)} overbought — tunggu koreksi`);
+  if(s.mfi!=null&&s.mfi>85) warns.push(`MFI ${s.mfi.toFixed(0)} jenuh`);
+  return {ok:blocks.length===0&&volOK, ready:blocks.length===0, volOK, good, blocks, warns, min, bench:BM?BM.label:s.market};
+}
+
+/* ---------- target harga fundamental (banyak metode + median sektor) ---------- */
+function medianArr(a){ const b=(a||[]).filter(x=>x!=null&&isFinite(x)&&x>0).sort((x,y)=>x-y); if(!b.length) return null; const m=b.length>>1; return b.length%2?b[m]:(b[m-1]+b[m])/2; }
+let _secCache={};
+function sectorMedians(market){
+  if(_secCache[market]) return _secCache[market];
+  const by={}, allPe=[], allPb=[];
+  for(const s of DATA){
+    if(s.market!==market) continue;
+    const k=s.sector||"Lainnya"; const o=by[k]||(by[k]={pe:[],pb:[]});
+    if(s.pe!=null && s.pe>0 && s.pe<80){ o.pe.push(s.pe); allPe.push(s.pe); }
+    if(s.pb!=null && s.pb>0 && s.pb<15){ o.pb.push(s.pb); allPb.push(s.pb); }
+  }
+  const out={sectors:{}, all:{pe:medianArr(allPe), pb:medianArr(allPb)}};
+  for(const k in by) out.sectors[k]={pe:medianArr(by[k].pe), pb:medianArr(by[k].pb)};
+  _secCache[market]=out; return out;
+}
+function fundTargets(s){
+  if(s.market==="CRYPTO") return null;
+  const eps=(s.eps!=null&&s.eps>0)?s.eps:null, bv=(s.bvps!=null&&s.bvps>0)?s.bvps:null;
+  if(eps==null && bv==null) return null;
+  const px=s.px, clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
+  const sm=sectorMedians(s.market), sec=sm.sectors[s.sector||"Lainnya"]||{};
+  const secPE=(sec.pe!=null)?sec.pe:(sm.all.pe!=null?sm.all.pe:15);
+  const secPB=(sec.pb!=null)?sec.pb:(sm.all.pb!=null?sm.all.pb:1.5);
+  const g=(s.earnGrowth!=null)?s.earnGrowth:0, gPct=clamp(g*100,-20,40);
+  const peOwn=(s.pe!=null&&s.pe>0)?s.pe:null, peGrw=clamp(8+gPct,8,25);
+  const peMed=medianArr([peOwn,secPE,peGrw])||15;
+  const pbOwn=(s.pb!=null&&s.pb>0)?s.pb:null, pbRoe=(s.roe!=null&&s.roe>0)?clamp(s.roe/0.12,0.5,4):null;
+  const pbMed=medianArr([pbOwn,secPB,pbRoe])||1.5;
+  const M=[];
+  if(eps) M.push({name:`PER wajar ${peMed.toFixed(1)}× × EPS ${eps.toFixed(1)}`, val:eps*peMed});
+  if(bv) M.push({name:`PBV wajar ${pbMed.toFixed(2)}× × nilai buku ${bv.toFixed(1)}`, val:bv*pbMed});
+  if(eps&&bv) M.push({name:"Graham √(22,5 × EPS × BVPS)", val:Math.sqrt(22.5*eps*bv)});
+  const dy=normDiv(s.divYield);
+  if(dy!=null && dy>0) M.push({name:`Dividen: target imbal hasil 6% (yield kini ${dy.toFixed(1)}%)`, val:px*(dy/6)*(1+clamp(g,0,0.2))});
+  if(!M.length) return null;
+  M.forEach(m=>m.val=clamp(m.val, px*0.3, px*4));
+  const vals=M.map(m=>m.val);
+  const real=M.length>=2? vals.reduce((a,b)=>a+b,0)/vals.length : vals[0];
+  const pes=M.length>=2? Math.min.apply(null,vals) : real*0.85;
+  const opt=M.length>=2? Math.max.apply(null,vals) : real*1.20;
+  return {methods:M, real, pes, opt, peMed, pbMed, secPE, secPB, g, dy};
+}
+function fundTargetsHTML(s){
+  const t=fundTargets(s);
+  if(!t){
+    const why=s.market==="CRYPTO"?"kripto tidak punya laba/PER.":((s.eps!=null&&s.eps<=0)?"perusahaan sedang merugi (EPS negatif).":"data laba &amp; nilai buku tidak tersedia.");
+    return `<p style="font-size:.78rem;color:#8b96a8">Target fundamental tidak tersedia — ${why}</p>`;
+  }
+  const up=v=>(v/s.px-1)*100;
+  const card=(cls,label,v)=>`<div class="b ${cls}"><div class="k">${label}</div><div class="v">${CUR(s,v)}</div><div style="font-size:.62rem;color:${up(v)>=0?'#cdf15c':'#ff9b9b'};margin-top:2px">${(up(v)>=0?"+":"")+up(v).toFixed(0)}% vs harga</div></div>`;
+  return `<div class="lvl">${card("sl","Pesimistis",t.pes)}${card("en","Realistis",t.real)}${card("tp","Optimistis",t.opt)}</div>
+  <div class="kv">
+    <div class="it"><div class="k">Rentang wajar</div><div class="v" style="font-size:.8rem">${CUR(s,t.pes)} – ${CUR(s,t.opt)}</div></div>
+    <div class="it"><div class="k">Dasar penilaian</div><div class="v" style="font-size:.8rem">${t.methods.length} metode</div></div>
+  </div>
+  <ul>${t.methods.map(m=>`<li>${m.name} → <b>${CUR(s,m.val)}</b></li>`).join("")}</ul>
+  <ul>
+    <li><b>Median sektor ${s.sector||"—"}:</b> PER ${t.secPE.toFixed(1)}× ${s.pe!=null?`(saham ini ${s.pe.toFixed(1)}×)`:""} · PBV ${t.secPB.toFixed(2)}× ${s.pb!=null?`(saham ini ${s.pb.toFixed(2)}×)`:""}.</li>
+    <li><b>Kualitas:</b> ${s.roe!=null?`ROE ${(s.roe*100).toFixed(1)}%`:""}${s.margin!=null?` · marjin ${(s.margin*100).toFixed(1)}%`:""}${s.earnGrowth!=null?` · laba ${(s.earnGrowth*100).toFixed(0)}%`:""}${s.revGrowth!=null?` · omzet ${(s.revGrowth*100).toFixed(0)}%`:""}${t.dy!=null?` · dividen ${t.dy.toFixed(1)}%`:""}.</li>
+    <li><b>Skor fundamental (screener):</b> Valuasi ${s.score.val}${s.market!=="CRYPTO"?"/36":""} · Kualitas ${s.score.qual}${s.market!=="CRYPTO"?"/14":""}.</li>
+  </ul>
+  <p style="font-size:.7rem;color:#8b96a8;margin-top:6px">Realistis = rata-rata metode · Pesimistis = metode terendah · Optimistis = metode tertinggi. Ini skenario berbasis beberapa metode, bukan ramalan — laba &amp; asumsi bisa meleset.</p>`;
+}
+
+const list=document.getElementById("list");
+const qEl=document.getElementById("q");
+const cntEl=document.getElementById("cnt");
+const qxEl=document.getElementById("qx");
+const bbCntEl=document.getElementById("bbCnt");
+const bbToggleEl=document.getElementById("bbToggle");
+let curMkt="IDX", query="", bbOnly=false;
+const norm = x => String(x||"").toLowerCase();
+const matches = (s,t) => norm(s.ticker).includes(t) || norm(s.name).includes(t) || norm(s.sector).includes(t) || norm(s.symbol).includes(t);
+function renderList(m){
+  if(m) curMkt=m;
+  list.innerHTML="";
+  const t=norm(query.trim());
+  const bbAll=DATA.filter(x=>x.market===curMkt && (bestBuy(x).ok||bestBuy(x).ready)).length;
+  if(bbCntEl) bbCntEl.textContent = bbAll ? `${bbAll} kandidat BEST BUY / SIAP di tab ini` : "Belum ada kandidat BEST BUY di tab ini";
+  const items=DATA.map((s,gi)=>({s,gi})).filter(x=>x.s.market===curMkt && (!t || matches(x.s,t)) && (!bbOnly || bestBuy(x.s).ok || bestBuy(x.s).ready));
+  // hitung hasil di semua pasar (biar jalan walau beda tab)
+  const hits = t ? DATA.map((s,gi)=>({s,gi})).filter(x=>matches(x.s,t)) : [];
+  const inMkt = hits.filter(x=>x.s.market===curMkt).length;
+  const other = hits.filter(x=>x.s.market!==curMkt);
+  const tabNames={IDX:"Indo",US:"US",CRYPTO:"Crypto"};
+  if(t){
+    cntEl.innerHTML = hits.length
+      ? `${hits.length} hasil${inMkt&&other.length?` · ${inMkt} di tab ini, ${other.length} lainnya`:``}`
+      : "";
+  } else cntEl.innerHTML="";
+  if(!items.length){
+    if(!t){
+      list.innerHTML='<div class="nores">Belum ada data untuk pasar ini.</div>';
+    } else if(hits.length){
+      list.innerHTML=`<div class="nores">Tidak ada hasil di tab ${tabNames[curMkt]}. Tapi ada ${hits.length} di pasar lain:<br>${
+        other.map(x=>`<button data-gi="${x.gi}">${x.s.ticker} · ${(x.s.name||"").slice(0,22)} (${x.s.market})</button>`).join("")
+      }</div>`;
+    } else {
+      list.innerHTML=`<div class="nores">Tidak ditemukan: <b>${qEl.value.trim()}</b><br>Coba simbol lain atau kosongkan pencarian.</div>`;
+    }
+    return;
+  }
+  items.forEach(({s,gi})=>{
+    const c=document.createElement("div");
+    const bb=bestBuy(s);
+    c.className="card"+(s.excluded?" excluded":"")+(bb.ok?" isbb":bb.ready?" isbb2":"");
+    c.dataset.i=gi;
+    const chUp=(s.chg1d||0)>=0;
+    const mini = s.pe!=null
+      ? `PER ${s.pe.toFixed(1)} · PBV ${s.pb!=null?s.pb.toFixed(2):"—"} · RSI ${s.rsi!=null?s.rsi.toFixed(0):"—"}`
+      : `RSI ${s.rsi!=null?s.rsi.toFixed(0):"—"} · MFI ${s.mfi!=null?s.mfi.toFixed(0):"—"} · Akum ${s.accum!=null?(s.accum*100).toFixed(0)+"%":"—"}`;
+    c.innerHTML=`
+      <div class="row1">
+        <div class="rk">#${s.rank!=null?s.rank:gi+1}</div>
+        <div class="tk">${s.ticker}</div>
+        <div class="nm">${s.name||""}</div>
+        <div class="sc">${s.score.total}${s.excluded?" ⛔":""}</div>
+      </div>
+      <div class="row2">
+        <div class="px">${CUR(s,s.px)}</div>
+        <div class="chg ${chUp?"up":"down"}">${PCT(s.chg1d)}</div>
+        <div class="mini">${mini}</div>
+      </div>
+      <div class="tags">${bb.ok?'<span class="tag bb">⭐ BEST BUY</span>':bb.ready?'<span class="tag bb2">★ SIAP · tunggu volume</span>':""}${tags(s).map(([a,b])=>`<span class="tag ${b}">${a}</span>`).join("")}</div>
+      <div class="chev">›</div>`;
+    list.appendChild(c);
+  });
+}
+document.getElementById("mktTabs").addEventListener("click",e=>{
+  const b=e.target.closest("button"); if(!b) return;
+  document.querySelectorAll("#mktTabs button").forEach(x=>x.classList.toggle("active",x===b));
+  renderList(b.dataset.m);
+});
+bbToggleEl.addEventListener("click",()=>{
+  bbOnly=!bbOnly;
+  bbToggleEl.classList.toggle("active",bbOnly);
+  bbToggleEl.setAttribute("aria-pressed",bbOnly?"true":"false");
+  renderList();
+});
+
+/* ---------- render modal ---------- */
+const overlay=document.getElementById("overlay");
+const modal=document.getElementById("modal");
+function openModal(i){
+  const s=DATA[i], a=analyze(s);
+  const BM=BENCH(s.market);
+  const bb=bestBuy(s);
+  const bbFoot = `<div style="font-size:.7rem;color:#8b96a8;margin-top:8px">Ambang ${bb.bench}: skor ≥ ${bb.min} · dekat high 52 minggu (≥94% puncak) · volume ≥1,5× · tren ≥20/28 · relatif ≥8/12 · rejim sehat · tanpa flag merah.</div>`;
+  const bbHTML = bb.ok
+    ? `<div class="bbbox ok"><div class="bbt">⭐ BEST BUY — semua syarat terpenuhi</div><ul>${bb.good.map(g=>`<li>✓ ${g}</li>`).join("")}${bb.warns.map(w=>`<li style="color:#ffd08a">⚠ ${w}</li>`).join("")}</ul>${bbFoot}</div>`
+    : bb.ready
+    ? `<div class="bbbox ok"><div class="bbt">★ SIAP — tinggal konfirmasi volume</div><ul>${bb.good.map(g=>`<li>✓ ${g}</li>`).join("")}${bb.warns.map(w=>`<li style="color:#ffd08a">⚠ ${w}</li>`).join("")}</ul>${bbFoot}</div>`
+    : `<div class="bbbox no"><div class="bbt">Bukan BEST BUY</div><ul>${bb.blocks.map(b=>`<li class="blk">✕ ${b}</li>`).join("")}${bb.good.length?`<li style="color:#8ba487">Sudah terpenuhi: ${bb.good.join(" · ")}</li>`:""}</ul></div>`;
+  document.getElementById("mTk").textContent=s.ticker;
+  document.getElementById("mNm").textContent=(s.name||"")+" · "+(s.sector||(s.market==="CRYPTO"?"Kripto":s.market==="US"?"US":"IDX"));
+  document.getElementById("mPx").textContent=CUR(s,s.px);
+  const chUp=(s.chg1d||0)>=0;
+  document.getElementById("mChg").innerHTML=`<span class="${chUp?"up":"down"}">${chUp?"▲":"▼"} ${PCT(s.chg1d)} hari ini</span>`;
+  const body=document.getElementById("mBody");
+  body.innerHTML=`
+    <svg class="mchart" viewBox="0 0 320 130" preserveAspectRatio="none"></svg>
+    <div class="mrange"><span>${s.series[0].d}</span><span>1 tahun</span><span>${s.series[s.series.length-1].d}</span></div>
+
+    <div class="verdict">${a.verdict}</div>
+    ${bbHTML}
+
+    <div class="sec">
+      <h3><span class="ico">🎯</span> Ringkasan Skor</h3>
+      <div class="scoregrid">
+        ${[["Valuasi",s.score.val,s.market==="CRYPTO"?0:36],["Kualitas",s.score.qual,s.market==="CRYPTO"?0:14],["Tren",s.score.trend,28],["Momentum",s.score.mom,20],["Aliran Vol",s.score.bandar,26],["Relatif vs "+BM.label,s.score.rel,12]].map(([k,v,m])=>
+          m===0 ? `<div class="sbar"><div class="top"><span>${k}</span><b>n/a</b></div><div class="tr"><div class="fl" style="width:0%"></div></div></div>`
+                : `<div class="sbar"><div class="top"><span>${k}</span><b>${v}/${m}</b></div><div class="tr"><div class="fl" style="width:${Math.min(100,v/m*100)}%"></div></div></div>`).join("")}
+      </div>
+      <p style="font-size:.7rem;color:#8b96a8;margin-top:8px">Pembanding pasar untuk instrumen ini: <b>${BM.label}</b>${BM.px!=null?` (${ID(BM.px, BM.px>100?0:2)})`:""}${BM.chg1d!=null?` · hari ini ${PCT(BM.chg1d)}`:""}${BM.bearish?" · <span style=\"color:#ffb4b4\">bearish (di bawah MA200)</span>":" · netral/bullish"}.</p>
+      ${s.score.flags.bearishRegime?`<p style="font-size:.7rem;color:#ffb4b4;margin-top:8px">⚠️ Skor sudah dikali <b>0,85</b> karena ${BM.label} bearish (di bawah MA200) — saat pasar turun, sinyal beli memang lebih sering gagal.</p>`:""}
+      ${s.score.flags.usRiskOff?`<p style="font-size:.7rem;color:#ffb4b4;margin-top:8px">⚠️ Skor sudah dikali <b>0,90</b> karena kondisi risk-off global (S&amp;P di bawah MA200 / VIX &gt;30).</p>`:""}
+      ${s.score.flags.arbToday?`<p style="font-size:.7rem;color:#ffb4b4;margin-top:8px">⛔ Menyentuh <b>ARB hari ini</b> (−15 poin) — saham tidak bisa dijual dengan wajar; jangan buka posisi baru.</p>`:""}
+      ${s.score.flags.valueTrap?`<p style="font-size:.7rem;color:#ffb4b4;margin-top:8px">🪤 <b>Value trap</b>: PER murah tapi laba &amp; pendapatan menurun → valuasi dipangkas separuh.</p>`:""}
+    </div>
+
+    <div class="sec">
+      <h3><span class="ico">💰</span> ${s.market==="CRYPTO"?"Profil Aset":"Fundamental"}</h3>
+      <ul>${a.F.join("")||"<li>Data fundamental tidak tersedia.</li>"}</ul>
+    </div>
+
+    <div class="sec">
+      <h3><span class="ico">🎯</span> Target Harga Fundamental (3 skenario)</h3>
+      ${fundTargetsHTML(s)}
+    </div>
+
+    <div class="sec">
+      <h3><span class="ico">📈</span> Teknikal</h3>
+      <ul>${a.T.join("")||"<li>Data teknikal tidak tersedia.</li>"}</ul>
+    </div>
+
+    <div class="sec">
+      <h3><span class="ico">🐋</span> ${s.market==="CRYPTO"?"Analisa Aliran Dana":"Analisa Aliran Volume"} (heuristik volume)</h3>
+      <ul>${a.B.join("")}</ul>
+    </div>
+
+    <div class="sec">
+      <h3><span class="ico">🏛️</span> Aksi Korporasi &amp; Status Bursa</h3>
+      ${caHTML(s)}
+    </div>
+
+    <div class="sec">
+      <h3><span class="ico">📰</span> Berita Terbaru</h3>
+      ${newsHTML(s)}
+    </div>
+
+    <div class="sec">
+      <h3><span class="ico">🧭</span> Level & Skenario</h3>
+      <div class="lvl">
+        <div class="b sl"><div class="k">Stop Loss</div><div class="v">${CUR(s,a.sl)}</div></div>
+        <div class="b en"><div class="k">Area Entry</div><div class="v">${CUR(s,Math.min(s.ma20||s.px,s.px))}-${CUR(s,a.support1)}</div></div>
+        <div class="b tp"><div class="k">Target</div><div class="v">${CUR(s,a.res1)} / ${CUR(s,a.res2)}</div></div>
+      </div>
+      <p>${a.entryTxt}</p>
+      <div class="kv">
+        <div class="it"><div class="k">Support 1 / 2</div><div class="v">${CUR(s,a.support1)} / ${CUR(s,a.support2)}</div></div>
+        <div class="it"><div class="k">Resistance 1 / 2</div><div class="v">${CUR(s,a.res1)} / ${CUR(s,a.res2)}</div></div>
+        <div class="it"><div class="k">Risk/Reward (ke R1)</div><div class="v">1 : ${a.rr.toFixed(1)}</div></div>
+        <div class="it"><div class="k">${s.market==="CRYPTO"?"Kap. Pasar":"Dividen"}</div><div class="v">${s.market==="CRYPTO"?BIG(s,s.mcap):(a.dv!=null?a.dv.toFixed(2)+"%":"—")}</div></div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <h3><span class="ico">🚪</span> Rencana Exit (Exit Plan)</h3>
+      <div class="lvl">
+        <div class="b en"><div class="k">Entry acuan</div><div class="v">${CUR(s,a.exit.entry2)}</div></div>
+        <div class="b sl"><div class="k">Stop Loss</div><div class="v">${CUR(s,a.sl)}</div></div>
+        <div class="b tp"><div class="k">TP1</div><div class="v">${CUR(s,a.exit.tp1)}</div></div>
+      </div>
+      <div class="lvl">
+        <div class="b tp"><div class="k">TP2</div><div class="v">${CUR(s,a.exit.tp2)}</div></div>
+        <div class="b tp"><div class="k">TP3</div><div class="v">${CUR(s,a.exit.tp3)}</div></div>
+        <div class="b sl"><div class="k">Jarak SL</div><div class="v">${a.exit.slPct.toFixed(1)}%</div></div>
+      </div>
+      <ul>
+        <li><b>Keluar bertahap:</b> jual <b>50%</b> di TP1, <b>30%</b> di TP2, sisanya <b>20%</b> dibiarkan berjalan.</li>
+        <li><b>Trailing stop:</b> setelah TP1 kena, geser stop ke harga entry (breakeven), lalu naikkan bertahap mengikuti MA20/MA50.</li>
+        <li><b>Time stop:</b> jika <b>3–4 minggu</b> harga tidak menyentuh TP1 & momentum melemah → keluar.</li>
+        <li><b>Batal/invalidasi:</b> keluar bila close &lt; MA50 dengan volume besar, gagal breakout, atau akumulasi turun di bawah 45%.</li>
+        <li><b>Ukuran posisi:</b> contoh modal ${CUR(s,a.exit.portVal)}, risiko 1% (${CUR(s,a.exit.riskAmt)}), jarak SL ${a.exit.slPct.toFixed(1)}% → posisi maks ± <b>${CUR(s,a.exit.posSize)}</b>.</li>
+      </ul>
+    </div>
+
+    <div class="sec">
+      <h3><span class="ico">⚠️</span> Risiko</h3>
+      <ul>${a.RISK.map(r=>`<li>${r}</li>`).join("")}</ul>
+    </div>
+  `;
+  drawChart(body.querySelector(".mchart"), s.series);
+  overlay.classList.add("show");
+  modal.classList.add("show");
+  body.scrollTop=0;
+}
+function closeModal(){overlay.classList.remove("show");modal.classList.remove("show");}
+list.addEventListener("click",e=>{
+  const b=e.target.closest("button[data-gi]");
+  if(b){ openModal(+b.dataset.gi); return; }
+  const c=e.target.closest(".card"); if(c) openModal(+c.dataset.i);
+});
+/* pencarian: ketik → filter langsung; ✕ → bersihkan */
+let qT=null;
+qEl.addEventListener("input",()=>{
+  qxEl.hidden=!qEl.value;
+  clearTimeout(qT);
+  qT=setTimeout(()=>{ query=qEl.value; renderList(); },140);
+});
+qEl.addEventListener("keydown",e=>{ if(e.key==="Enter"){ clearTimeout(qT); query=qEl.value; renderList(); } });
+qxEl.addEventListener("click",()=>{ qEl.value=""; query=""; qxEl.hidden=true; renderList(); qEl.focus(); });
+document.getElementById("closeBtn").addEventListener("click",closeModal);
+overlay.addEventListener("click",closeModal);
+
+/* ---------- meta, banner regime & panduan ---------- */
+document.getElementById("genAt").textContent="Screener multi-pasar · "+new Date().toLocaleString("id-ID",{dateStyle:"full",timeStyle:"short"});
+const cnt = m => DATA.filter(x=>x.market===m).length;
+document.getElementById("foot").textContent=`IDX ${cnt("IDX")} · US ${cnt("US")} · Crypto ${cnt("CRYPTO")} — ${DATA.length} instrumen${DATA.filter(x=>x.excluded).length?` · ⛔ ${DATA.filter(x=>x.excluded).length} dikecualikan`:""}`;
+
+(function(){
+  const b=document.getElementById("regimeBar");
+  if(!REGIME){ b.innerHTML=""; return; }
+  b.className="regime "+(REGIME.bearish?"bear":"bull");
+  const d = REGIME.chg1d!=null ? ` · hari ini <b>${PCT(REGIME.chg1d)}</b>` : "";
+  let us="";
+  if(REGIME.us){
+    const u=REGIME.us;
+    const lab=u.riskOff?"🔴 RISK-OFF":u.riskOn?"🟢 RISK-ON":"⚪ netral";
+    us=`<br><b>${lab} (AS)</b> — S&amp;P ${u.spx!=null?Math.round(u.spx):"—"}${u.ma200?` vs MA200 ${Math.round(u.ma200)}`:""}${u.vix!=null?` · VIX ${u.vix.toFixed(1)}`:""}${u.tnx!=null?` · US10Y ${u.tnx.toFixed(2)}%`:""}${u.dxy!=null?` · DXY ${u.dxy.toFixed(1)}`:""}.${u.riskOff?"<br>Risk-off global menekan semua pasar (termasuk IHSG &amp; crypto) — kurangi eksposur / naikkan syarat skor.":""}`;
+  }
+  let sanity="";
+  if(REGIME.suspectIndex) sanity=`<br>⚠️ <b>Cek kesehatan data:</b> pergerakan IHSG hari ini TIDAK didukung oleh mayoritas saham (median ${(REGIME.breadth&&REGIME.breadth.medianChg!=null)?REGIME.breadth.medianChg.toFixed(1)+"%":"—"}). Kemungkinan gangguan data — verifikasi dulu sebelum mengambil keputusan.`;
+  else if(REGIME.crashConfirmed) sanity=`<br>✅ Koreksi hari ini <b>terkonfirmasi breadth</b> (median saham ${(REGIME.breadth&&REGIME.breadth.medianChg!=null)?REGIME.breadth.medianChg.toFixed(1)+"%":"—"}, ${REGIME.breadth&&REGIME.breadth.shareNearArb!=null?Math.round(REGIME.breadth.shareNearArb*100):0}% mendekati ARB) → koreksi nyata, bukan glitch data.`;
+  let cr="";
+  if(REGIME.bench && REGIME.bench.CRYPTO){
+    const c=REGIME.bench.CRYPTO;
+    cr=`<br><b>${c.bearish?"🐻 Crypto bearish":"🐂 Crypto netral/bullish"}</b> — BTC ${c.px!=null?Math.round(c.px).toLocaleString("en-US"):"—"}${c.chg1d!=null?` · hari ini ${PCT(c.chg1d)}`:""}${c.ma200?` vs MA200 ${Math.round(c.ma200).toLocaleString("en-US")} (di ${c.px<c.ma200?"bawah":"atas"})`:""}.`;
+  }
+  b.innerHTML=`<b>${REGIME.bearish?"🐻 Pasar BEARISH":"🐂 Pasar netral/bullish"}</b> — IHSG ${ID(REGIME.px)}${d}${REGIME.ma200?` · ${REGIME.px<REGIME.ma200?"di bawah":"di atas"} MA200 (${ID(REGIME.ma200)})`:""}${REGIME.ret6m!=null?` · 6 bln ${PCT(REGIME.ret6m)}`:""}.${REGIME.bearish?"<br>Saat IHSG di bawah MA200, sinyal beli individual lebih rawan gagal — perketat disiplin & kecilkan ukuran posisi (skor sudah otomatis dikali 0,85).":""}${sanity}${us}${cr}
+  <br><span style="font-size:.78em;color:#8b96a8">Pembanding tiap pasar: <b>IDX → IHSG</b> · <b>US → S&amp;P 500</b> · <b>Crypto → BTC</b> (dipakai otomatis di kartu &amp; modal masing-masing).</span>`;
+})();
+
+document.getElementById("guide").innerHTML=`
+  <h2>📘 Cara membaca &amp; manajemen risiko</h2>
+  <p>Skor tiap instrumen = <b>Valuasi (maks 36)</b> + <b>Kualitas (14)</b> + <b>Tren (28)</b> + <b>Momentum (20)</b> + <b>Aliran volume (26)</b> + <b>Kekuatan relatif vs indeks (12)</b> = maks 136. Skor tinggi = kondisi sedang "menarik secara terukur", <b>bukan</b> jaminan naik.</p>
+  <p><b>Yang berubah setelah audit data (Okt 2026):</b> (1) PBV/PER dihitung ulang dengan konversi mata uang laporan (USD→IDR) — sebelumnya PBV PGAS/ADRO/BYAN salah ribuan kali. (2) Label "komoditas" hanya untuk energi/material/perkebunan, bukan Consumer Defensive (MYOR/ICBP/UNVR/KO tidak lagi ikut). (3) Pertumbuhan laba/pendapatan &amp; ROE di-winsorize (−100%…+200%). (4) Valuasi kini <b>relatif median sektor</b>, bukan ambang absolut. (5) Ada gate <b>kualitas</b> (ROE, laba tumbuh, DER) + penangkap <b>value trap</b>. (6) Volume besar saat harga <b>turun</b> kini bernilai <b>negatif</b> (distribusi), bukan akumulasi. (7) Skor dikali pengali rezim (IHSG bearish ×0,85; risk-off global ×0,90). (8) Saham ARB hari ini didiskon −15 poin. (9) Crypto <b>tanpa</b> poin valuasi. (10) Sentimen berita pakai kata utuh + hanya judul yang menyebut emiten.</p>
+  <h3>🎯 Target harga fundamental (3 skenario)</h3>
+  <p>Di setiap kartu → modal, ada bagian <b>Target Harga Fundamental</b>: <b>Pesimistis / Realistis / Optimistis</b>. Dihitung dari <b>EPS diperkirakan × PER wajar</b> (+ cek nilai buku/PBV). Ini <b>skenario</b>, bukan ramalan — laba bisa meleset; selalu bandingkan dengan tren harga &amp; aliran volume.</p>
+  <h3>⭐ Cara memakai tombol BEST BUY</h3>
+  <p>Tombol <b>⭐ BEST BUY / SIAP</b> menyaring kandidat terbaik (badge juga tampil di kartunya): <b>⭐ BEST BUY</b> = semua syarat + konfirmasi volume ≥1,5×; <b>★ SIAP</b> = semua syarat kecuali volume (tunggu konfirmasi).</p>
+  <ul>
+    <li><b>Rejim pasar sehat</b> — pembanding pasar di atas MA200 (khusus IDX: IHSG juga harus di atas MA50).</li>
+    <li><b>Skor memadai</b> — IDX ≥ 80, US ≥ 90, Crypto ≥ 70.</li>
+    <li><b>Dekat/cetak high 52 minggu</b> (≥ 94% dari puncak) + <b>tren ≥ 20/28</b> + <b>kekuatan relatif ≥ 8/12</b>.</li>
+    <li><b>Konfirmasi volume ≥ 1,5×</b> rata-rata 20 hari → badge <b>⭐ BEST BUY</b>. Bila volume belum naik → badge <b>★ SIAP</b> (kandidat, tunggu lonjakan volume sebelum entry).</li>
+    <li><b>Tanpa bendera merah:</b> crash, ARB, data mencurigakan, likuiditas tipis, value trap, dilusi, reverse split, gadai, earnings ≤3 hari, risk-off global.</li>
+  </ul>
+  <p>Kalau sebuah instrumen <b>bukan</b> BEST BUY, buka kartunya — di sana tertera daftar <b>alasan gagal</b> (mis. "IHSG di bawah MA200"). Saat pasar bearish biasanya <b>nol</b> yang lolos — itu memang pesannya: tunggu rejim membaik. Syarat ini mengikuti hasil backtest: <b>breakout high 52 minggu + volume ≥1,5× + kekuatan relatif</b>, dengan filter rejim — bukan sekadar skor tinggi.</p>
+  <h3>Penyaring otomatis yang sudah dipasang</h3>
+  <ul>
+    <li><b>Crash penalty</b>: jika turun ≤ −7% sehari atau ≤ −15% sepekan, skor Tren &amp; Momentum dipaksa 0.</li>
+    <li><b>Data sanity</b>: lonjakan harian &gt;25% tanpa dukungan volume ditandai "Data mencurigakan".</li>
+    <li><b>Commodity flag</b>: energi/material/agri — PER rendah bisa berarti puncak siklus; bobot valuasi dipangkas.</li>
+    <li><b>Liquidity filter</b>: nilai transaksi &lt; Rp5 miliar/hari (IDX) dipotong skornya &amp; diberi tanda.</li>
+    <li><b>Market regime</b>: jika IHSG di bawah MA200, semua hasil dibaca dengan asumsi pasar bearish.</li>
+    <li><b>Batas ARB/ARA</b>: menandai saham yang menyentuh ARB; ARB 2 hari berturut-turut → dikecualikan 5 hari.</li>
+    <li><b>Aksi korporasi</b>: menilai buyback/tender/insider/dilusi/dll dari berita &amp; riwayat dividen-split.</li>
+  </ul>
+  <h3>Aturan ARB/ARA BEI (penting — berubah 2027)</h3>
+  <p>Harga minimum saham BEI turun dari Rp50 ke <b>Rp1</b> (28 Sep 2026). Batas auto reject:</p>
+  <table>
+    <tr><th>Harga</th><th>ARA</th><th>ARB s/d 31 Des 2026</th><th>ARB mulai 1 Jan 2027</th></tr>
+    <tr><td>Rp1–10</td><td>Rp1</td><td>Rp1</td><td>Rp1</td></tr>
+    <tr><td>Rp11–200</td><td>35%</td><td>15%</td><td>35%</td></tr>
+    <tr><td>Rp200–5.000</td><td>25%</td><td>15%</td><td>25%</td></tr>
+    <tr><td>&gt;Rp5.000</td><td>20%</td><td>15%</td><td>20%</td></tr>
+  </table>
+  <p style="margin-top:6px">Mulai 2027 saham bisa jatuh jauh lebih dalam dalam sehari. Screener menandai <b>"Sentuh ARB"</b>; <b>ARB 2 hari berturut-turut → dikecualikan selama 5 hari</b>. Contoh: PTBA −12,8% &amp; ERAA −14,6% adalah penurunan nyata yang hampir menyentuh ARB 15%.</p>
+  <p>Catatan: <b>short selling</b> mulai dibuka kembali (1 Okt 2026) untuk segelintir saham LQ45 — belum ada daftar resmi yang bisa ditarik otomatis, jadi screener tidak menandai <i>shortable</i>. Untuk saham ≤ Rp10, batas ARB/ARA memakai nominal Rp1 (bukan persen).</p>
+  <h3>Aksi korporasi (Keterbukaan Informasi / KI)</h3>
+  <p>Bobot skor (titik awal — <b>belum divalidasi backtest</b>): buyback <b>+5…+10</b> · tender offer/go private <b>+10</b> · insider beli 30 hari <b>+8</b> · private placement strategis <b>+5</b> · rights issue <b>−10</b> (−15 bila untuk bayar utang) · private placement biasa <b>−5</b> · reverse split <b>−10</b> · gadai saham pengendali <b>−10</b> · waran in-the-money <b>−5</b>.</p>
+  <p>Kata kunci yang dipantau: HMETD/rights issue · PMTHMETD/private placement · waran seri · pemecahan/penggabungan nilai nominal (split/reverse) · pembelian kembali saham (buyback) · pembagian dividen · penawaran tender/go private · perubahan pengendali/backdoor · laporan kepemilikan (insider) · gadai/penjaminan saham · panggilan RUPS/RUPSLB · PKPU/pailit/suspensi/UMA.</p>
+  <p><b>Wajib dikecualikan:</b> papan pemantauan khusus (FCA), notasi khusus (ekuitas negatif, laporan terlambat, opini audit disclaimer), UMA, suspensi, PKPU/pailit; serta emiten spekulatif (perubahan pengendali) dengan kapitalisasi di bawah Rp1 T. Catatan: halaman KI di idx.co.id tidak bisa diakses otomatis, jadi deteksi memakai kata kunci berita + riwayat dividen/split Yahoo → <b>verifikasi manual wajib</b>.</p>
+  <h3>Kalender yang perlu dipantau</h3>
+  <table>
+    <tr><th>Event</th><th>Waktu</th><th>Dampak</th></tr>
+    <tr><td>Laporan kuartal III</td><td>akhir Oktober</td><td>sedang–besar</td></tr>
+    <tr><td>Laporan tahunan</td><td>akhir Maret</td><td>rally dividen</td></tr>
+    <tr><td>Musim RUPS &amp; dividen</td><td>April–Juni</td><td>cum/ex date</td></tr>
+    <tr><td>Review MSCI</td><td>Feb, Mei, Agu, Nov</td><td>arus dana asing</td></tr>
+    <tr><td>Window dressing</td><td>Desember</td><td>big caps terdorong</td></tr>
+  </table>
+  <h3>Saham AS: tanpa ARA/ARB, earnings adalah raja</h3>
+  <p>Saham AS bisa ±50% sehari (terutama saat laporan laba). Rem otomatis: LULD (halt 5 menit per saham), circuit breaker S&amp;P 500 (−7%/−13% halt, −20% tutup sehari). Settlement T+1 (ex-date = record date). Earnings biasanya keluar di luar jam bursa → harga gap saat buka. Aturan $1 Nasdaq/NYSE: di bawah $1 selama 30 hari bursa → surat peringatan delisting (biasanya diikuti reverse split). Untuk investor Indonesia: risiko kurs USD/IDR + pajak dividen AS 30% (15% dengan W-8BEN).</p>
+  <p><b>"KI" versi AS = SEC EDGAR</b> (data.sec.gov, JSON gratis): 8-K kejadian material · 10-Q/10-K laporan · Form 4 insider · 13D/13G &gt;5% · 13F portofolio fund · S-3/424B shelf &amp; ATM · S-1 IPO · SC TO tender offer · DEF 14A proxy RUPS. Screener menarik filing 60 hari terakhir otomatis; usulan laporan semesteran (10-S, Mei 2026) masih usulan.</p>
+  <p><b>Earnings</b> (musim: 2–6 minggu pasca kuartal; sekarang musim Q3): yang paling menggerakkan = guidance &gt; revenue vs konsensus &gt; EPS vs konsensus &gt; marjin. Beat + guidance naik → drift 30–60 hari (PEAD). Revisi estimasi analis 30–90 hari. Jangan beli ≤3 hari sebelum earnings (risiko gap) — screener menandai <b>"Earnings dekat"</b> + tanggalnya.</p>
+  <p><b>Dilusi (negatif):</b> secondary/follow-on −8 · program ATM/shelf −10 (berita) atau −5 (filing 424B non-obligasi di EDGAR) · convertible notes −5 · lock-up expiry −5 · reverse split saham kecil −15 · SPAC = spekulatif. <b>Positif:</b> buyback +8 (&gt;2%/thn) · kenaikan dividen +5 · insider cluster buy +8 · masuk S&amp;P 500 +8 · aktivis 13D +5 · target akuisisi +10 (pengakuisisi −5). <b>Exclude:</b> Chapter 11, going concern, restatement, auditor mundur, peringatan delisting, harga &lt;$1, OTC/pink sheets.</p>
+  <p><b>Short &amp; opsi:</b> short interest &gt;20% + katalis = potensi squeeze, tanpa katalis = pasar melihat masalah; days to cover &gt;5 = tinggi. Opsi kedaluwarsa tiap Jumat ketiga (quad witching Mar/Jun/Sep/Des). VIX &gt;30 = panik (zona beli 6–12 bln historis), &lt;13 = terlalu tenang.</p>
+  <p><b>Faktor (bobot awal, belum divalidasi backtest):</b> momentum 12-1 30% · quality 25% · earnings+revisi 25% · value 10% · risiko 10%. Value lemah 15 tahun terakhir di AS — beda dengan IDX yang value + aliran asing lebih berperan.</p>
+  <h3>Crypto: 24/7, tanpa rem, siklus &amp; tokenomics</h3>
+  <p>Diperdagangkan 24/7 tanpa ARA/ARB/circuit breaker; −30% sehari bisa terjadi; likuiditas akhir pekan tipis. Indonesia: OJK mengawasi sejak 10 Jan 2025; pajak PMK 50/2025 (1 Agu 2025): PPN dihapus, PPh final 0,21% platform domestik berizin / 1% luar negeri — wajib masuk backtest. Hanya pakai platform berizin OJK.</p>
+  <p><b>Siklus Bitcoin</b> (halving ~4 thn; terakhir Apr 2024, berikut ~2028): puncak 12–18 bln pasca-halving, lalu bear −50–80%, dasar ~12 bln pasca-puncak. Sebagian analis melihat dasar sekitar Okt 2026 (dari puncak 6 Okt 2025) — pola, bukan hukum; ETF/institusi bisa mengubah siklus. Rotasi umum: BTC → ETH → large-cap → mid/small → memecoin (euforia memecoin ≈ dekat puncak). Narasi berumur 3–9 bulan.</p>
+  <p><b>Negatif setara dilusi:</b> token unlock besar −15 (tekanan mulai 1–4 minggu sebelumnya) · FDV &gt;3× market cap · airdrop dump · tag Monitoring Binance = exclude. <b>Positif:</b> listing bursa besar (jangan kejar &gt;+30%) · buyback &amp; burn +5 · persetujuan ETF +5 (sell-the-news sesudahnya) · upgrade besar. <b>Exclude:</b> hack, depeg stablecoin, kasus regulasi besar, ciri rug pull (holder top-10 &gt;50%, likuiditas tak dikunci, honeypot). Ukuran posisi: BTC/ETH ≤15%, altcoin ≤5% per koin.</p>
+  <p><b>Data pengganti "bandarmologi":</b> funding rate, open interest, likuidasi, arus ETF spot, suplai stablecoin, exchange netflow, MVRV/NUPL, Coinbase premium, dominasi BTC, Fear &amp; Greed. Screener menampilkan F&amp;G + dominasi + fase siklus + jarak dari high; funding/OI Binance belum bisa ditarik (geo-block) — cek manual.</p>
+  <h3>Kerangka gabungan 3 pasar</h3>
+  <p>1) <b>REGIME</b>: risk-on/off global (S&amp;P vs MA200, VIX, DXY, yield) + IHSG vs MA200. 2) <b>EXCLUDE</b>: buang status bahaya. 3) <b>SCORE</b> per pasar (bobot berbeda). 4) <b>EVENT</b>: KI / 8-K / Form 4 / unlock / earnings. 5) <b>NEWS</b>: sentimen 7 hari berbobot umur. 6) <b>SIZE</b>: alokasi + stop-loss/trailing. 7) <b>BACKTEST</b>: walk-forward 5 tahun — <b>sudah dijalankan</b>, lihat <a href="backtest-laporan.html">laporan backtest</a>.</p>
+  <p><b>Hasil backtest (jujur):</b> skor teknikal <b>tidak mengalahkan</b> beli merata (equal-weight) universe di IDX &amp; US, dan nyaris sama dengan pilihan acak di IDX. Yang terbukti berguna justru <b>filter rejim</b> (maxDrawdown IDX −41%→−22%, crypto −77%→−49%), <b>rebalance lambat (hold 8 mgg)</b>, dan <b>universe terseleksi</b>. Jadi perlakukan screener sebagai <b>penyaring kualitas &amp; penjaga disiplin</b>, bukan prediktor return. Valuasi &amp; kualitas belum teruji backtest (butuh data fundamental point-in-time).</p>
+  <table>
+    <tr><th>Pasar</th><th>Biaya wajib di backtest</th></tr>
+    <tr><td>IDX</td><td>~0,15% beli + ~0,25% jual (termasuk pajak jual 0,1%)</td></tr>
+    <tr><td>AS</td><td>komisi broker + spread kurs USD/IDR + pajak dividen 30%/15%</td></tr>
+    <tr><td>Crypto</td><td>fee bursa + PPh 0,21%/1% + slippage</td></tr>
+  </table>
+  <h3>Manajemen risiko (paling menentukan hasil akhir)</h3>
+  <ul>
+    <li>Maksimal <b>20% modal per saham</b>, maksimal <b>40% per sektor</b>.</li>
+    <li>Stop-loss <b>−8% s/d −10%</b> per posisi, atau keluar bila harga close di bawah <b>MA50</b>.</li>
+    <li>Kripto maksimal <b>10–20% portofolio</b>, porsi terbesar di BTC/ETH.</li>
+  </ul>
+  <h3>Realistis nggak target 30%/tahun?</h3>
+  <p>Simulasi Monte Carlo (200.000 skenario, asumsi kasar dari volatilitas historis — bukan data pasti):</p>
+  <table>
+    <tr><th>Aset</th><th>Peluang ≥ +30%</th><th>Peluang rugi besar</th></tr>
+    <tr><td>IHSG (indeks)</td><td>13%</td><td>9%</td></tr>
+    <tr><td>S&amp;P 500</td><td>13%</td><td>4%</td></tr>
+    <tr><td>Nasdaq 100</td><td>23%</td><td>10%</td></tr>
+    <tr><td>5 saham pilihan screener</td><td>26%</td><td>26%</td></tr>
+    <tr><td>Bitcoin</td><td>36%</td><td>33%</td></tr>
+    <tr><td>Altcoin</td><td>26%</td><td>56%</td></tr>
+    <tr><td>Campuran 50% US / 30% IDX / 20% BTC</td><td>18%</td><td>6%</td></tr>
+  </table>
+  <p style="margin-top:8px">Target 30%/tahun hanya realistis bila siap menerima risiko rugi 20%+ dengan peluang yang kurang lebih sama besar. <b>Target yang lebih sehat: 15–25%/tahun dengan drawdown maksimum di bawah 25%.</b> Screener bagus tidak menjamin 30% — gunanya menggeser peluang sedikit dan memotong kerugian besar lebih cepat.</p>
+  <p style="margin-top:8px"><b>Catatan kejujuran:</b> backtest resmi (3–5 tahun, LQ45+IDX80, walk-forward, bebas look-ahead/survivorship bias) <b>belum</b> dijalankan — jadi anggap skor ini belum terverifikasi secara historis. Alat bantu analisa, bukan jaminan untung dan bukan nasihat keuangan berlisensi.</p>
+`;
+renderList("IDX");
+</script>
+</body>
+</html>

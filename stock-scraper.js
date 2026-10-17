@@ -888,12 +888,12 @@ function finalizeScores(list, ctx) {
   const nExc = results.filter(r => r.excluded).length;
   console.log("   dikecualikan:", nExc, "instrumen");
 
-  fs.writeFileSync("/workspace/saham-screener.json", JSON.stringify({ generatedAt: new Date().toISOString(), regime, stocks: results }, null, 2));
+  fs.writeFileSync(__dirname + "/saham-screener.json", JSON.stringify({ generatedAt: new Date().toISOString(), regime, stocks: results }, null, 2));
 
   const cols = ["market","rank","ticker","name","sector","industry","cur","finCur","fxConverted","px","chg1d","ret1d","ret5d","ret12m","mom121","pe","pb","divYield","earnInDays","shortPct","daysToCover","turnover","floatPct","divYears","roe","debtToEquity","rsi","mfi","obv","accum","volSpike","ret1m","ret3m","offHigh","arb.limitPct","arb.isArb","arb.streak","flags.crash","flags.exdiv","flags.suspect","flags.mislead","flags.illiquid","flags.commodity","flags.arb","flags.arbToday","flags.valueTrap","flags.bearishRegime","excluded","ca.score","score.total","score.val","score.qual","score.trend","score.mom","score.bandar","score.rel"];
   const get = (r, p) => p.split(".").reduce((o, k) => (o ? o[k] : undefined), r);
   const lines = results.map(r => cols.map(c => { const v = get(r, c); return v == null ? "" : (typeof v === "number" ? Math.round(v * 10000) / 10000 : `"${String(v).replace(/"/g, "'")}"`); }).join(","));
-  fs.writeFileSync("/workspace/saham-screener.csv", [cols.join(","), ...lines].join("\n"));
+  fs.writeFileSync(__dirname + "/saham-screener.csv", [cols.join(","), ...lines].join("\n"));
 
   console.log("\n===== RINGKASAN =====");
   MKT.forEach(m => {
