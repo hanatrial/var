@@ -798,6 +798,51 @@ function fundTrendHTML(s){
   return `<div class="rbar">${chips}</div>${note}`;
 }
 
+/* ---------- saran masuk per saham (kapan & bagaimana) ---------- */
+function entryAdvice(s){
+  const BM=BENCH(s.market); const px=s.px;
+  const nearHigh=(s.high52&&s.high52>0)? px/s.high52 : null;
+  const vs=s.volSpike, rsi=s.rsi;
+  const flags=(s.score&&s.score.flags)||{};
+  const sup=[s.lo20,s.ma50,s.ma200].filter(x=>x!=null&&x<px).sort((a,b)=>b-a);
+  const support1=sup[0]||px*0.95;
+  const sl=support1*0.97;
+  const res1=(s.hi20&&s.hi20>px)? s.hi20 : px*1.03;
+  const red=s.excluded||flags.crash||flags.illiquid||flags.arbToday||(s.arb&&s.arb.isArb);
+  const earnSoon=s.earnInDays!=null&&s.earnInDays>=0&&s.earnInDays<=3;
+  let mode,label,cls,note,order,icon;
+  if(red){ mode="no"; icon="⛔"; label="HINDARI"; cls="bear"; note="Ada bendera merah (crash / ARB / illikuid / dikecualikan) — jangan buka posisi baru."; order="tidak masuk"; }
+  else if(BM&&BM.bearish){ mode="wait"; icon="🕒"; label="WAIT & SEE"; cls="warn"; note=BM.label+" di bawah MA200 (rejim bearish) — sinyal beli rawan gagal. Tunggu indeks kembali di atas MA200."; order="tunggu rejim"; }
+  else if(earnSoon){ mode="wait"; icon="📅"; label="TUNGGU (earnings "+s.earnInDays+" hari)"; cls="warn"; note="Risiko gap saat laporan laba — jangan masuk ≤3 hari sebelum earnings."; order="tunggu earnings"; }
+  else if(nearHigh!=null&&nearHigh>=0.94&&(vs==null||vs>=1.5)&&s.score.trend>=20){
+    if(rsi!=null&&rsi>72){ mode="pull"; icon="⏳"; label="TUNGGU PULLBACK"; cls="warn"; note="Sudah breakout + volume, tapi RSI overbought ("+rsi.toFixed(0)+"). Jangan kejar — tunggu koreksi ke MA20 "+CUR(s,s.ma20||support1)+"."; order="limit di MA20/support"; }
+    else { mode="haka"; icon="⚡"; label="HAKA — masuk open besok"; cls="ok"; note="Breakout + volume ≥1,5× + tren kuat + rejim sehat → bisa langsung di <b>open besok</b> (market / limit kecil)."; order="market/limit di open"; }
+  }
+  else if(nearHigh!=null&&nearHigh>=0.94){ mode="vol"; icon="🔊"; label="TUNGGU VOLUME"; cls="warn"; note="Sudah dekat high 52 minggu (tren siap) tapi volume belum ≥1,5× — pasang alert, masuk saat volume muncul."; order="stop-buy di atas "+CUR(s,res1); }
+  else { mode="brk"; icon="🚀"; label="TUNGGU BREAKOUT"; cls=""; note="Belum breakout — tunggu harga tembus <b>"+CUR(s,res1)+"</b> dengan volume ≥1,5× (jangan menebak arah)."; order="stop-buy di atas "+CUR(s,res1); }
+  return {mode,icon,label,cls,note,order,entry:(mode==="haka"?px:support1),trigger:res1,sl,tp:res1};
+}
+function entryAdviceHTML(s){
+  const e=entryAdvice(s);
+  const boxCls = e.cls==="ok"?"ok":(e.cls==="bear"?"no":"no");
+  let mk="";
+  if(s.market==="IDX") mk=`<span class="rchip sm warn"><i>🇮🇩</i>ARA/ARB: jangan kejar saat mendekati ARA; ARB tak bisa dijual</span>`;
+  else if(s.market==="US") mk=`<span class="rchip sm"><i>🇺🇸</i>tanpa ARA/ARB · hindari ≤3 hari earnings · pajak dividen 30%</span>`;
+  else mk=`<span class="rchip sm"><i>₿</i>24/7 tanpa ARA/ARB · likuiditas akhir pekan tipis</span>`;
+  return `<div class="sec">
+    <h3><span class="ico">🎯</span> Saran Masuk (per saham)</h3>
+    <div class="bbbox ${boxCls}" style="margin-top:6px"><div class="bbt">${e.icon} ${e.label}</div><div>${e.note}</div></div>
+    <div class="rbar" style="margin-top:8px">
+      <span class="rchip sm">Entry acuan <b>${CUR(s,e.entry)}</b></span>
+      <span class="rchip sm">Trigger <b>${CUR(s,e.trigger)}</b></span>
+      <span class="rchip sm bear">SL <b>${CUR(s,e.sl)}</b></span>
+      <span class="rchip sm ok">Target <b>${CUR(s,e.tp)}</b></span>
+      <span class="rchip sm">Order: ${e.order}</span>
+    </div>
+    <div class="rbar" style="margin-top:6px">${mk}</div>
+  </div>`;
+}
+
 const list=document.getElementById("list");
 const qEl=document.getElementById("q");
 const cntEl=document.getElementById("cnt");
@@ -930,6 +975,7 @@ function openModal(i){
 
     <div class="verdict">${a.verdict}</div>
     ${bbHTML}
+    ${entryAdviceHTML(s)}
 
     <div class="sec">
       <h3><span class="ico">🎯</span> Ringkasan Skor</h3>
