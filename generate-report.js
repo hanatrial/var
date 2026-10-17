@@ -19,5 +19,6 @@ const json = JSON.stringify(slim);
 const reg = JSON.stringify(regime || null);
 let html = tpl.replace("/*__DATA__*/", json);
 html = html.replace("/*__REGIME__*/", reg);
+html = html.replace("/*__GENERATED__*/", JSON.stringify(raw.generatedAt || null));
 fs.writeFileSync(__dirname + "/saham-laporan.html", html);
 console.log("Laporan interaktif dibuat: saham-laporan.html —", slim.length, "instrumen,", Math.round(html.length/1024), "KB");

@@ -4,6 +4,14 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
 <title>Screener &amp; Analisa — Saham Indo · US · Crypto</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0a1410">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Screener">
 <style>
   :root{--bg:#0a1410;--card:#132018;--card2:#16271c;--line:rgba(255,255,255,.08);--text:#eaf3e6;--muted:#8ba487;--lime:#cdf15c;--red:#ff6b6b;--blue:#6cc5ff;--purple:#c9a7ff;}
   *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -186,6 +194,7 @@
 <script>
 const DATA = /*__DATA__*/;
 const REGIME = /*__REGIME__*/;
+const GENERATED_AT = /*__GENERATED__*/;
 
 /* ---------- util ---------- */
 const ID = (x, d=0) => (x==null? "—" : Number(x).toLocaleString("id-ID",{minimumFractionDigits:d,maximumFractionDigits:d}));
@@ -843,7 +852,18 @@ document.getElementById("closeBtn").addEventListener("click",closeModal);
 overlay.addEventListener("click",closeModal);
 
 /* ---------- meta, banner regime & panduan ---------- */
-document.getElementById("genAt").textContent="Screener multi-pasar · "+new Date().toLocaleString("id-ID",{dateStyle:"full",timeStyle:"short"});
+(function(){
+  const el=document.getElementById("genAt"); if(!el) return;
+  let d=GENERATED_AT?new Date(GENERATED_AT):null;
+  if(!d || isNaN(d)){
+    el.innerHTML="Data per <b>waktu tidak tersedia</b> · update otomatis";
+    return;
+  }
+  const tgl=d.toLocaleString("id-ID",{dateStyle:"full",timeStyle:"short",timeZone:"Asia/Makassar"});
+  const umur=(Date.now()-d.getTime())/3600000;
+  const umurTxt = umur<0 ? "" : umur<1 ? " · baru saja" : " · "+(umur<48?umur.toFixed(0)+" jam lalu":(umur/24).toFixed(0)+" hari lalu");
+  el.innerHTML="Data per <b>"+tgl+" WITA</b>"+umurTxt+" · update otomatis";
+})();
 const cnt = m => DATA.filter(x=>x.market===m).length;
 document.getElementById("foot").textContent=`IDX ${cnt("IDX")} · US ${cnt("US")} · Crypto ${cnt("CRYPTO")} — ${DATA.length} instrumen${DATA.filter(x=>x.excluded).length?` · ⛔ ${DATA.filter(x=>x.excluded).length} dikecualikan`:""}`;
 
@@ -965,5 +985,6 @@ document.getElementById("guide").innerHTML=`
 `;
 renderList("IDX");
 </script>
+<script>if("serviceWorker" in navigator){navigator.serviceWorker.register("./sw.js").catch(function(){});}</script>
 </body>
 </html>
