@@ -1,10 +1,15 @@
-name: Update screener harian
+name: Update screener (uji tiap 10 menit)
 
 on:
   schedule:
-    # 10:00 UTC = 17:00 WIB, Senin–Jumat (data IDX sudah tutup)
-    - cron: "0 10 * * 1-5"
+    # 04:00–15:59 UTC = 12:00–23:59 WITA, Senin–Jumat, tiap 10 menit
+    - cron: "*/10 4-15 * * 1-5"
   workflow_dispatch: {}
+
+# hindari tumpukan run (yang baru menggantikan yang lama)
+concurrency:
+  group: update-screener
+  cancel-in-progress: true
 
 permissions:
   contents: write
@@ -12,6 +17,7 @@ permissions:
 jobs:
   update:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout (branch default, berisi skrip)
         uses: actions/checkout@v4
