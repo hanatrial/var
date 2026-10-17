@@ -10,7 +10,7 @@ const keep = ["ticker","symbol","market","cur","rank","name","sector","px","chg1
   "pe","fwdPe","pb","mcap","divYield","high52","low52","avgVol","turnover","floatPct","exDiv",
   "divYears","exDivDays","lastDiv","ipoBaru","reverseSplit","stockSplit","arb","ca","excluded",
   "ma20","ma50","ma200","rsi","mfi","obv","accum","volSpike","ret1m","ret3m","ret6m","ret12m","mom121","hi20","lo20","offHigh",
-  "earnDate","earnInDays","shortPct","daysToCover","edgar","fng","btcDom","cycle","ddHigh",
+  "earnDate","earnInDays","shortPct","daysToCover","edgar","fng","btcDom","cycle","ddHigh","fdv","maxSup","circSup","fdvMcap","athChg",
   "industry","finCur","fxConverted",
   "roe","margin","revGrowth","earnGrowth","debtToEquity","currentRatio","eps","bvps","score","series","seriesAll","splits","ipo","fundHist","volAnn","news"];
 const slim = stocks.map(r => Object.fromEntries(keep.filter(k => k in r).map(k => [k, r[k]])));

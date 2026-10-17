@@ -1031,41 +1031,29 @@ function openModal(i){
     </div>
 
     <div class="sec">
-      <h3><span class="ico">🧭</span> Level & Skenario</h3>
+      <h3><span class="ico">🧭</span> Level, Entry &amp; Exit</h3>
       <div class="lvl">
-        <div class="b sl"><div class="k">Stop Loss</div><div class="v">${CUR(s,a.sl)}</div></div>
-        <div class="b en"><div class="k">Area Entry</div><div class="v">${CUR(s,Math.min(s.ma20||s.px,s.px))}-${CUR(s,a.support1)}</div></div>
-        <div class="b tp"><div class="k">Target</div><div class="v">${CUR(s,a.res1)} / ${CUR(s,a.res2)}</div></div>
+        <div class="b en"><div class="k">Entry acuan</div><div class="v">${CUR(s,a.exit.entry2)}</div></div>
+        <div class="b sl"><div class="k">Stop Loss</div><div class="v">${CUR(s,a.sl)} (${a.exit.slPct.toFixed(1)}%)</div></div>
+        <div class="b tp"><div class="k">Target TP1 / TP2</div><div class="v">${CUR(s,a.exit.tp1)} / ${CUR(s,a.exit.tp2)}</div></div>
       </div>
       <p>${a.entryTxt}</p>
       <div class="kv">
+        <div class="it"><div class="k">Area entry (MA20–support)</div><div class="v">${CUR(s,Math.min(s.ma20||s.px,s.px))} – ${CUR(s,a.support1)}</div></div>
         <div class="it"><div class="k">Support 1 / 2</div><div class="v">${CUR(s,a.support1)} / ${CUR(s,a.support2)}</div></div>
         <div class="it"><div class="k">Resistance 1 / 2</div><div class="v">${CUR(s,a.res1)} / ${CUR(s,a.res2)}</div></div>
+        <div class="it"><div class="k">TP3</div><div class="v">${CUR(s,a.exit.tp3)}</div></div>
         <div class="it"><div class="k">Risk/Reward (ke R1)</div><div class="v">${a.rr!=null?("1 : "+a.rr.toFixed(1)):`<span title="Jarak SL tidak terdefinisi pada data ini">N/A</span>`}</div></div>
         <div class="it"><div class="k">${s.market==="CRYPTO"?"Kap. Pasar":"Dividen"}</div><div class="v">${s.market==="CRYPTO"?BIG(s,s.mcap):(a.dv!=null?a.dv.toFixed(2)+"%":"—")}</div></div>
       </div>
-    </div>
-
-    <div class="sec">
-      <h3><span class="ico">🚪</span> Rencana Exit (Exit Plan)</h3>
-      <div class="lvl">
-        <div class="b en"><div class="k">Entry acuan</div><div class="v">${CUR(s,a.exit.entry2)}</div></div>
-        <div class="b sl"><div class="k">Stop Loss</div><div class="v">${CUR(s,a.sl)}</div></div>
-        <div class="b tp"><div class="k">TP1</div><div class="v">${CUR(s,a.exit.tp1)}</div></div>
-      </div>
-      <div class="lvl">
-        <div class="b tp"><div class="k">TP2</div><div class="v">${CUR(s,a.exit.tp2)}</div></div>
-        <div class="b tp"><div class="k">TP3</div><div class="v">${CUR(s,a.exit.tp3)}</div></div>
-        <div class="b sl"><div class="k">Jarak SL</div><div class="v">${a.exit.slPct.toFixed(1)}%</div></div>
-      </div>
       <ul>
         <li><b>Keluar bertahap:</b> jual <b>50%</b> di TP1, <b>30%</b> di TP2, sisanya <b>20%</b> dibiarkan berjalan.</li>
-        <li><b>Trailing stop:</b> setelah TP1 kena, geser stop ke harga entry (breakeven), lalu naikkan bertahap mengikuti MA20/MA50.</li>
+        <li><b>Trailing stop:</b> setelah TP1 kena, geser stop ke harga entry (breakeven), lalu naikkan bertahap mengikuti MA20/MA50 atau trailing ATR 2,5×.</li>
         <li><b>Time stop:</b> jika <b>3–4 minggu</b> harga tidak menyentuh TP1 & momentum melemah → keluar.</li>
         <li><b>Batal/invalidasi:</b> keluar bila close &lt; MA50 dengan volume besar, gagal breakout, atau akumulasi turun di bawah 45%.</li>
-        <li><b>Dasar SL:</b> ${a.exit.slBasis}${a.exit.slClamped?` <b>(dibendung ke band ${SL_MIN_LBL}–${SL_MAX_LBL}%)</b>`:""} — ini bukan angka acak; bila dipangkas, alasannya disebut.</li>
-        <li><b>Ukuran via volatilitas (risk-parity):</b> vol tahunan <b>${s.volAnn!=null?s.volAnn.toFixed(0)+"%":"—"}</b>${s.volAnn!=null?` → agar tiap posisi menyumbang risiko ~2% portofolio, ukuran ≤ <b>${Math.min(20,Math.round(200/s.volAnn))}% modal</b> (dibandingkan 1 nama 20%: risiko jauh lebih kecil).`:""}</li>
-        <li><b>Ukuran posisi:</b> contoh modal ${CUR(s,a.exit.portVal)}, risiko 1% (${CUR(s,a.exit.riskAmt)}), jarak SL ${a.exit.slPct.toFixed(1)}% → posisi ± <b>${CUR(s,a.exit.posSize)}</b>${a.exit.posCapped?` <span style="color:var(--muted)">(sudah dipangkas ke batas konsentrasi ${(POS_CAP*100).toFixed(0)}% modal)</span>`:""}.</li>
+        <li><b>Dasar SL:</b> ${a.exit.slBasis}${a.exit.slClamped?` <b>(dibendung ke band ${SL_MIN_LBL}–${SL_MAX_LBL}%)</b>`:""} — bukan angka acak.</li>
+        <li><b>Ukuran via volatilitas (risk-parity):</b> vol tahunan <b>${s.volAnn!=null?s.volAnn.toFixed(0)+"%":"—"}</b>${s.volAnn!=null?` → ukuran ≤ <b>${Math.min(20,Math.round(200/s.volAnn))}% modal</b> agar tiap posisi menyumbang risiko ~2%.`:""}</li>
+        <li><b>Ukuran posisi:</b> modal ${CUR(s,a.exit.portVal)}, risiko 1% (${CUR(s,a.exit.riskAmt)}), SL ${a.exit.slPct.toFixed(1)}% → posisi ± <b>${CUR(s,a.exit.posSize)}</b>${a.exit.posCapped?` <span style="color:var(--muted)">(dipangkas ke batas ${(POS_CAP*100).toFixed(0)}% modal)</span>`:""}.</li>
       </ul>
       <div class="rbar" style="margin-top:10px">
         <span class="rchip sm ok"><i>🕒</i>beli di open besok</span>
@@ -1078,6 +1066,7 @@ function openModal(i){
         <span class="rchip sm"><i>⏳</i>minHold 5h · maks 4–12 mgg</span>
         <span class="rchip sm"><i>🐂</i>masuk saat IHSG&gt;MA50&amp;MA200</span>
         <span class="rchip sm"><i>💧</i>≥ Rp1 M/hari</span>
+        ${s.fdvMcap!=null?`<span class="rchip sm ${s.fdvMcap>1.5?"warn":""}"><i>💧</i>FDV/mcap ${s.fdvMcap.toFixed(2)}×</span>`:""}
       </div>
     </div>
 

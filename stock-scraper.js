@@ -467,6 +467,8 @@ function finalizeScores(list, ctx) {
       if (nvt != null) v += nvt < 25 ? 16 : nvt < 50 ? 11 : nvt < 100 ? 6 : 0;
       const dd = (s.high52 && s.px) ? (s.px / s.high52 - 1) * 100 : null;
       if (dd != null) v += dd <= -70 ? 14 : dd <= -50 ? 10 : dd <= -30 ? 6 : dd <= -15 ? 3 : 0;
+      if (s.fdvMcap != null) v -= s.fdvMcap > 2 ? 8 : s.fdvMcap > 1.5 ? 5 : s.fdvMcap > 1.2 ? 2 : 0;   // dilusi masa depan menekan valuasi
+      v = Math.max(0, v);
     }
     sc.val = Math.min(v, 36);
 
@@ -485,6 +487,7 @@ function finalizeScores(list, ctx) {
       q += vel != null ? (vel > 0.15 ? 6 : vel > 0.05 ? 4 : vel > 0.02 ? 2 : 0) : 0;
       q += s.mcap != null ? (s.mcap > 5e10 ? 4 : s.mcap > 1e10 ? 3 : s.mcap > 1e9 ? 2 : 1) : 0;
       if (s.ipo) { const yrs = (Date.now() - new Date(s.ipo).getTime()) / 31557600000; q += yrs >= 6 ? 4 : yrs >= 3 ? 3 : yrs >= 1.5 ? 2 : 1; }
+      if (s.fdvMcap != null) q += s.fdvMcap <= 1.1 ? 2 : s.fdvMcap <= 1.5 ? 1 : 0;   // tokenomics sehat (dilusi kecil)
     }
     sc.qual = Math.min(q, 14);
 
@@ -832,11 +835,27 @@ function finalizeScores(list, ctx) {
       if (j.data) btcDom = +j.data.market_cap_percentage.btc.toFixed(1);
     } catch (e) {}
     console.log("  F&G:", fng ? fng.v + " (" + fng.label + ")" : "-", "| dominasi BTC:", btcDom != null ? btcDom + "%" : "-", "| fase:", phase);
+    // FDV / dilusi dari CoinGecko (gratis, 1 request untuk semua koin)
+    let cg = null;
+    try {
+      const ids = { BTC:"bitcoin",ETH:"ethereum",SOL:"solana",BNB:"binancecoin",XRP:"ripple",ADA:"cardano",DOGE:"dogecoin",AVAX:"avalanche-2",DOT:"polkadot",LINK:"chainlink",LTC:"litecoin",TRX:"tron",BCH:"bitcoin-cash",XLM:"stellar",TON:"the-open-network",NEAR:"near",APT:"aptos",UNI:"uniswap",AAVE:"aave",HBAR:"hedera-hashgraph",SUI:"sui",ARB:"arbitrum",OP:"optimism",INJ:"injective-protocol" };
+      const j2 = await jget("https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=" + Object.values(ids).join(",") + "&per_page=250&page=1&sparkline=false");
+      if (Array.isArray(j2)) { cg = {}; j2.forEach(c => { cg[String(c.symbol || "").toUpperCase()] = c; }); console.log("  CoinGecko: " + j2.length + " koin (FDV/dilusi)"); }
+    } catch (e) { console.log("  CoinGecko gagal:", e.message); }
     results.forEach(s => {
       if (s.market !== "CRYPTO") return;
       s.fng = fng; s.btcDom = btcDom;
       s.cycle = { monthsHalving: Math.round(mHalv), phase };
       s.ddHigh = (s.high52 && s.px) ? (s.px / s.high52 - 1) * 100 : null;
+      const c = cg && cg[s.ticker];
+      if (c) {
+        const mcapCG = c.market_cap != null ? c.market_cap : s.mcap;
+        s.fdv = c.fully_diluted_valuation != null ? c.fully_diluted_valuation : null;
+        s.maxSup = c.max_supply != null ? c.max_supply : null;
+        s.circSup = c.circulating_supply != null ? c.circulating_supply : null;
+        s.fdvMcap = (s.fdv != null && mcapCG) ? s.fdv / mcapCG : null;
+        s.athChg = c.ath_change_percentage != null ? c.ath_change_percentage : null;
+      }
     });
   }
 
