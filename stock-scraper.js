@@ -460,8 +460,14 @@ function finalizeScores(list, ctx) {
         v += Math.round(base * stability);
       }
       if (sc.flags.commodity) v = Math.round(v * 0.5);
+    } else {
+      // VALUASI KRIPTO (proxy jaringan, maks 36): NVT = mcap / turnover harian USD + drawdown dari puncak 52 mg
+      const usdVol = (s.avgVol && s.px) ? s.avgVol * s.px : (s.turnover || null);
+      const nvt = (s.mcap && usdVol) ? s.mcap / usdVol : null;
+      if (nvt != null) v += nvt < 25 ? 16 : nvt < 50 ? 11 : nvt < 100 ? 6 : 0;
+      const dd = (s.high52 && s.px) ? (s.px / s.high52 - 1) * 100 : null;
+      if (dd != null) v += dd <= -70 ? 14 : dd <= -50 ? 10 : dd <= -30 ? 6 : dd <= -15 ? 3 : 0;
     }
-    // crypto: TANPA valuasi (tidak ada laba/buku) — skor murni teknikal + relatif vs BTC
     sc.val = Math.min(v, 36);
 
     // --- KUALITAS / ANTI VALUE TRAP (maks 14) ---
@@ -472,6 +478,13 @@ function finalizeScores(list, ctx) {
       q += s.debtToEquity != null ? (s.debtToEquity < 100 ? 4 : s.debtToEquity < 200 ? 2 : 0) : 0;
       const valueTrap = s.pe != null && s.pe < 12 && (s.earnGrowth ?? 0) < 0 && (s.revGrowth ?? 0) < 0;
       if (valueTrap) { sc.val = Math.round(sc.val * 0.5); sc.flags.valueTrap = true; }
+    } else {
+      // KUALITAS KRIPTO (proxy, maks 14): likuiditas (velocity) + ukuran mcap + umur token
+      const usdVol = (s.avgVol && s.px) ? s.avgVol * s.px : (s.turnover || null);
+      const vel = (s.mcap && usdVol) ? usdVol / s.mcap : null;
+      q += vel != null ? (vel > 0.15 ? 6 : vel > 0.05 ? 4 : vel > 0.02 ? 2 : 0) : 0;
+      q += s.mcap != null ? (s.mcap > 5e10 ? 4 : s.mcap > 1e10 ? 3 : s.mcap > 1e9 ? 2 : 1) : 0;
+      if (s.ipo) { const yrs = (Date.now() - new Date(s.ipo).getTime()) / 31557600000; q += yrs >= 6 ? 4 : yrs >= 3 ? 3 : yrs >= 1.5 ? 2 : 1; }
     }
     sc.qual = Math.min(q, 14);
 
