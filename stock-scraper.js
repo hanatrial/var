@@ -503,7 +503,7 @@ function finalizeScores(list, ctx) {
       const e = UNIVERSE[idx.i++];
       const q = qmap[e.symbol];
       try {
-        const full = await chartFull(e.symbol, e.market === "IDX" ? "5y" : "2y");
+        const full = await chartFull(e.symbol, "max");
         const rows = full ? full.rows : null;
         if (q && rows && rows.length > 60) {
           const closes = rows.map(r => r.c), highs = rows.map(r => r.h), lows = rows.map(r => r.l), vols = rows.map(r => r.v);
@@ -630,6 +630,14 @@ function finalizeScores(list, ctx) {
           for (let k = 0; k < dispRows.length; k += step) s.series.push({ d: new Date(dispRows[k].t * 1000).toISOString().slice(0, 10), c: Math.round(dispRows[k].c * 10000) / 10000, v: dispRows[k].v });
           const lastP = s.series[s.series.length - 1];
           if (!lastP || lastP.c !== Math.round(px * 10000) / 10000) s.series.push({ d: todayISO, c: Math.round(px * 10000) / 10000, v: volToday });
+          // seri sepanjang riwayat (bulanan) untuk grafik "Semua" + penanda stock split
+          const stepA = Math.max(1, Math.ceil(rows.length / 150));
+          s.seriesAll = [];
+          for (let k = 0; k < rows.length; k += stepA) s.seriesAll.push({ d: new Date(rows[k].t * 1000).toISOString().slice(0, 10), c: Math.round(rows[k].c * 10000) / 10000 });
+          const lastA = s.seriesAll[s.seriesAll.length - 1];
+          if (!lastA || lastA.c !== Math.round(px * 10000) / 10000) s.seriesAll.push({ d: todayISO, c: Math.round(px * 10000) / 10000 });
+          s.splits = (full.splits || []).slice(-12).map(x => ({ d: x.date, ratio: x.num + ":" + x.den }));
+          s.ipo = full.firstTrade || null;
 
           results.push(s);
         }

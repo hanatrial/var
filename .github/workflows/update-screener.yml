@@ -1,4 +1,4 @@
-name: Update screener (uji tiap 10 menit)
+name: Update screener (push ke GitHub Pages + Firebase)
 
 on:
   schedule:
@@ -6,7 +6,6 @@ on:
     - cron: "*/10 4-15 * * 1-5"
   workflow_dispatch: {}
 
-# hindari tumpukan run (yang baru menggantikan yang lama)
 concurrency:
   group: update-screener
   cancel-in-progress: true
@@ -45,5 +44,17 @@ jobs:
           else
             git commit -m "Auto-update screener ($(date -u +%Y-%m-%dT%H:%MZ))"
             git push
-            echo "Terbit."
+            echo "Terbit ke gh-pages."
           fi
+
+      - name: Deploy ke Firebase Hosting (multibagger-screener)
+        env:
+          FB_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        run: |
+          if [ -z "$FB_TOKEN" ]; then
+            echo "Lewati: secret FIREBASE_TOKEN belum diset."
+            exit 0
+          fi
+          mkdir -p web
+          cp saham-laporan.html web/saham-laporan.html
+          npx --yes firebase-tools@13 deploy --only hosting --project multibagger-screener --token "$FB_TOKEN"

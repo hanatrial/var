@@ -12,7 +12,7 @@ const keep = ["ticker","symbol","market","cur","rank","name","sector","px","chg1
   "ma20","ma50","ma200","rsi","mfi","obv","accum","volSpike","ret1m","ret3m","ret6m","ret12m","mom121","hi20","lo20","offHigh",
   "earnDate","earnInDays","shortPct","daysToCover","edgar","fng","btcDom","cycle","ddHigh",
   "industry","finCur","fxConverted",
-  "roe","margin","revGrowth","earnGrowth","debtToEquity","currentRatio","eps","bvps","score","series","news"];
+  "roe","margin","revGrowth","earnGrowth","debtToEquity","currentRatio","eps","bvps","score","series","seriesAll","splits","ipo","news"];
 const slim = stocks.map(r => Object.fromEntries(keep.filter(k => k in r).map(k => [k, r[k]])));
 
 const json = JSON.stringify(slim);
