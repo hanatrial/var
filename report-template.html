@@ -1021,6 +1021,16 @@ function openModal(i){
         <li><b>Ukuran via volatilitas (risk-parity):</b> vol tahunan <b>${s.volAnn!=null?s.volAnn.toFixed(0)+"%":"—"}</b>${s.volAnn!=null?` → agar tiap posisi menyumbang risiko ~2% portofolio, ukuran ≤ <b>${Math.min(20,Math.round(200/s.volAnn))}% modal</b> (dibandingkan 1 nama 20%: risiko jauh lebih kecil).`:""}</li>
         <li><b>Ukuran posisi:</b> contoh modal ${CUR(s,a.exit.portVal)}, risiko 1% (${CUR(s,a.exit.riskAmt)}), jarak SL ${a.exit.slPct.toFixed(1)}% → posisi ± <b>${CUR(s,a.exit.posSize)}</b>${a.exit.posCapped?` <span style="color:var(--muted)">(sudah dipangkas ke batas konsentrasi ${(POS_CAP*100).toFixed(0)}% modal)</span>`:""}.</li>
       </ul>
+      <div class="rbar" style="margin-top:10px">
+        <span class="rchip sm ok"><i>🕒</i>beli di open besok</span>
+        <span class="rchip sm warn"><i>🚫</i>gap &gt;4% dilewat</span>
+        <span class="rchip sm"><i>🔢</i>N=10 slot</span>
+        <span class="rchip sm"><i>⚖️</i>equal-weight</span>
+        <span class="rchip sm bear"><i>🛑</i>stop −10%</span>
+        <span class="rchip sm"><i>⏳</i>minHold 5h · maks 4–12 mgg</span>
+        <span class="rchip sm"><i>🐂</i>masuk saat IHSG&gt;MA50&amp;MA200</span>
+        <span class="rchip sm"><i>💧</i>≥ Rp1 M/hari</span>
+      </div>
     </div>
 
     <div class="sec">
