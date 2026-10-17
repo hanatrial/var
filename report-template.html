@@ -66,11 +66,14 @@
   .tag.trend{color:var(--blue);border-color:rgba(108,197,255,.3);background:rgba(108,197,255,.09)}
   .tag.bandar{color:var(--purple);border-color:rgba(201,167,255,.3);background:rgba(201,167,255,.09)}
   .tag.warn{color:var(--red);border-color:rgba(255,107,107,.3);background:rgba(255,107,107,.09)}
+  /* peringatan PALING berat — sengaja dibuat lebih menonjol daripada .tag.warn biasa,
+     agar "ARB hari ini" & "Value trap" tidak terlihat lebih sepele dari tag "Murah" */
+  .tag.bad{color:#ff6b6b;border-color:rgba(255,107,107,.6);background:rgba(255,107,107,.18);font-weight:800;letter-spacing:.02em}
   .tag.commod{color:#ffce6b;border-color:rgba(255,206,107,.3);background:rgba(255,206,107,.09)}
   .tag.bb{color:#0d1a08;border-color:#cdf15c;background:linear-gradient(135deg,#cdf15c,#a8e02f);font-weight:800;box-shadow:0 2px 10px rgba(205,241,92,.35)}
   .tag.bb2{color:#dff0c4;border-color:rgba(205,241,92,.45);background:rgba(205,241,92,.12);font-weight:800}
-  .card.isbb2{border-color:rgba(205,241,92,.32)}
   .card.isbb{border-color:rgba(205,241,92,.5);box-shadow:0 0 0 1px rgba(205,241,92,.18),0 8px 22px rgba(0,0,0,.28)}
+  .card.isbb2{border-color:rgba(205,241,92,.32)}
   .bbbar{display:flex;align-items:center;gap:10px;margin-bottom:12px}
   .bbbtn{font-family:inherit;font-weight:800;font-size:.76rem;padding:9px 14px;border-radius:11px;border:1px solid rgba(205,241,92,.4);background:rgba(205,241,92,.1);color:var(--lime);cursor:pointer;transition:all .18s ease}
   .bbbtn.active{background:linear-gradient(135deg,var(--lime),#a8e02f);color:#0d1a08;box-shadow:0 6px 16px rgba(205,241,92,.25)}
@@ -144,7 +147,6 @@
     <h1>🔬 Screener &amp; <span>Analisa Mendalam</span></h1>
     <div class="sub" id="genAt"></div>
     <div class="sub" style="margin-top:5px">📚 <a href="backtest-laporan.html" style="color:#cdea3f">Laporan Backtest (uji 5 tahun)</a></div>
-    <div class="sub" style="margin-top:5px">🧪 <a href="strategi-laporan.html" style="color:#cdea3f">Perbandingan Strategi (eksperimen CAGR 20%)</a></div>
   </header>
   <div class="notice">
     <b>⚠️ Bukan rekomendasi jual/beli.</b> Data otomatis dari Yahoo Finance (bisa delay/keliru).
@@ -200,6 +202,12 @@ const BIG = (s, x) => { if(x==null) return "—"; const v=Number(x);
   const b=v/1e9; return b>=1000? "$"+(b/1000).toFixed(2)+" T" : "$"+b.toFixed(1)+" M"; };
 const PCT = (x, d=2) => (x==null? "—" : (x>=0?"+":"")+Number(x).toFixed(d)+"%");
 const pctf = (x, d=1) => (x==null? "—" : (x*100).toFixed(d)+"%");
+/* Band jarak stop-loss (%) — SUMBER KEBENARAN TUNGGAL untuk hitung dan tampil,
+   supaya angka yang ditulis di panduan tidak pernah beda dengan angka yang dihitung. */
+const SL_BAND_MIN = 4, SL_BAND_MAX = 12;
+const SL_MIN_LBL = SL_BAND_MIN, SL_MAX_LBL = SL_BAND_MAX;
+/* Batas konsentrasi 1 nama (% modal) — dipakai bersama oleh rumus sizing DAN teks panduan. */
+const POS_CAP = 0.20;
 /* pembanding yang BENAR per pasar: IDX→IHSG, US→S&P 500, CRYPTO→BTC
    (sebelumnya semua pasar salah dibandingkan dengan IHSG) */
 const BENCH = (mkt) => {
@@ -304,12 +312,24 @@ function analyze(s){
   const support2 = supports[1] || support1*0.95;
   const res1 = s.hi20 && s.hi20>px ? s.hi20 : px*1.03;
   const res2 = s.high52 && s.high52>res1 ? s.high52 : res1*1.05;
-  const sl = support1*0.97;
+  // Stop-loss punya DASAR, bukan angka sembarang: 3% di bawah support terdekat
+  // (support ditembus → thesis batal). Jaraknya dibendung ke band 4%–12% agar
+  // konsisten dengan panduan risiko (−8% s/d −10%). Dua kasus ekstrem ditangani:
+  //   • support < 3% dari harga → stop terlalu rapat, sering kena noise, dan
+  //     rumus ukuran posisi (risiko tetap / jarak) akan menghasilkan posisi bengkak;
+  //   • support sangat jauh     → risiko per trade melebihi toleransi.
+  // Bila dibendung, batas band itulah yang dipakai DAN alasannya ditampilkan.
+  const SL_MIN = SL_BAND_MIN, SL_MAX = SL_BAND_MAX;             // persen — lihat konstanta global
+  let sl = support1*0.97;
+  let slBasis = "3% di bawah support terdekat";
+  let slClamped = false;
+  if (sl > px*(1 - SL_MIN/100)) { sl = px*(1 - SL_MIN/100); slBasis = `support hanya ${(100*(1-support1/px)).toFixed(1)}% di bawah harga → SL dibatasi ${SL_MIN}%`; slClamped = true; }
+  else if (sl < px*(1 - SL_MAX/100)) { sl = px*(1 - SL_MAX/100); slBasis = `support ${(100*(1-support1/px)).toFixed(1)}% di bawah harga → SL dibatasi ${SL_MAX}%`; slClamped = true; }
   let entryTxt;
   if(s.rsi!=null && s.rsi>72) entryTxt = `Harga sudah panas (RSI ${s.rsi.toFixed(0)}). Lebih baik <b>tunggu koreksi</b> ke area ${CUR(s,s.ma20||support1)} (MA20) atau ${CUR(s,support1)} sebelum masuk.`;
   else if(s.offHigh!=null && s.offHigh>-2) entryTxt = `Harga menempel resistance ${CUR(s,res1)}. <b>Entry saat breakout</b> di atas ${CUR(s,res1)} dengan volume besar, atau beli saat pullback ke ${CUR(s,s.ma20||support1)}.`;
   else entryTxt = `Bisa <b>entry bertahap</b> di area ${CUR(s,Math.min(s.ma20||px, px))}–${CUR(s,support1)} selama tren naik bertahan, atau saat breakout ${CUR(s,res1)}.`;
-  const rr = Math.max(0,(res1-px))/Math.max(1,(px-sl));
+  const rr = (px > 0 && (px - sl) > 0) ? Math.max(0, (res1 - px)) / (px - sl) : null;  // null = N/A (jangan render "1 : 0.0")
 
   // ===== Exit Plan =====
   const entryRef = (s.rsi!=null && s.rsi>72 && s.ma20) ? s.ma20 : px;
@@ -319,13 +339,20 @@ function analyze(s){
   const tp3 = res2*1.08;
   const slPct = ((entry2 - sl)/entry2)*100;
   const portVal = (s.cur==="IDR") ? 10000000 : 10000;
-  const riskAmt = portVal*0.01;
-  const posSize = riskAmt / Math.max(0.0001,(entry2 - sl)/entry2);
-  const exit = { entry2, entryRef, tp1, tp2, tp3, slPct, posSize, portVal, riskAmt };
+  const riskAmt = portVal*0.01;                  // risiko 1% dari modal per trade
+  const rawPos = riskAmt / Math.max(0.0001,(entry2 - sl)/entry2);
+  const MAXPOS = portVal*POS_CAP;                  // batas konsentrasi 1 nama (lihat konstanta global)
+  const posSize = Math.min(rawPos, MAXPOS);
+  const posCapped = rawPos > MAXPOS;
+  const exit = { entry2, entryRef, tp1, tp2, tp3, slPct, posSize, portVal, riskAmt, slBasis, slClamped, posCapped, sl, rr };
 
   // ===== Risiko =====
+  const a_slNote = slClamped
+    ? `ℹ️ <b>Dasar stop-loss:</b> ${slBasis} → jarak SL ${slPct.toFixed(1)}%. Catatan: stop ini berada <i>di atas</i> support, jadi bisa tertembus oleh noise sebelum thesis benar-benar batal.`
+    : `ℹ️ <b>Dasar stop-loss:</b> ${slBasis} → jarak SL ${slPct.toFixed(1)}% (di bawah support teknikal; bila ditembus → thesis batal).`;
   const RISK=[];
   const RF=(s.score&&s.score.flags)||{};
+  if(a_slNote) RISK.push(a_slNote);
   if(RF.crash) RISK.push("⚠️ <b>Sedang jatuh tajam</b> — tren &amp; momentum direset. Tunggu 2–3 hari tanpa low baru sebelum masuk.");
   if(RF.suspect) RISK.push("⚠️ <b>Data mencurigakan</b> (lonjakan &gt;25% tanpa volume) — verifikasi ke aplikasi sekuritas sebelum bertindak.");
   if(RF.commodity) RISK.push("Sektor komoditas: harga saham mengikuti harga komoditas, bukan PER. PER rendah bisa menyesatkan.");
@@ -648,6 +675,32 @@ bbToggleEl.addEventListener("click",()=>{
   renderList();
 });
 
+/* ---------- indikator kualitas data ----------
+   Sengaja PISAHAN dari skor: skor tinggi ≠ data bagus. Membantu pengguna membedakan
+   "fundamental jelek" dari "fundamental tidak terambil", dan "kalah relatif" dari
+   "benchmark tidak tersedia". */
+function dqHTML(s){
+  const d=s.dq;
+  if(!d) return `<p style="font-size:.78rem;color:var(--muted)">Ringkasan kualitas data tidak tersedia untuk instrumen ini (JSON dari sebelum indikator ini ditambahkan — jalankan ulang scraper).</p>`;
+  const col = d.score>=90?"var(--lime)":d.score>=70?"#ffce6b":"var(--red)";
+  const P = d.parts||{};
+  const lbl = { quote:"Harga &amp; volume", chart:"Riwayat chart tersemat", fund:"Data fundamental", bench:"Benchmark tersedia", liq:"Likuiditas terhitung", clean:"Tanpa flag data bermasalah" };
+  const rows = Object.keys(lbl).filter(k=>P[k]!==undefined).map(k=>{
+    const v=P[k];
+    const ic = v===null ? `<span style="color:var(--muted)">n/a</span>`
+             : v ? `✓ <span style="color:var(--lime)">ya</span>`
+                 : `✗ <span style="color:var(--red)">tidak</span>`;
+    return `<div class="it"><div class="k">${lbl[k]}</div><div class="v">${ic}</div></div>`;
+  }).join("");
+  const iss = (d.issues&&d.issues.length)
+    ? `<ul style="margin-top:8px">${d.issues.map(x=>`<li>${x}</li>`).join("")}</ul>`
+    : `<p style="margin-top:8px">Tidak ada masalah data terdeteksi.</p>`;
+  const upd = (REGIME && REGIME.generatedAt) ? new Date(REGIME.generatedAt).toLocaleString("id-ID") : "—";
+  return `<p style="font-size:.8rem"><b style="color:${col}">${d.score}/100</b> — angka ini menilai kualitas <b>datanya</b>, bukan kualitas sahamnya.</p>
+    <div class="kv">${rows}</div>${iss}
+    <p style="font-size:.66rem;color:var(--muted);margin-top:8px">Grafik menampilkan <b>${d.bars!=null?d.bars:"-"} titik</b> hasil <i>downsampling</i> ±1 tahun terakhir (Yahoo Finance) — sedangkan perhitungan skor memakai riwayat penuh 5 tahun. Diambil: <b>${upd}</b>. Yahoo adalah sumber sekunder, bukan bursa resmi — verifikasi ke IDX/Nasdaq/Binance sebelum transaksi.</p>`;
+}
+
 /* ---------- render modal ---------- */
 const overlay=document.getElementById("overlay");
 const modal=document.getElementById("modal");
@@ -729,7 +782,7 @@ function openModal(i){
       <div class="kv">
         <div class="it"><div class="k">Support 1 / 2</div><div class="v">${CUR(s,a.support1)} / ${CUR(s,a.support2)}</div></div>
         <div class="it"><div class="k">Resistance 1 / 2</div><div class="v">${CUR(s,a.res1)} / ${CUR(s,a.res2)}</div></div>
-        <div class="it"><div class="k">Risk/Reward (ke R1)</div><div class="v">1 : ${a.rr.toFixed(1)}</div></div>
+        <div class="it"><div class="k">Risk/Reward (ke R1)</div><div class="v">${a.rr!=null?("1 : "+a.rr.toFixed(1)):`<span title="Jarak SL tidak terdefinisi pada data ini">N/A</span>`}</div></div>
         <div class="it"><div class="k">${s.market==="CRYPTO"?"Kap. Pasar":"Dividen"}</div><div class="v">${s.market==="CRYPTO"?BIG(s,s.mcap):(a.dv!=null?a.dv.toFixed(2)+"%":"—")}</div></div>
       </div>
     </div>
@@ -751,13 +804,19 @@ function openModal(i){
         <li><b>Trailing stop:</b> setelah TP1 kena, geser stop ke harga entry (breakeven), lalu naikkan bertahap mengikuti MA20/MA50.</li>
         <li><b>Time stop:</b> jika <b>3–4 minggu</b> harga tidak menyentuh TP1 & momentum melemah → keluar.</li>
         <li><b>Batal/invalidasi:</b> keluar bila close &lt; MA50 dengan volume besar, gagal breakout, atau akumulasi turun di bawah 45%.</li>
-        <li><b>Ukuran posisi:</b> contoh modal ${CUR(s,a.exit.portVal)}, risiko 1% (${CUR(s,a.exit.riskAmt)}), jarak SL ${a.exit.slPct.toFixed(1)}% → posisi maks ± <b>${CUR(s,a.exit.posSize)}</b>.</li>
+        <li><b>Dasar SL:</b> ${a.exit.slBasis}${a.exit.slClamped?` <b>(dibendung ke band ${SL_MIN_LBL}–${SL_MAX_LBL}%)</b>`:""} — ini bukan angka acak; bila dipangkas, alasannya disebut.</li>
+        <li><b>Ukuran posisi:</b> contoh modal ${CUR(s,a.exit.portVal)}, risiko 1% (${CUR(s,a.exit.riskAmt)}), jarak SL ${a.exit.slPct.toFixed(1)}% → posisi ± <b>${CUR(s,a.exit.posSize)}</b>${a.exit.posCapped?` <span style="color:var(--muted)">(sudah dipangkas ke batas konsentrasi ${(POS_CAP*100).toFixed(0)}% modal — tanpa pembatas, rumus risiko 1% menghasilkan ${CUR(s,a.exit.portVal*0.01/Math.max(0.0001,a.exit.slPct/100))}, terlalu terkonsentrasi untuk 1 nama)</span>`:""}.</li>
       </ul>
     </div>
 
     <div class="sec">
       <h3><span class="ico">⚠️</span> Risiko</h3>
       <ul>${a.RISK.map(r=>`<li>${r}</li>`).join("")}</ul>
+    </div>
+
+    <div class="sec">
+      <h3><span class="ico">🗄️</span> Kualitas Data &amp; Sumber</h3>
+      ${dqHTML(s)}
     </div>
   `;
   drawChart(body.querySelector(".mchart"), s.series);
@@ -814,10 +873,11 @@ document.getElementById("foot").textContent=`IDX ${cnt("IDX")} · US ${cnt("US")
 document.getElementById("guide").innerHTML=`
   <h2>📘 Cara membaca &amp; manajemen risiko</h2>
   <p>Skor tiap instrumen = <b>Valuasi (maks 36)</b> + <b>Kualitas (14)</b> + <b>Tren (28)</b> + <b>Momentum (20)</b> + <b>Aliran volume (26)</b> + <b>Kekuatan relatif vs indeks (12)</b> = maks 136. Skor tinggi = kondisi sedang "menarik secara terukur", <b>bukan</b> jaminan naik.</p>
-  <p><b>Yang berubah setelah audit data (Okt 2026):</b> (1) PBV/PER dihitung ulang dengan konversi mata uang laporan (USD→IDR) — sebelumnya PBV PGAS/ADRO/BYAN salah ribuan kali. (2) Label "komoditas" hanya untuk energi/material/perkebunan, bukan Consumer Defensive (MYOR/ICBP/UNVR/KO tidak lagi ikut). (3) Pertumbuhan laba/pendapatan &amp; ROE di-winsorize (−100%…+200%). (4) Valuasi kini <b>relatif median sektor</b>, bukan ambang absolut. (5) Ada gate <b>kualitas</b> (ROE, laba tumbuh, DER) + penangkap <b>value trap</b>. (6) Volume besar saat harga <b>turun</b> kini bernilai <b>negatif</b> (distribusi), bukan akumulasi. (7) Skor dikali pengali rezim (IHSG bearish ×0,85; risk-off global ×0,90). (8) Saham ARB hari ini didiskon −15 poin. (9) Crypto <b>tanpa</b> poin valuasi. (10) Sentimen berita pakai kata utuh + hanya judul yang menyebut emiten.</p>
+  <p><b>Yang berubah setelah audit data &amp; metode (Okt 2026):</b> (1) PBV/PER dihitung ulang dengan konversi mata uang laporan (USD→IDR) — sebelumnya PBV PGAS/ADRO/BYAN salah ribuan kali. (2) Label "komoditas" hanya untuk energi/material/perkebunan, bukan Consumer Defensive. (3) Pertumbuhan laba/pendapatan &amp; ROE di-winsorize (−100%…+200%). (4) Valuasi kini <b>relatif median sektor</b>, bukan ambang absolut. (5) Ada gate <b>kualitas</b> (ROE, laba tumbuh, DER) + penangkap <b>value trap</b>. (6) Volume besar saat harga <b>turun</b> kini bernilai <b>negatif</b> (distribusi), bukan akumulasi. (7) Skor dikali pengali rezim. (8) Saham ARB didiskon −15 poin. (9) Crypto <b>tanpa</b> poin valuasi. (10) Sentimen berita pakai kata utuh + hanya judul yang menyebut emiten. (11) <b>Return historis memakai <i>adjusted close</i></b> (dividen &amp; split masuk) — sebelumnya tanggal ex-dividend dihitung sebagai penurunan harga dan bisa memicu reset skor secara keliru. (12) <b>Aturan ARA/ARB BEI hanya berlaku untuk saham IDX</b> — sebelumnya ikut menimpa saham AS &amp; crypto dengan satuan Rupiah. (13) <b>Bug ARB beruntun diperbaiki:</b> saat pasar tutup, 1 hari ARB sempat terbaca "2 hari berturut-turut" sehingga <b>47 saham IDX salah dieksklusi</b> (termasuk BBCA, BBRI, BMRI, TLKM, PGAS, ANTM). (14) Blok kata kunci aksi korporasi Indonesia dipisahkan dari blok AS/crypto (dulu berita buyback AS sempat mendapat +16 dobel). (15) Kata "insider" tanpa arah beli/jual tidak lagi memberi +8 — dulu berita <i>penjualan</i> insider justru menaikkan skor. (16) Setiap instrumen kini punya <b>indikator kualitas data</b> di bagian bawah analisis mendalam. (17) Riwayat saham AS/crypto kini 5 tahun (sebelumnya 2 tahun, sehingga poin konsistensi dividen tidak adil dibanding IDX).</p>
+  <p><b>Keterbatasan yang masih disadari (belum diperbaiki):</b> komponen <b>Aliran Volume (26 poin)</b> menghitung OBV, MFI, dan rasio akumulasi — tiga ukuran yang sebenarnya berasal dari fenomena serupa (volume × arah harga). Bisa jadi 20-an poin datang dari satu sinyal yang sama, sehingga ranking sangat mirip dengan "saham yang baru naik". Selain itu, <b>indikator volume hanya menunjukkan tekanan beli/jual</b> — screener <b>tidak punya data siapa</b> yang bertransaksi, jadi label "akumulasi institusi" atau "bandar" tidak bisa dibuktikan dari data ini dan sengaja tidak dipakai.</p>
   <h3>🎯 Target harga fundamental (3 skenario)</h3>
-  <p>Di setiap kartu → modal, ada bagian <b>Target Harga Fundamental</b>: <b>Pesimistis / Realistis / Optimistis</b>. Dihitung dari <b>EPS diperkirakan × PER wajar</b> (+ cek nilai buku/PBV). Ini <b>skenario</b>, bukan ramalan — laba bisa meleset; selalu bandingkan dengan tren harga &amp; aliran volume.</p>
-  <h3>⭐ Cara memakai tombol BEST BUY</h3>
+  <p>Di setiap kartu → modal, ada bagian <b>Target Harga Fundamental</b>: <b>Pesimistis / Realistis / Optimistis</b>, dihitung dari <b>4 metode</b> (PER wajar × EPS, PBV wajar × nilai buku, Graham √(22,5×EPS×BVPS), dan dividen) plus acuan <b>median sektor</b>. Ini <b>skenario</b>, bukan ramalan.</p>
+  <h3>⭐ Cara memakai tombol BEST BUY / SIAP</h3>
   <p>Tombol <b>⭐ BEST BUY / SIAP</b> menyaring kandidat terbaik (badge juga tampil di kartunya): <b>⭐ BEST BUY</b> = semua syarat + konfirmasi volume ≥1,5×; <b>★ SIAP</b> = semua syarat kecuali volume (tunggu konfirmasi).</p>
   <ul>
     <li><b>Rejim pasar sehat</b> — pembanding pasar di atas MA200 (khusus IDX: IHSG juga harus di atas MA50).</li>
@@ -826,7 +886,7 @@ document.getElementById("guide").innerHTML=`
     <li><b>Konfirmasi volume ≥ 1,5×</b> rata-rata 20 hari → badge <b>⭐ BEST BUY</b>. Bila volume belum naik → badge <b>★ SIAP</b> (kandidat, tunggu lonjakan volume sebelum entry).</li>
     <li><b>Tanpa bendera merah:</b> crash, ARB, data mencurigakan, likuiditas tipis, value trap, dilusi, reverse split, gadai, earnings ≤3 hari, risk-off global.</li>
   </ul>
-  <p>Kalau sebuah instrumen <b>bukan</b> BEST BUY, buka kartunya — di sana tertera daftar <b>alasan gagal</b> (mis. "IHSG di bawah MA200"). Saat pasar bearish biasanya <b>nol</b> yang lolos — itu memang pesannya: tunggu rejim membaik. Syarat ini mengikuti hasil backtest: <b>breakout high 52 minggu + volume ≥1,5× + kekuatan relatif</b>, dengan filter rejim — bukan sekadar skor tinggi.</p>
+  <p>Kalau sebuah instrumen <b>bukan</b> BEST BUY, buka kartunya — di sana tertera daftar <b>alasan gagal</b> (mis. "IHSG di bawah MA200"). Saat pasar bearish biasanya <b>nol</b> yang lolos. Syarat ini mengikuti hasil backtest: <b>breakout high 52 minggu + volume ≥1,5× + kekuatan relatif</b>, dengan filter rejim — bukan sekadar skor tinggi.</p>
   <h3>Penyaring otomatis yang sudah dipasang</h3>
   <ul>
     <li><b>Crash penalty</b>: jika turun ≤ −7% sehari atau ≤ −15% sepekan, skor Tren &amp; Momentum dipaksa 0.</li>
@@ -875,7 +935,7 @@ document.getElementById("guide").innerHTML=`
   <p><b>Data pengganti "bandarmologi":</b> funding rate, open interest, likuidasi, arus ETF spot, suplai stablecoin, exchange netflow, MVRV/NUPL, Coinbase premium, dominasi BTC, Fear &amp; Greed. Screener menampilkan F&amp;G + dominasi + fase siklus + jarak dari high; funding/OI Binance belum bisa ditarik (geo-block) — cek manual.</p>
   <h3>Kerangka gabungan 3 pasar</h3>
   <p>1) <b>REGIME</b>: risk-on/off global (S&amp;P vs MA200, VIX, DXY, yield) + IHSG vs MA200. 2) <b>EXCLUDE</b>: buang status bahaya. 3) <b>SCORE</b> per pasar (bobot berbeda). 4) <b>EVENT</b>: KI / 8-K / Form 4 / unlock / earnings. 5) <b>NEWS</b>: sentimen 7 hari berbobot umur. 6) <b>SIZE</b>: alokasi + stop-loss/trailing. 7) <b>BACKTEST</b>: walk-forward 5 tahun — <b>sudah dijalankan</b>, lihat <a href="backtest-laporan.html">laporan backtest</a>.</p>
-  <p><b>Hasil backtest (jujur):</b> skor teknikal <b>tidak mengalahkan</b> beli merata (equal-weight) universe di IDX &amp; US, dan nyaris sama dengan pilihan acak di IDX. Yang terbukti berguna justru <b>filter rejim</b> (maxDrawdown IDX −41%→−22%, crypto −77%→−49%), <b>rebalance lambat (hold 8 mgg)</b>, dan <b>universe terseleksi</b>. Jadi perlakukan screener sebagai <b>penyaring kualitas &amp; penjaga disiplin</b>, bukan prediktor return. Valuasi &amp; kualitas belum teruji backtest (butuh data fundamental point-in-time).</p>
+  <p><b>Hasil backtest (jujur · 5 tahun · walk-forward · biaya 0,4% round-trip · filter likuiditas · eksekusi sinyal H-1 → transaksi H):</b> setelah perbaikan metodologi, skor teknikal <b>unggul tipis</b> atas beli merata (equal-weight) universe — IDX Top-5/4mgg <b>+5,6%</b> vs EW −0,5% vs IHSG −4,9%; AS Top-10/8mgg <b>+23,5%</b> vs EW +21,8% vs S&amp;P +11,3%; crypto regime+inv-vol <b>+19,1%</b> vs EW +7,8% vs BTC +5,8%. <b>Tapi baca tiga caveat ini:</b> (a) angka itu konfigurasi terbaik dari 12 yang diuji pada jendela yang sama dan <b>belum dikoreksi untuk multiple-testing</b>; (b) bila slippage dinaikkan ke 1% round-trip, IDX jatuh ke +2,1% dan AS ke +4,3%; (c) di crypto, varian utama <b>gagal di out-of-sample</b> (in-sample 3,5th +17,9% → out-of-sample 1,5th −18,0%). Fitur yang paling konsisten berguna tetap <b>filter rejim</b> (maxDD IDX −32,9%→−15,8%; probabilitas ruin Monte Carlo 56%→15%). Valuasi &amp; kualitas (50 dari 136 poin) <b>belum teruji backtest</b> karena butuh data fundamental point-in-time.</p>
   <table>
     <tr><th>Pasar</th><th>Biaya wajib di backtest</th></tr>
     <tr><td>IDX</td><td>~0,15% beli + ~0,25% jual (termasuk pajak jual 0,1%)</td></tr>
@@ -885,7 +945,7 @@ document.getElementById("guide").innerHTML=`
   <h3>Manajemen risiko (paling menentukan hasil akhir)</h3>
   <ul>
     <li>Maksimal <b>20% modal per saham</b>, maksimal <b>40% per sektor</b>.</li>
-    <li>Stop-loss <b>−8% s/d −10%</b> per posisi, atau keluar bila harga close di bawah <b>MA50</b>.</li>
+    <li>Stop-loss <b>3% di bawah support terdekat</b> (support ditembus = thesis batal), dibendung ke band <b>${SL_BAND_MIN}%–${SL_BAND_MAX}%</b> dari harga entry; atau keluar bila harga close di bawah <b>MA50</b>. Bila batas band yang menentukan, alasannya disebut di tiap kartu — stop bukan angka acak.</li>
     <li>Kripto maksimal <b>10–20% portofolio</b>, porsi terbesar di BTC/ETH.</li>
   </ul>
   <h3>Realistis nggak target 30%/tahun?</h3>
@@ -901,7 +961,7 @@ document.getElementById("guide").innerHTML=`
     <tr><td>Campuran 50% US / 30% IDX / 20% BTC</td><td>18%</td><td>6%</td></tr>
   </table>
   <p style="margin-top:8px">Target 30%/tahun hanya realistis bila siap menerima risiko rugi 20%+ dengan peluang yang kurang lebih sama besar. <b>Target yang lebih sehat: 15–25%/tahun dengan drawdown maksimum di bawah 25%.</b> Screener bagus tidak menjamin 30% — gunanya menggeser peluang sedikit dan memotong kerugian besar lebih cepat.</p>
-  <p style="margin-top:8px"><b>Catatan kejujuran:</b> backtest resmi (3–5 tahun, LQ45+IDX80, walk-forward, bebas look-ahead/survivorship bias) <b>belum</b> dijalankan — jadi anggap skor ini belum terverifikasi secara historis. Alat bantu analisa, bukan jaminan untung dan bukan nasihat keuangan berlisensi.</p>
+  <p style="margin-top:8px"><b>Catatan kejujuran &amp; keterbatasan yang belum terselesaikan:</b> (1) Backtest <b>sudah</b> dijalankan (lihat <a href="backtest-laporan.html">laporan backtest</a>), tapi memakai <b>daftar simbol hari ini</b> sehingga <b>survivorship bias belum terhilangkan</b> — saham yang delisting/suspend 2021–2026 tidak ikut terhitung, sehingga hasil bisa terlalu tinggi. (2) Sinyal dibentuk dari penutupan hari H-1 dan dieksekusi di penutupan H (tanpa look-ahead pada data), tapi simulasi mengasumsikan <b>seluruh order terisi</b> pada harga penutupan — tanpa antrean, kedalaman buku, atau pembatasan fraksi harga BEI, sehingga hasil <b>lebih optimistis</b> daripada kenyataan; varian stres slippage 1% ditampilkan untuk memperkirakan jaraknya. (3) Valuasi &amp; kualitas (50 dari 136 poin) <b>tidak ikut diuji</b> karena data fundamental point-in-time tidak tersedia gratis. (4) Harga historis Yahoo untuk aksi korporasi (split/dividen) belum diverifikasi silang ke sumber bursa. (5) Semua metrik memakai rf 3%/tahun, sd sampel, dan annualisasi 252 hari (return) / 365,25 hari (CAGR). Alat bantu analisa, bukan jaminan untung dan bukan nasihat keuangan berlisensi.</p>
 `;
 renderList("IDX");
 </script>
