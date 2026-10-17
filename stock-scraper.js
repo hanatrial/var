@@ -705,10 +705,12 @@ function finalizeScores(list, ctx) {
         const vix = qm["^VIX"] ? qm["^VIX"].regularMarketPrice : null;
         regime.us = {
           spx, ma200, vix,
+          chg1d: qm["^GSPC"].regularMarketChangePercent != null ? qm["^GSPC"].regularMarketChangePercent : null,
           tnx: qm["^TNX"] ? qm["^TNX"].regularMarketPrice : null,
           dxy: qm["DX-Y.NYB"] ? qm["DX-Y.NYB"].regularMarketPrice : null,
           ret1m: closes.length > 22 ? (spx / closes[closes.length - 22] - 1) * 100 : null,
           ret6m: closes.length > 127 ? (spx / closes[closes.length - 127] - 1) * 100 : null,
+          bearish: ma200 != null && spx < ma200,
           riskOff: (ma200 != null && spx < ma200) || (vix != null && vix > 30),
           riskOn: (ma200 != null && spx > ma200) && (vix != null && vix < 20),
         };
@@ -815,6 +817,32 @@ function finalizeScores(list, ctx) {
       usRiskOff: !!(regime && regime.us && regime.us.riskOff),
     };
     finalizeScores(results, ctx);
+    // Pembanding per pasar untuk tampilan laporan — sebelumnya semua pasar dibandingkan IHSG.
+    // IDX → IHSG, US → S&P 500, CRYPTO → BTC (proxy pasar kripto).
+    const btcBaru = results.find(s => s.ticker === "BTC");
+    regime.bench = {
+      IDX: {
+        label: "IHSG", px: regime.px != null ? regime.px : null, chg1d: regime.chg1d != null ? regime.chg1d : null,
+        ma200: regime.ma200 != null ? regime.ma200 : null,
+        bearish: !!(regime.bearish && !regime.suspectIndex),
+      },
+      US: {
+        label: "S&P 500",
+        px: regime.us && regime.us.spx != null ? regime.us.spx : null,
+        chg1d: regime.us && regime.us.chg1d != null ? regime.us.chg1d : null,
+        ma200: regime.us && regime.us.ma200 != null ? regime.us.ma200 : null,
+        bearish: !!(regime.us && regime.us.bearish),
+      },
+      CRYPTO: {
+        label: "BTC",
+        px: btcBaru && btcBaru.px != null ? btcBaru.px : null,
+        chg1d: btcBaru && btcBaru.chg1d != null ? btcBaru.chg1d : null,
+        ma200: btcBaru && btcBaru.ma200 != null ? btcBaru.ma200 : null,
+        bearish: !!(btcBaru && btcBaru.ma200 != null && btcBaru.px != null && btcBaru.px < btcBaru.ma200),
+      },
+    };
+    console.log("  pembanding:", Object.entries(regime.bench)
+      .map(([k, v]) => `${k}→${v.label}${v.chg1d != null ? " " + v.chg1d.toFixed(1) + "%" : ""}${v.bearish ? " (bearish)" : ""}`).join(" · "));
     console.log("  selesai. contoh:", ["PWON", "BBCA", "BSDE"].map(t => {
       const s = results.find(x => x.ticker === t);
       return s ? `${t}=${s.score.total}(v${s.score.val}+k${s.score.qual}+t${s.score.trend}+m${s.score.mom}+a${s.score.bandar}+r${s.score.rel})` : t + "=-";
