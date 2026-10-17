@@ -511,41 +511,42 @@ function newsScore(arr,s){
 }
 function newsHTML(s){
   const arr=s.news||[];
-  if(!arr.length) return `<p>Belum ada berita terbaru untuk ${s.ticker}.</p>`;
+  if(!arr.length) return `<p style="font-size:.78rem;color:var(--muted)">Tidak ada berita terbaru.</p>`;
   let p=0,n=0,u=0;
   const items=arr.map(x=>{ const c=newsSent(x.title); c==="p"?p++:c==="n"?n++:u++;
     const lab=c==="p"?"Positif":c==="n"?"Negatif":"Netral";
     return `<a class="n" href="${x.link}" target="_blank" rel="noopener"><div class="t">${x.title}</div><div class="m"><span class="s ${c}">${lab}</span>${x.src?`<span>${x.src}</span>`:""}${x.date?`<span>${x.date}</span>`:""}</div></a>`;
   }).join("");
   const sc=newsScore(arr,s);
-  const scCol = sc>0?"var(--lime)": sc<0?"var(--red)":"var(--muted)";
-  const scLab = sc>0.5?"cenderung positif": sc<-0.5?"cenderung negatif":"netral";
-  return `<p style="font-size:.78rem;color:var(--muted)">Sentimen: <b style="color:var(--lime)">${p} positif</b> · <b style="color:var(--red)">${n} negatif</b> · ${u} netral · <b style="color:${scCol}">skor ${sc>0?"+":""}${sc}</b> (${scLab}, dari ${arr.length} berita — berita >7 hari berbobot separuh)</p><div class="news">${items}</div>`;
+  const ch=(ico,lab,cls)=>`<span class="rchip ${cls||""}"><i>${ico}</i>${lab}</span>`;
+  const head=ch("📰",arr.length+" berita")+ch("🟢",p+" positif","ok")+(n?ch("🔴",n+" negatif","bear"):"")+(u?ch("⚪",u+" netral"):"")+ch(sc>0.5?"📈":sc<-0.5?"📉":"➖","skor "+sc, sc>0.5?"ok":sc<-0.5?"bear":"");
+  return `<div class="rbar">${head}</div><div class="news">${items}</div>`;
 }
 
 /* ---------- aksi korporasi / event (per pasar) ---------- */
 function caHTML(s){
   const ca=s.ca||{score:0,notes:[],flags:[]};
   const sc=ca.score;
-  const col=sc>0?"var(--lime)":sc<0?"var(--red)":"var(--muted)";
-  const notes=(ca.notes&&ca.notes.length)?`<ul>${ca.notes.map(n=>`<li>${n}</li>`).join("")}</ul>`:`<p>Tidak ada event menonjol terdeteksi.</p>`;
-  const exc=s.excluded?`<p style="color:#b4232a;font-weight:700">⛔ DIKECUALIKAN dari rekomendasi.</p>`:"";
+  const ch=(ico,lab,cls)=>`<span class="rchip ${cls||""}"><i>${ico}</i>${lab}</span>`;
+  let chips=ch(sc>0?"➕":sc<0?"➖":"•","skor event "+(sc>0?"+":"")+sc, sc>0?"ok":sc<0?"bear":"");
   if(s.market==="IDX"){
-    const arb=s.arb||{};
-    const lim = arb.limitPct!=null ? `ARB ±${arb.limitPct}% · ARA ±${arb.araPct}%` : `batas absolut Rp${arb.limitRp} (harga ≤ Rp10)`;
-    return `<p style="font-size:.78rem;color:var(--muted)">Skor aksi korporasi: <b style="color:${col}">${sc>0?"+":""}${sc}</b> · Batas hari ini: <b>${lim}</b>${arb.isArb?" · ⛔ <b style=\"color:var(--red)\">menyentuh ARB hari ini</b>":""}${arb.streak>1?` · ARB ${arb.streak} hari berturut-turut`:""}.</p>${exc}${notes}<p style="font-size:.66rem;color:var(--muted)">Sumber: kata kunci judul berita + riwayat dividen/split Yahoo. Halaman KI idx.co.id tidak bisa diakses otomatis → ini <b>proxy</b>, bukan data resmi. Selalu verifikasi.</p>`;
+    const a=s.arb||{};
+    chips+=ch("🚦", a.limitPct!=null?("ARB ±"+a.limitPct+"% · ARA ±"+a.araPct+"%"):("batas Rp"+a.limitRp));
+    if(a.isArb) chips+=ch("⛔","sentuh ARB","bear");
+    if(a.streak>1) chips+=ch("🔁","ARB "+a.streak+" hari","warn");
+  } else if(s.market==="US"){
+    if(s.earnInDays!=null && s.earnInDays>=0) chips+=ch(s.earnInDays<=3?"⚠️":"📅","earnings "+s.earnInDays+" hari", s.earnInDays<=3?"bear":"");
+    if(s.shortPct!=null) chips+=ch("📉","short "+((s.shortPct>1?s.shortPct:s.shortPct*100).toFixed(1))+"%");
+    if(s.mom121!=null) chips+=ch(s.mom121>=0?"📈":"📉","mom 12-1 "+(s.mom121>=0?"+":"")+s.mom121.toFixed(1)+"%");
+  } else {
+    if(s.cycle) chips+=ch("🔻","fase "+s.cycle.phase);
+    if(s.fng) chips+=ch("😨","F&G "+s.fng.v+" ("+s.fng.label+")");
+    if(s.btcDom!=null) chips+=ch("₿","dom BTC "+s.btcDom+"%");
+    if(s.ddHigh!=null) chips+=ch("📉","dari puncak "+s.ddHigh.toFixed(1)+"%");
   }
-  if(s.market==="US"){
-    const ed=(s.edgar&&s.edgar.notes&&s.edgar.notes.length)?`<p style="font-size:.72rem;color:var(--muted)">Filing resmi SEC EDGAR (60 hari terakhir) sudah termasuk di atas.</p>`:"";
-    const earn=s.earnDate?`<p style="font-size:.78rem;color:var(--muted)">Earnings: <b>${s.earnDate}</b>${s.earnInDays!=null?(s.earnInDays>=0?` (${s.earnInDays} hari lagi)`:` (${-s.earnInDays} hari lalu)`):""}${s.earnInDays!=null&&s.earnInDays>=0&&s.earnInDays<=3?` · ⚠ <b style="color:var(--red)">risiko gap — jangan buka posisi baru</b>`:""}.</p>`:"";
-    const sh=s.shortPct!=null?`<p style="font-size:.78rem;color:var(--muted)">Short interest: <b>${(s.shortPct>1?s.shortPct:s.shortPct*100).toFixed(1)}%</b> dari float${s.daysToCover!=null?` · days to cover <b>${s.daysToCover.toFixed(1)}</b>`:""}.</p>`:"";
-    const mo=s.mom121!=null?`<p style="font-size:.78rem;color:var(--muted)">Momentum 12-1 (faktor terkuat AS): <b>${s.mom121>=0?"+":""}${s.mom121.toFixed(1)}%</b>.</p>`:"";
-    return `<p style="font-size:.78rem;color:var(--muted)">Skor event AS: <b style="color:${col}">${sc>0?"+":""}${sc}</b> (EDGAR + earnings + corporate actions; AS <b>tanpa ARA/ARB</b>).</p>${exc}${earn}${sh}${mo}${notes}${ed}<p style="font-size:.66rem;color:var(--muted)">Pajak dividen AS 30% (15% dgn W-8BEN) &amp; risiko kurs USD/IDR belum masuk skor — hitung manual.</p>`;
-  }
-  // CRYPTO
-  const cy=s.cycle?`<p style="font-size:.78rem;color:var(--muted)">Siklus BTC: <b>${s.cycle.monthsHalving} bln</b> pasca-halving Apr-2024 → fase <b>${s.cycle.phase}</b>.</p>`:"";
-  const fg=s.fng?`<p style="font-size:.78rem;color:var(--muted)">Fear &amp; Greed: <b>${s.fng.v} (${s.fng.label})</b>${s.btcDom!=null?` · dominasi BTC <b>${s.btcDom}%</b>`:""}${s.ddHigh!=null?` · dari high 52-mggu <b>${s.ddHigh.toFixed(1)}%</b>`:""}.</p>`:"";
-  return `<p style="font-size:.78rem;color:var(--muted)">Skor event crypto: <b style="color:${col}">${sc>0?"+":""}${sc}</b> (tokenomics/listing/keamanan).</p>${exc}${cy}${fg}${notes}<p style="font-size:.66rem;color:var(--muted)">Ukuran posisi disarankan: BTC/ETH ≤15% portofolio, altcoin ≤5% per koin. Pajak Indonesia: PPh final 0,21% (platform domestik) / 1% (luar negeri).</p>`;
+  const exc=s.excluded?ch("⛔","DIKECUALIKAN","bear"):"";
+  const notes=(ca.notes&&ca.notes.length)?`<ul>${ca.notes.map(n=>`<li>${n}</li>`).join("")}</ul>`:"";
+  return `<div class="rbar">${exc}${chips}</div>${notes}`;
 }
 
 /* ---------- render list ---------- */
@@ -895,11 +896,13 @@ function openModal(i){
           m===0 ? `<div class="sbar"><div class="top"><span>${k}</span><b>n/a</b></div><div class="tr"><div class="fl" style="width:0%"></div></div></div>`
                 : `<div class="sbar"><div class="top"><span>${k}</span><b>${v}/${m}</b></div><div class="tr"><div class="fl" style="width:${Math.min(100,v/m*100)}%"></div></div></div>`).join("")}
       </div>
-      <p style="font-size:.7rem;color:#8b96a8;margin-top:8px">Pembanding pasar untuk instrumen ini: <b>${BM.label}</b>${BM.px!=null?` (${ID(BM.px, BM.px>100?0:2)})`:""}${BM.chg1d!=null?` · hari ini ${PCT(BM.chg1d)}`:""}${BM.bearish?" · <span style=\"color:#ffb4b4\">bearish (di bawah MA200)</span>":" · netral/bullish"}.</p>
-      ${s.score.flags.bearishRegime?`<p style="font-size:.7rem;color:#ffb4b4;margin-top:8px">⚠️ Skor sudah dikali <b>0,85</b> karena ${BM.label} bearish (di bawah MA200) — saat pasar turun, sinyal beli memang lebih sering gagal.</p>`:""}
-      ${s.score.flags.usRiskOff?`<p style="font-size:.7rem;color:#ffb4b4;margin-top:8px">⚠️ Skor sudah dikali <b>0,90</b> karena kondisi risk-off global (S&amp;P di bawah MA200 / VIX &gt;30).</p>`:""}
-      ${s.score.flags.arbToday?`<p style="font-size:.7rem;color:#ffb4b4;margin-top:8px">⛔ Menyentuh <b>ARB hari ini</b> (−15 poin) — saham tidak bisa dijual dengan wajar; jangan buka posisi baru.</p>`:""}
-      ${s.score.flags.valueTrap?`<p style="font-size:.7rem;color:#ffb4b4;margin-top:8px">🪤 <b>Value trap</b>: PER murah tapi laba &amp; pendapatan menurun → valuasi dipangkas separuh.</p>`:""}
+      <div class="rbar">
+        <span class="rchip ${BM.bearish?"bear":"ok"}"><i>🎯</i>${BM.label}${BM.px!=null?` ${ID(BM.px,BM.px>100?0:2)}`:""}${BM.chg1d!=null?` <span class="rr ${BM.chg1d>=0?"up":"dn"}">${PCT(BM.chg1d)}</span>`:""} ${BM.bearish?"▼":"▲"} MA200</span>
+        ${s.score.flags.bearishRegime?`<span class="rchip bear"><i>🐻</i>skor ×0,85</span>`:""}
+        ${s.score.flags.usRiskOff?`<span class="rchip bear"><i>🔴</i>risk-off ×0,90</span>`:""}
+        ${s.score.flags.arbToday?`<span class="rchip bear"><i>⛔</i>ARB −15</span>`:""}
+        ${s.score.flags.valueTrap?`<span class="rchip warn"><i>🪤</i>value trap</span>`:""}
+      </div>
     </div>
 
     <div class="sec">
