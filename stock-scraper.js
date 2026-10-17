@@ -503,7 +503,7 @@ function finalizeScores(list, ctx) {
       const e = UNIVERSE[idx.i++];
       const q = qmap[e.symbol];
       try {
-        const full = await chartFull(e.symbol, "max");
+        const full = await chartFull(e.symbol, "20y");
         const rows = full ? full.rows : null;
         if (q && rows && rows.length > 60) {
           const closes = rows.map(r => r.c), highs = rows.map(r => r.h), lows = rows.map(r => r.l), vols = rows.map(r => r.v);
