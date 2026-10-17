@@ -685,6 +685,66 @@ function fundTargetsHTML(s){
   <p style="font-size:.7rem;color:#8b96a8;margin-top:6px">Realistis = rata-rata metode · Pesimistis = metode terendah · Optimistis = metode tertinggi. Ini skenario berbasis beberapa metode, bukan ramalan — laba &amp; asumsi bisa meleset.</p>`;
 }
 
+/* ---------- komoditas induk (tren sektor sebagai proxy) ---------- */
+function commodityGroup(s){
+  if(s.market!=="IDX") return null;
+  const ind=String(s.industry||"");
+  if(/coal/i.test(ind)) return "Batubara";
+  if(/oil & gas/i.test(ind)) return "Minyak & Gas";
+  if(/precious metals/i.test(ind) || /gold/i.test(ind)) return "Emas & Logam Mulia";
+  if(/industrial metals/i.test(ind)) return "Logam Industri (nikel/tembaga/timah)";
+  if(/farm products/i.test(ind)) return "Sawit & Agri (CPO)";
+  if(/paper/i.test(ind)) return "Kayu & Pulp";
+  return null;
+}
+let _cmCache={};
+function commodityBasket(g){
+  if(_cmCache[g]) return _cmCache[g];
+  const peers=DATA.filter(x=>x.market==="IDX" && commodityGroup(x)===g);
+  const med=a=>{const b=a.filter(v=>v!=null&&isFinite(v)).sort((x,y)=>x-y); if(!b.length) return null; const m=b.length>>1; return b.length%2?b[m]:(b[m-1]+b[m])/2;};
+  const above=peers.filter(x=>x.px!=null&&x.ma200!=null&&x.px>x.ma200).length;
+  const o={ n:peers.length, ret1m:med(peers.map(x=>x.ret1m)), ret3m:med(peers.map(x=>x.ret3m)), ret6m:med(peers.map(x=>x.ret6m)), breadth: peers.length? above/peers.length : null };
+  _cmCache[g]=o; return o;
+}
+function commodityContext(s){
+  const g=commodityGroup(s); if(!g) return null;
+  const b=commodityBasket(g);
+  const r3=(b.ret3m!=null?b.ret3m:0), r6=(b.ret6m!=null?b.ret6m:0);
+  let status="SIDEWAYS";
+  if(r3>8 && r6>10) status="NAIK KUAT";
+  else if(r3>2 && r6>-2) status="NAIK";
+  else if(r3>-6 || r6>-15) status="SIDEWAYS";
+  else status="TURUN";
+  const strong = (s.score.trend>=20) && s.ma50 && s.px>s.ma50;
+  let verdict, cls;
+  if(status==="NAIK KUAT"||status==="NAIK"){
+    if(strong){ verdict="Momentum sektor mendukung dan <b>harga saham ini sendiri sudah kuat</b> — <b>bisa dipertimbangkan masuk</b> (ikut siklus naik), tetap pakai stop-loss."; cls="ok"; }
+    else { verdict="Sektor naik, tapi <b>saham ini belum kuat</b> (tren <20 atau di bawah MA50) — <b>tunggu konfirmasi harga</b> dulu."; cls="warn"; }
+  } else if(status==="SIDEWAYS"){
+    verdict="Kelompok komoditasnya <b>sideways</b> — <b>WAIT AND SEE</b>: tunggu sampai arah komoditas induknya jelas naik sebelum masuk."; cls="warn";
+  } else {
+    verdict="Kelompok komoditasnya <b>turun</b> — <b>tunggu / hindari dulu</b>. Di siklus turun, PER murah sering jebakan (value trap)."; cls="bad";
+  }
+  return {group:g, n:b.n, ret1m:b.ret1m, ret3m:b.ret3m, ret6m:b.ret6m, breadth:b.breadth, status, verdict, cls, strong};
+}
+function commodityHTML(s){
+  const c=commodityContext(s); if(!c) return "";
+  const pv=v=>(v==null?"—":(v>=0?"+":"")+v.toFixed(1)+"%");
+  const color=c.status.indexOf("NAIK")>=0?"#178a4e":(c.status==="TURUN"?"#b4232a":"#946200");
+  const cls=c.cls==="ok"?"tp":(c.cls==="bad"?"sl":"en");
+  const box=c.cls==="ok"?"ok":"no";
+  return `<div class="lvl">
+    <div class="b ${cls}"><div class="k">Siklus sektor</div><div class="v" style="color:${color}">${c.status}</div></div>
+    <div class="b en"><div class="k">Return 3 bln (sektor)</div><div class="v">${pv(c.ret3m)}</div></div>
+    <div class="b tp"><div class="k">Return 6 bln (sektor)</div><div class="v">${pv(c.ret6m)}</div></div>
+  </div>
+  <div class="bbbox ${box}" style="margin-top:8px"><div class="bbt">Komoditas induk: ${c.group}</div><div>${c.verdict}</div></div>
+  <ul>
+    <li>Dihitung dari <b>${c.n} saham sekomoditas</b> di universe ini (median return; <b>${c.breadth!=null?(c.breadth*100).toFixed(0)+"%":""}</b> di atas MA200). Ini <b>proxy</b> — harga komoditas global (batubara/CPO/nikel/timah) tidak tersedia otomatis dari sumber gratis.</li>
+    <li>Ingat: di sektor komoditas, <b>PER rendah sering menandai puncak siklus</b>, bukan "murah". Utamakan arah komoditas induknya.</li>
+  </ul>`;
+}
+
 const list=document.getElementById("list");
 const qEl=document.getElementById("q");
 const cntEl=document.getElementById("cnt");
@@ -744,7 +804,7 @@ function renderList(m){
         <div class="chg ${chUp?"up":"down"}">${PCT(s.chg1d)}</div>
         <div class="mini">${mini}</div>
       </div>
-      <div class="tags">${bb.ok?'<span class="tag bb">⭐ BEST BUY</span>':bb.ready?'<span class="tag bb2">★ SIAP · tunggu volume</span>':""}${tags(s).map(([a,b])=>`<span class="tag ${b}">${a}</span>`).join("")}</div>
+      <div class="tags">${bb.ok?'<span class="tag bb">⭐ BEST BUY</span>':bb.ready?'<span class="tag bb2">★ SIAP · tunggu volume</span>':""}${commodityGroup(s)?`<span class="tag commod">🌾 ${commodityGroup(s)}</span>`:""}${tags(s).map(([a,b])=>`<span class="tag ${b}">${a}</span>`).join("")}</div>
       <div class="chev">›</div>`;
     list.appendChild(c);
   });
@@ -836,6 +896,8 @@ function openModal(i){
       <h3><span class="ico">🎯</span> Target Harga Fundamental (3 skenario)</h3>
       ${fundTargetsHTML(s)}
     </div>
+
+    ${commodityContext(s)?`<div class="sec"><h3><span class="ico">🌾</span> Komoditas Induk &amp; Siklus</h3>${commodityHTML(s)}</div>`:""}
 
     <div class="sec">
       <h3><span class="ico">📈</span> Teknikal</h3>
