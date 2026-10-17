@@ -68,6 +68,8 @@
   .tag.warn{color:var(--red);border-color:rgba(255,107,107,.3);background:rgba(255,107,107,.09)}
   .tag.commod{color:#ffce6b;border-color:rgba(255,206,107,.3);background:rgba(255,206,107,.09)}
   .tag.bb{color:#0d1a08;border-color:#cdf15c;background:linear-gradient(135deg,#cdf15c,#a8e02f);font-weight:800;box-shadow:0 2px 10px rgba(205,241,92,.35)}
+  .tag.bb2{color:#dff0c4;border-color:rgba(205,241,92,.45);background:rgba(205,241,92,.12);font-weight:800}
+  .card.isbb2{border-color:rgba(205,241,92,.32)}
   .card.isbb{border-color:rgba(205,241,92,.5);box-shadow:0 0 0 1px rgba(205,241,92,.18),0 8px 22px rgba(0,0,0,.28)}
   .bbbar{display:flex;align-items:center;gap:10px;margin-bottom:12px}
   .bbbtn{font-family:inherit;font-weight:800;font-size:.76rem;padding:9px 14px;border-radius:11px;border:1px solid rgba(205,241,92,.4);background:rgba(205,241,92,.1);color:var(--lime);cursor:pointer;transition:all .18s ease}
@@ -155,7 +157,7 @@
     <button data-m="CRYPTO">₿ Crypto</button>
   </div>
   <div class="bbbar">
-    <button id="bbToggle" class="bbbtn" aria-pressed="false">⭐ Hanya BEST BUY</button>
+    <button id="bbToggle" class="bbbtn" aria-pressed="false">⭐ BEST BUY / SIAP</button>
     <span id="bbCnt" class="bbcnt"></span>
   </div>
   <div class="search"><span>🔍</span><input id="q" type="search" placeholder="Cari ticker / nama… mis. BBCA, bitcoin, Tesla" autocomplete="off"><button id="qx" hidden>✕</button></div>
@@ -478,10 +480,15 @@ function bestBuy(s){
   else good.push(`${BM.label} di atas MA200 (rejim sehat)`);
   if(s.market==="IDX"&&REGIME&&REGIME.ma50&&REGIME.px<REGIME.ma50) blocks.push("IHSG di bawah MA50");
   if(s.score.total>=min) good.push(`Skor ${s.score.total} ≥ ambang ${min}`); else blocks.push(`Skor ${s.score.total} < ambang ${min}`);
+  const nearHigh = (s.high52&&s.high52>0)?s.px/s.high52:null;
+  if(nearHigh!=null && nearHigh>=0.94) good.push(`Dekat/cetak high 52 minggu (${(nearHigh*100).toFixed(0)}% dari puncak)`);
+  else blocks.push(nearHigh!=null?`Jauh dari high 52 minggu (${(nearHigh*100).toFixed(0)}% dari puncak, butuh ≥94%)`:"Data high 52 minggu tak ada");
+  const vs = (s.volSpike!=null)?s.volSpike:(s.score.bandar>=15?1.6:null);
+  const volOK = vs!=null && vs>=1.5;
+  if(volOK) good.push(`Volume ${vs.toFixed(1)}× rata-rata (≥1,5×) — konfirmasi masuk`);
+  else warns.push(vs!=null?`Volume ${vs.toFixed(1)}× (<1,5×) — tunggu lonjakan volume sebelum entry`:"Volume belum terkonfirmasi");
   if(s.score.trend>=20) good.push("Tren kuat (≥20/28)"); else blocks.push("Tren lemah (<20/28)");
-  if(s.score.bandar>=13) good.push("Aliran volume positif (≥13/26)"); else blocks.push("Aliran volume lemah (<13/26)");
-  if(s.score.rel>=8) good.push(`Unggul vs ${BM.label} (≥8/12)`); else blocks.push("Kekuatan relatif lemah (<8/12)");
-  if(s.ma20&&s.ma50&&s.px>s.ma20&&s.ma20>s.ma50) good.push("Harga > MA20 > MA50"); else blocks.push("Struktur MA belum naik");
+  if(s.score.rel>=8) good.push(`Kekuatan relatif kuat vs ${BM.label} (≥8/12)`); else blocks.push("Kekuatan relatif lemah (<8/12)");
   if(s.excluded) blocks.push("Dikecualikan screener");
   if(f.crash) blocks.push("Sedang turun tajam");
   if(f.suspect) blocks.push("Data harian mencurigakan");
@@ -497,7 +504,7 @@ function bestBuy(s){
   if(f.usRiskOff) blocks.push("Risk-off global");
   if(s.rsi!=null&&s.rsi>72) warns.push(`RSI ${s.rsi.toFixed(0)} overbought — tunggu koreksi`);
   if(s.mfi!=null&&s.mfi>85) warns.push(`MFI ${s.mfi.toFixed(0)} jenuh`);
-  return {ok:blocks.length===0,good,blocks,warns,min,bench:BM?BM.label:s.market};
+  return {ok:blocks.length===0&&volOK, ready:blocks.length===0, volOK, good, blocks, warns, min, bench:BM?BM.label:s.market};
 }
 
 const list=document.getElementById("list");
@@ -513,9 +520,9 @@ function renderList(m){
   if(m) curMkt=m;
   list.innerHTML="";
   const t=norm(query.trim());
-  const bbAll=DATA.filter(x=>x.market===curMkt && bestBuy(x).ok).length;
-  if(bbCntEl) bbCntEl.textContent = bbAll ? `${bbAll} emiten lolos BEST BUY di tab ini` : "Belum ada yang lolos BEST BUY di tab ini";
-  const items=DATA.map((s,gi)=>({s,gi})).filter(x=>x.s.market===curMkt && (!t || matches(x.s,t)) && (!bbOnly || bestBuy(x.s).ok));
+  const bbAll=DATA.filter(x=>x.market===curMkt && (bestBuy(x).ok||bestBuy(x).ready)).length;
+  if(bbCntEl) bbCntEl.textContent = bbAll ? `${bbAll} kandidat BEST BUY / SIAP di tab ini` : "Belum ada kandidat BEST BUY di tab ini";
+  const items=DATA.map((s,gi)=>({s,gi})).filter(x=>x.s.market===curMkt && (!t || matches(x.s,t)) && (!bbOnly || bestBuy(x.s).ok || bestBuy(x.s).ready));
   // hitung hasil di semua pasar (biar jalan walau beda tab)
   const hits = t ? DATA.map((s,gi)=>({s,gi})).filter(x=>matches(x.s,t)) : [];
   const inMkt = hits.filter(x=>x.s.market===curMkt).length;
@@ -541,7 +548,7 @@ function renderList(m){
   items.forEach(({s,gi})=>{
     const c=document.createElement("div");
     const bb=bestBuy(s);
-    c.className="card"+(s.excluded?" excluded":"")+(bb.ok?" isbb":"");
+    c.className="card"+(s.excluded?" excluded":"")+(bb.ok?" isbb":bb.ready?" isbb2":"");
     c.dataset.i=gi;
     const chUp=(s.chg1d||0)>=0;
     const mini = s.pe!=null
@@ -559,7 +566,7 @@ function renderList(m){
         <div class="chg ${chUp?"up":"down"}">${PCT(s.chg1d)}</div>
         <div class="mini">${mini}</div>
       </div>
-      <div class="tags">${bb.ok?'<span class="tag bb">⭐ BEST BUY</span>':""}${tags(s).map(([a,b])=>`<span class="tag ${b}">${a}</span>`).join("")}</div>
+      <div class="tags">${bb.ok?'<span class="tag bb">⭐ BEST BUY</span>':bb.ready?'<span class="tag bb2">★ SIAP · tunggu volume</span>':""}${tags(s).map(([a,b])=>`<span class="tag ${b}">${a}</span>`).join("")}</div>
       <div class="chev">›</div>`;
     list.appendChild(c);
   });
@@ -583,8 +590,11 @@ function openModal(i){
   const s=DATA[i], a=analyze(s);
   const BM=BENCH(s.market);
   const bb=bestBuy(s);
+  const bbFoot = `<div style="font-size:.7rem;color:#8b96a8;margin-top:8px">Ambang ${bb.bench}: skor ≥ ${bb.min} · dekat high 52 minggu (≥94% puncak) · volume ≥1,5× · tren ≥20/28 · relatif ≥8/12 · rejim sehat · tanpa flag merah.</div>`;
   const bbHTML = bb.ok
-    ? `<div class="bbbox ok"><div class="bbt">⭐ BEST BUY — semua syarat terpenuhi</div><ul>${bb.good.map(g=>`<li>✓ ${g}</li>`).join("")}${bb.warns.map(w=>`<li style="color:#ffd08a">⚠ ${w}</li>`).join("")}</ul><div style="font-size:.7rem;color:#8b96a8;margin-top:8px">Ambang ${bb.bench}: skor ≥ ${bb.min} · tren ≥20/28 · volume ≥13/26 · relatif ≥8/12 · harga &gt; MA20 &gt; MA50 · rejim sehat · tanpa flag merah.</div></div>`
+    ? `<div class="bbbox ok"><div class="bbt">⭐ BEST BUY — semua syarat terpenuhi</div><ul>${bb.good.map(g=>`<li>✓ ${g}</li>`).join("")}${bb.warns.map(w=>`<li style="color:#ffd08a">⚠ ${w}</li>`).join("")}</ul>${bbFoot}</div>`
+    : bb.ready
+    ? `<div class="bbbox ok"><div class="bbt">★ SIAP — tinggal konfirmasi volume</div><ul>${bb.good.map(g=>`<li>✓ ${g}</li>`).join("")}${bb.warns.map(w=>`<li style="color:#ffd08a">⚠ ${w}</li>`).join("")}</ul>${bbFoot}</div>`
     : `<div class="bbbox no"><div class="bbt">Bukan BEST BUY</div><ul>${bb.blocks.map(b=>`<li class="blk">✕ ${b}</li>`).join("")}${bb.good.length?`<li style="color:#8ba487">Sudah terpenuhi: ${bb.good.join(" · ")}</li>`:""}</ul></div>`;
   document.getElementById("mTk").textContent=s.ticker;
   document.getElementById("mNm").textContent=(s.name||"")+" · "+(s.sector||(s.market==="CRYPTO"?"Kripto":s.market==="US"?"US":"IDX"));
@@ -736,15 +746,15 @@ document.getElementById("guide").innerHTML=`
   <p>Skor tiap instrumen = <b>Valuasi (maks 36)</b> + <b>Kualitas (14)</b> + <b>Tren (28)</b> + <b>Momentum (20)</b> + <b>Aliran volume (26)</b> + <b>Kekuatan relatif vs indeks (12)</b> = maks 136. Skor tinggi = kondisi sedang "menarik secara terukur", <b>bukan</b> jaminan naik.</p>
   <p><b>Yang berubah setelah audit data (Okt 2026):</b> (1) PBV/PER dihitung ulang dengan konversi mata uang laporan (USD→IDR) — sebelumnya PBV PGAS/ADRO/BYAN salah ribuan kali. (2) Label "komoditas" hanya untuk energi/material/perkebunan, bukan Consumer Defensive (MYOR/ICBP/UNVR/KO tidak lagi ikut). (3) Pertumbuhan laba/pendapatan &amp; ROE di-winsorize (−100%…+200%). (4) Valuasi kini <b>relatif median sektor</b>, bukan ambang absolut. (5) Ada gate <b>kualitas</b> (ROE, laba tumbuh, DER) + penangkap <b>value trap</b>. (6) Volume besar saat harga <b>turun</b> kini bernilai <b>negatif</b> (distribusi), bukan akumulasi. (7) Skor dikali pengali rezim (IHSG bearish ×0,85; risk-off global ×0,90). (8) Saham ARB hari ini didiskon −15 poin. (9) Crypto <b>tanpa</b> poin valuasi. (10) Sentimen berita pakai kata utuh + hanya judul yang menyebut emiten.</p>
   <h3>⭐ Cara memakai tombol BEST BUY</h3>
-  <p>Tombol <b>⭐ Hanya BEST BUY</b> menyaring hanya instrumen yang lolos <b>semua</b> syarat sekaligus (badge ⭐ juga tampil di kartunya):</p>
+  <p>Tombol <b>⭐ BEST BUY / SIAP</b> menyaring kandidat terbaik (badge juga tampil di kartunya): <b>⭐ BEST BUY</b> = semua syarat + konfirmasi volume ≥1,5×; <b>★ SIAP</b> = semua syarat kecuali volume (tunggu konfirmasi).</p>
   <ul>
     <li><b>Rejim pasar sehat</b> — pembanding pasar di atas MA200 (khusus IDX: IHSG juga harus di atas MA50).</li>
     <li><b>Skor memadai</b> — IDX ≥ 80, US ≥ 90, Crypto ≥ 70.</li>
-    <li><b>Tren ≥ 20/28</b>, <b>Aliran volume ≥ 13/26</b>, <b>Kekuatan relatif ≥ 8/12</b>.</li>
-    <li><b>Struktur harga:</b> harga &gt; MA20 &gt; MA50.</li>
+    <li><b>Dekat/cetak high 52 minggu</b> (≥ 94% dari puncak) + <b>tren ≥ 20/28</b> + <b>kekuatan relatif ≥ 8/12</b>.</li>
+    <li><b>Konfirmasi volume ≥ 1,5×</b> rata-rata 20 hari → badge <b>⭐ BEST BUY</b>. Bila volume belum naik → badge <b>★ SIAP</b> (kandidat, tunggu lonjakan volume sebelum entry).</li>
     <li><b>Tanpa bendera merah:</b> crash, ARB, data mencurigakan, likuiditas tipis, value trap, dilusi, reverse split, gadai, earnings ≤3 hari, risk-off global.</li>
   </ul>
-  <p>Kalau sebuah instrumen <b>bukan</b> BEST BUY, buka kartunya — di sana tertera daftar <b>alasan gagal</b> (mis. "IHSG di bawah MA200"). Saat pasar bearish biasanya <b>nol</b> yang lolos — itu memang pesannya: tunggu rejim membaik. Syarat ini digabung dari hasil backtest: filter rejim + skor + konfirmasi volume, bukan skor tunggal.</p>
+  <p>Kalau sebuah instrumen <b>bukan</b> BEST BUY, buka kartunya — di sana tertera daftar <b>alasan gagal</b> (mis. "IHSG di bawah MA200"). Saat pasar bearish biasanya <b>nol</b> yang lolos — itu memang pesannya: tunggu rejim membaik. Syarat ini mengikuti hasil backtest: <b>breakout high 52 minggu + volume ≥1,5× + kekuatan relatif</b>, dengan filter rejim — bukan sekadar skor tinggi.</p>
   <h3>Penyaring otomatis yang sudah dipasang</h3>
   <ul>
     <li><b>Crash penalty</b>: jika turun ≤ −7% sehari atau ≤ −15% sepekan, skor Tren &amp; Momentum dipaksa 0.</li>
