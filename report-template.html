@@ -1145,6 +1145,18 @@ document.getElementById("guide").innerHTML=`
     <li><b>Tanpa bendera merah:</b> crash, ARB, data mencurigakan, likuiditas tipis, value trap, dilusi, reverse split, gadai, earnings ≤3 hari, risk-off global.</li>
   </ul>
   <p>Kalau sebuah instrumen <b>bukan</b> BEST BUY, buka kartunya — di sana tertera daftar <b>alasan gagal</b> (mis. "IHSG di bawah MA200"). Saat pasar bearish biasanya <b>nol</b> yang lolos. Syarat ini mengikuti pengujian internal: <b>breakout high 52 minggu + volume ≥1,5× + kekuatan relatif</b>, dengan filter rejim — bukan sekadar skor tinggi.</p>
+  <h3>⚙️ Kerangka eksekusi (agar semua sinyal terkelola)</h3>
+  <div class="rbar" style="margin:8px 0">
+    <span class="rchip sm ok"><i>🕒</i>sinyal tutup → beli di open besok</span>
+    <span class="rchip sm warn"><i>🚫</i>lewati jika gap buka &gt;4%</span>
+    <span class="rchip sm"><i>🔢</i>N=10 slot · urut kekuatan relatif</span>
+    <span class="rchip sm"><i>⚖️</i>equal-weight (bukan inverse-vol)</span>
+    <span class="rchip sm bear"><i>🛑</i>hard stop −10% (wajib)</span>
+    <span class="rchip sm"><i>⏳</i>minHold 5 hari · maks 4–12 mgg</span>
+    <span class="rchip sm"><i>🐂</i>masuk hanya saat IHSG&gt;MA50&amp;MA200</span>
+    <span class="rchip sm"><i>💧</i>≥ Rp1 M/hari</span>
+  </div>
+  <p>Hasil uji (universum penuh, biaya 0,6% round-trip): <b>N=10</b> CAGR 35,7% (DD −29%, Sharpe 1,56) · <b>N=20</b> 25,6% (−24%, 1,55) · <b>N=30</b> 24,9% (−21%, 1,74) → makin banyak slot = makin halus tapi return turun. <b>Hard stop −10%</b> menaikkan return sekaligus menurunkan DD (vs tanpa stop 29,9%/−43%); <b>gap filter &gt;4%</b> membantu (35,7% vs 29,0%); <b>equal-weight &gt; inverse-vol</b> (Sharpe 1,56 vs 1,17). Kandidat N10 + ATR2,5× + gap4%: DEV +26,8% / VAL +36,3% / OOS +36,9%. <span style="color:var(--muted)">Angka optimistis (survivorship bias & asumsi terisi penuh).</span></p>
   <h3>Penyaring otomatis yang sudah dipasang</h3>
   <ul>
     <li><b>Crash penalty</b>: jika turun ≤ −7% sehari atau ≤ −15% sepekan, skor Tren &amp; Momentum dipaksa 0.</li>
