@@ -507,47 +507,69 @@ function bestBuy(s){
   return {ok:blocks.length===0&&volOK, ready:blocks.length===0, volOK, good, blocks, warns, min, bench:BM?BM.label:s.market};
 }
 
-/* ---------- target harga fundamental (3 skenario) ---------- */
+/* ---------- target harga fundamental (banyak metode + median sektor) ---------- */
+function medianArr(a){ const b=(a||[]).filter(x=>x!=null&&isFinite(x)&&x>0).sort((x,y)=>x-y); if(!b.length) return null; const m=b.length>>1; return b.length%2?b[m]:(b[m-1]+b[m])/2; }
+let _secCache={};
+function sectorMedians(market){
+  if(_secCache[market]) return _secCache[market];
+  const by={}, allPe=[], allPb=[];
+  for(const s of DATA){
+    if(s.market!==market) continue;
+    const k=s.sector||"Lainnya"; const o=by[k]||(by[k]={pe:[],pb:[]});
+    if(s.pe!=null && s.pe>0 && s.pe<80){ o.pe.push(s.pe); allPe.push(s.pe); }
+    if(s.pb!=null && s.pb>0 && s.pb<15){ o.pb.push(s.pb); allPb.push(s.pb); }
+  }
+  const out={sectors:{}, all:{pe:medianArr(allPe), pb:medianArr(allPb)}};
+  for(const k in by) out.sectors[k]={pe:medianArr(by[k].pe), pb:medianArr(by[k].pb)};
+  _secCache[market]=out; return out;
+}
 function fundTargets(s){
   if(s.market==="CRYPTO") return null;
-  if(!(s.eps!=null && s.eps>0)) return null;
-  const px=s.px;
-  const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
-  const peNow=(s.pe!=null && s.pe>0)? s.pe : null;
-  const basePE=clamp(peNow!=null?peNow:12, 5, 25);
-  const g=(s.earnGrowth!=null)? s.earnGrowth : 0;
-  const scen={
-    pes:{label:"Pesimistis", g:clamp(Math.min(g, g-0.10), -0.25, 0.08), pe:basePE*0.80},
-    real:{label:"Realistis", g:clamp(g, -0.10, 0.15), pe:basePE*1.00},
-    opt:{label:"Optimistis", g:clamp(Math.max(g,0)+0.10, 0, 0.40), pe:basePE*1.25},
-  };
-  const out={};
-  for(const k of ["pes","real","opt"]){
-    const sc=scen[k];
-    const epsF=s.eps*(1+sc.g);
-    let tp=clamp(epsF*sc.pe, px*0.3, px*4);
-    out[k]={label:sc.label, tp, up:(tp/px-1)*100, g:sc.g, pe:sc.pe};
-  }
-  const pbNow=(s.pb!=null && s.pb>0)? s.pb : null;
-  out.pbv=(s.bvps!=null && s.bvps>0 && pbNow!=null)? s.bvps*clamp(pbNow,0.7,3) : null;
-  return out;
+  const eps=(s.eps!=null&&s.eps>0)?s.eps:null, bv=(s.bvps!=null&&s.bvps>0)?s.bvps:null;
+  if(eps==null && bv==null) return null;
+  const px=s.px, clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
+  const sm=sectorMedians(s.market), sec=sm.sectors[s.sector||"Lainnya"]||{};
+  const secPE=(sec.pe!=null)?sec.pe:(sm.all.pe!=null?sm.all.pe:15);
+  const secPB=(sec.pb!=null)?sec.pb:(sm.all.pb!=null?sm.all.pb:1.5);
+  const g=(s.earnGrowth!=null)?s.earnGrowth:0, gPct=clamp(g*100,-20,40);
+  const peOwn=(s.pe!=null&&s.pe>0)?s.pe:null, peGrw=clamp(8+gPct,8,25);
+  const peMed=medianArr([peOwn,secPE,peGrw])||15;
+  const pbOwn=(s.pb!=null&&s.pb>0)?s.pb:null, pbRoe=(s.roe!=null&&s.roe>0)?clamp(s.roe/0.12,0.5,4):null;
+  const pbMed=medianArr([pbOwn,secPB,pbRoe])||1.5;
+  const M=[];
+  if(eps) M.push({name:`PER wajar ${peMed.toFixed(1)}× × EPS ${eps.toFixed(1)}`, val:eps*peMed});
+  if(bv) M.push({name:`PBV wajar ${pbMed.toFixed(2)}× × nilai buku ${bv.toFixed(1)}`, val:bv*pbMed});
+  if(eps&&bv) M.push({name:"Graham √(22,5 × EPS × BVPS)", val:Math.sqrt(22.5*eps*bv)});
+  const dy=normDiv(s.divYield);
+  if(dy!=null && dy>0) M.push({name:`Dividen: target imbal hasil 6% (yield kini ${dy.toFixed(1)}%)`, val:px*(dy/6)*(1+clamp(g,0,0.2))});
+  if(!M.length) return null;
+  M.forEach(m=>m.val=clamp(m.val, px*0.3, px*4));
+  const vals=M.map(m=>m.val);
+  const real=M.length>=2? vals.reduce((a,b)=>a+b,0)/vals.length : vals[0];
+  const pes=M.length>=2? Math.min.apply(null,vals) : real*0.85;
+  const opt=M.length>=2? Math.max.apply(null,vals) : real*1.20;
+  return {methods:M, real, pes, opt, peMed, pbMed, secPE, secPB, g, dy};
 }
 function fundTargetsHTML(s){
   const t=fundTargets(s);
   if(!t){
-    const why = s.market==="CRYPTO" ? "Kripto tidak punya laba/PER." : (s.eps!=null && s.eps<=0 ? "Perusahaan sedang merugi (EPS negatif)." : "Data EPS tidak tersedia.");
-    return `<p style="font-size:.78rem;color:#8b96a8">Tidak tersedia — butuh laba positif (EPS). ${why}</p>`;
+    const why=s.market==="CRYPTO"?"kripto tidak punya laba/PER.":((s.eps!=null&&s.eps<=0)?"perusahaan sedang merugi (EPS negatif).":"data laba &amp; nilai buku tidak tersedia.");
+    return `<p style="font-size:.78rem;color:#8b96a8">Target fundamental tidak tersedia — ${why}</p>`;
   }
-  const card=(cls,o)=>`<div class="b ${cls}"><div class="k">${o.label}</div><div class="v">${CUR(s,o.tp)}</div><div style="font-size:.62rem;color:${o.up>=0?'#cdf15c':'#ff9b9b'};margin-top:2px">${(o.up>=0?"+":"")+o.up.toFixed(0)}% vs harga</div></div>`;
-  return `<div class="lvl">${card("sl",t.pes)}${card("en",t.real)}${card("tp",t.opt)}</div>
+  const up=v=>(v/s.px-1)*100;
+  const card=(cls,label,v)=>`<div class="b ${cls}"><div class="k">${label}</div><div class="v">${CUR(s,v)}</div><div style="font-size:.62rem;color:${up(v)>=0?'#cdf15c':'#ff9b9b'};margin-top:2px">${(up(v)>=0?"+":"")+up(v).toFixed(0)}% vs harga</div></div>`;
+  return `<div class="lvl">${card("sl","Pesimistis",t.pes)}${card("en","Realistis",t.real)}${card("tp","Optimistis",t.opt)}</div>
+  <div class="kv">
+    <div class="it"><div class="k">Rentang wajar</div><div class="v" style="font-size:.8rem">${CUR(s,t.pes)} – ${CUR(s,t.opt)}</div></div>
+    <div class="it"><div class="k">Dasar penilaian</div><div class="v" style="font-size:.8rem">${t.methods.length} metode</div></div>
+  </div>
+  <ul>${t.methods.map(m=>`<li>${m.name} → <b>${CUR(s,m.val)}</b></li>`).join("")}</ul>
   <ul>
-    <li><b>Realistis</b> — laba ${(t.real.g*100).toFixed(0)}%/thn, PER wajar <b>${t.real.pe.toFixed(1)}×</b> → target <b>${CUR(s,t.real.tp)}</b>.</li>
-    <li><b>Optimistis</b> — laba ${(t.opt.g*100).toFixed(0)}%, PER ${t.opt.pe.toFixed(1)}× → <b>${CUR(s,t.opt.tp)}</b>.</li>
-    <li><b>Pesimistis</b> — laba ${(t.pes.g*100).toFixed(0)}%, PER ${t.pes.pe.toFixed(1)}× → <b>${CUR(s,t.pes.tp)}</b>.</li>
-    ${t.pbv!=null?`<li><b>Cek nilai buku (PBV wajar):</b> ${CUR(s,t.pbv)} ${s.pb!=null?`(PBV sekarang ${s.pb.toFixed(2)}×)`:""}.</li>`:""}
-    <li><b>PER sekarang ${s.pe!=null?s.pe.toFixed(1)+"×":"—"}</b>${s.fwdPe!=null?` · PER ke depan ${s.fwdPe.toFixed(1)}×`:""}${s.roe!=null?` · ROE ${(s.roe*100).toFixed(1)}%`:""}.</li>
+    <li><b>Median sektor ${s.sector||"—"}:</b> PER ${t.secPE.toFixed(1)}× ${s.pe!=null?`(saham ini ${s.pe.toFixed(1)}×)`:""} · PBV ${t.secPB.toFixed(2)}× ${s.pb!=null?`(saham ini ${s.pb.toFixed(2)}×)`:""}.</li>
+    <li><b>Kualitas:</b> ${s.roe!=null?`ROE ${(s.roe*100).toFixed(1)}%`:""}${s.margin!=null?` · marjin ${(s.margin*100).toFixed(1)}%`:""}${s.earnGrowth!=null?` · laba ${(s.earnGrowth*100).toFixed(0)}%`:""}${s.revGrowth!=null?` · omzet ${(s.revGrowth*100).toFixed(0)}%`:""}${t.dy!=null?` · dividen ${t.dy.toFixed(1)}%`:""}.</li>
+    <li><b>Skor fundamental (screener):</b> Valuasi ${s.score.val}${s.market!=="CRYPTO"?"/36":""} · Kualitas ${s.score.qual}${s.market!=="CRYPTO"?"/14":""}.</li>
   </ul>
-  <p style="font-size:.7rem;color:#8b96a8;margin-top:6px">Target = EPS diperkirakan × PER wajar (skenario, bukan ramalan). Laba bisa meleset; cek juga tren harga &amp; aliran volume di atas.</p>`;
+  <p style="font-size:.7rem;color:#8b96a8;margin-top:6px">Realistis = rata-rata metode · Pesimistis = metode terendah · Optimistis = metode tertinggi. Ini skenario berbasis beberapa metode, bukan ramalan — laba &amp; asumsi bisa meleset.</p>`;
 }
 
 const list=document.getElementById("list");
