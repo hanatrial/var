@@ -216,6 +216,16 @@
   #installGate #igSkip{color:#6f8f80}
   .dwnote{margin:0 0 14px;padding:11px 14px;border-radius:12px;background:#e9f9f0;border:1px solid #bfe8d3;color:#1c7a4b;font-size:.78rem;line-height:1.55}
   .dwnote b{color:#12683c}
+  .rbar{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 14px}
+  .rchip{display:inline-flex;align-items:center;gap:6px;padding:7px 11px;border-radius:999px;background:#fff;border:1px solid var(--line);font-size:.76rem;color:#12321f;font-weight:600}
+  .rchip i{font-style:normal}
+  .rchip b{font-variant-numeric:tabular-nums}
+  .rchip.ok{border-color:rgba(47,191,113,.45);background:#eefaf3}
+  .rchip.bear{border-color:rgba(229,72,77,.4);background:#fdeeee}
+  .rchip.warn{border-color:rgba(154,107,0,.35);background:#fff6e6}
+  .rr{font-size:.7rem;color:#6f8f80}
+  .rr.up{color:#178a4e}
+  .rr.dn{color:#c4232a}
 </style>
 </head>
 <body>
@@ -1032,6 +1042,19 @@ document.getElementById("foot").textContent=`IDX ${cnt("IDX")} · US ${cnt("US")
   }
   b.innerHTML=`<b>${REGIME.bearish?"🐻 Pasar BEARISH":"🐂 Pasar netral/bullish"}</b> — IHSG ${ID(REGIME.px)}${d}${REGIME.ma200?` · ${REGIME.px<REGIME.ma200?"di bawah":"di atas"} MA200 (${ID(REGIME.ma200)})`:""}${REGIME.ret6m!=null?` · 6 bln ${PCT(REGIME.ret6m)}`:""}.${REGIME.bearish?"<br>Saat IHSG di bawah MA200, sinyal beli individual lebih rawan gagal — perketat disiplin & kecilkan ukuran posisi (skor sudah otomatis dikali 0,85).":""}${sanity}${us}${cr}
   <br><span style="font-size:.78em;color:#8b96a8">Pembanding tiap pasar: <b>IDX → IHSG</b> · <b>US → S&amp;P 500</b> · <b>Crypto → BTC</b> (dipakai otomatis di kartu &amp; modal masing-masing).</span>`;
+})();
+(function(){
+  var b=document.getElementById("regimeBar"); if(!b||!REGIME) return;
+  var pv=function(x){return x==null?"":((x>=0?"+":"")+x.toFixed(2)+"%");};
+  var ar=function(px,ma){ if(px==null||ma==null) return ""; var up=px>=ma; return '<span class="rr '+(up?"up":"dn")+'">'+(up?"▲":"▼")+' MA200</span>'; };
+  var h="";
+  h+='<span class="rchip '+(REGIME.bearish?"bear":"ok")+'"><i>'+(REGIME.bearish?"🐻":"🐂")+'</i>IHSG <b>'+ID(REGIME.px)+'</b>'+(REGIME.chg1d!=null?' <span class="rr '+(REGIME.chg1d>=0?"up":"dn")+'">'+pv(REGIME.chg1d)+'</span>':"")+' '+ar(REGIME.px,REGIME.ma200)+'</span>';
+  if(REGIME.us){ var u=REGIME.us; h+='<span class="rchip '+(u.riskOff?"bear":"ok")+'"><i>'+(u.riskOff?"🔴":"🟢")+'</i>S&amp;P <b>'+Math.round(u.spx)+'</b> '+ar(u.spx,u.ma200)+(u.vix!=null?' <span class="rr">VIX '+u.vix.toFixed(0)+'</span>':"")+'</span>'; }
+  var c=REGIME.bench&&REGIME.bench.CRYPTO;
+  if(c){ h+='<span class="rchip '+(c.bearish?"bear":"ok")+'"><i>₿</i>BTC <b>'+ID(c.px)+'</b>'+(c.chg1d!=null?' <span class="rr '+(c.chg1d>=0?"up":"dn")+'">'+pv(c.chg1d)+'</span>':"")+' '+ar(c.px,c.ma200)+'</span>'; }
+  if(REGIME.breadth&&REGIME.breadth.medianChg!=null){ var m=REGIME.breadth.medianChg; h+='<span class="rchip '+(m<0?"bear":"ok")+'"><i>📊</i>breadth <b>'+m.toFixed(1)+'%</b>'+(REGIME.breadth.shareNearArb!=null?' <span class="rr">'+Math.round(REGIME.breadth.shareNearArb*100)+'% ARB</span>':"")+'</span>'; }
+  if(REGIME.suspectIndex) h+='<span class="rchip warn"><i>⚠️</i>data perlu dicek</span>';
+  b.className="rbar"; b.innerHTML=h;
 })();
 
 document.getElementById("guide").innerHTML=`
