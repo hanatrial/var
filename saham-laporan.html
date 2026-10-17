@@ -226,6 +226,11 @@
   .rr{font-size:.7rem;color:#6f8f80}
   .rr.up{color:#178a4e}
   .rr.dn{color:#c4232a}
+  .rbar{gap:7px}
+  .rbar.scroll{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding-bottom:3px}
+  .rbar.scroll::-webkit-scrollbar{display:none}
+  .rchip{white-space:nowrap;line-height:1.15}
+  .rchip.sm{font-size:.72rem;padding:6px 10px}
 </style>
 </head>
 <body>
@@ -242,14 +247,14 @@
 <div class="wrap">
   <header>
     <h1>🔬 Screener &amp; <span>Analisa Mendalam</span></h1>
-    <div class="sub" id="genAt"></div>
   </header>
-  <div class="rbar" style="margin-bottom:14px">
-    <span class="rchip"><i>📅</i>Data harian</span>
-    <span class="rchip ok"><i>🗓️</i>Keputusan mingguan</span>
-    <span class="rchip ok"><i>⭐</i>Masuk saat BEST BUY · volume ≥1,5×</span>
-    <span class="rchip"><i>★</i>SIAP → watchlist</span>
-    <span class="rchip bear"><i>🚫</i>Hindari beli harian (biaya)</span>
+  <div class="rbar scroll" style="margin-bottom:10px">
+    <span class="rchip sm" id="genAt"></span>
+    <span class="rchip sm"><i>📅</i>Data harian</span>
+    <span class="rchip sm ok"><i>🗓️</i>Keputusan mingguan</span>
+    <span class="rchip sm ok"><i>⭐</i>Masuk saat BEST BUY · volume ≥1,5×</span>
+    <span class="rchip sm"><i>★</i>SIAP → watchlist</span>
+    <span class="rchip sm bear"><i>🚫</i>Hindari beli harian (biaya)</span>
   </div>
   <div id="regimeBar"></div>
   <div class="mkts" id="mktTabs">
@@ -1012,13 +1017,13 @@ overlay.addEventListener("click",closeModal);
   const el=document.getElementById("genAt"); if(!el) return;
   let d=GENERATED_AT?new Date(GENERATED_AT):null;
   if(!d || isNaN(d)){
-    el.innerHTML="Data per <b>waktu tidak tersedia</b> · update otomatis";
+    el.innerHTML="<i>📅</i>data: waktu tak tersedia";
     return;
   }
   const tgl=d.toLocaleString("id-ID",{dateStyle:"full",timeStyle:"short",timeZone:"Asia/Makassar"});
   const umur=(Date.now()-d.getTime())/3600000;
   const umurTxt = umur<0 ? "" : umur<1 ? " · baru saja" : " · "+(umur<48?umur.toFixed(0)+" jam lalu":(umur/24).toFixed(0)+" hari lalu");
-  el.innerHTML="Data per <b>"+tgl+" WITA</b>"+umurTxt+" · update otomatis";
+  el.innerHTML="<i>📅</i>data per <b>"+tgl+" WITA</b>"+umurTxt;
 })();
 const cnt = m => DATA.filter(x=>x.market===m).length;
 document.getElementById("foot").textContent=`IDX ${cnt("IDX")} · US ${cnt("US")} · Crypto ${cnt("CRYPTO")} — ${DATA.length} instrumen${DATA.filter(x=>x.excluded).length?` · ⛔ ${DATA.filter(x=>x.excluded).length} dikecualikan`:""}`;
@@ -1056,7 +1061,7 @@ document.getElementById("foot").textContent=`IDX ${cnt("IDX")} · US ${cnt("US")
   if(c){ h+='<span class="rchip '+(c.bearish?"bear":"ok")+'"><i>₿</i>BTC <b>'+ID(c.px)+'</b>'+(c.chg1d!=null?' <span class="rr '+(c.chg1d>=0?"up":"dn")+'">'+pv(c.chg1d)+'</span>':"")+' '+ar(c.px,c.ma200)+'</span>'; }
   if(REGIME.breadth&&REGIME.breadth.medianChg!=null){ var m=REGIME.breadth.medianChg; h+='<span class="rchip '+(m<0?"bear":"ok")+'"><i>📊</i>breadth <b>'+m.toFixed(1)+'%</b>'+(REGIME.breadth.shareNearArb!=null?' <span class="rr">'+Math.round(REGIME.breadth.shareNearArb*100)+'% ARB</span>':"")+'</span>'; }
   if(REGIME.suspectIndex) h+='<span class="rchip warn"><i>⚠️</i>data perlu dicek</span>';
-  b.className="rbar"; b.innerHTML=h;
+  b.className="rbar scroll"; b.innerHTML=h;
 })();
 
 document.getElementById("guide").innerHTML=`
