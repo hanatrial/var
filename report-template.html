@@ -772,6 +772,32 @@ function commodityHTML(s){
   </ul>`;
 }
 
+/* ---------- tren fundamental (riwayat tahunan) ---------- */
+function fundTrendHTML(s){
+  const fh=s.fundHist;
+  if(!fh || (!fh.eps.length && !fh.rev.length && !fh.ni.length && !fh.eq.length))
+    return `<p style="font-size:.78rem;color:#6f8f80">Riwayat fundamental tahunan tidak tersedia dari sumber gratis untuk instrumen ini.</p>`;
+  const ch=(ico,lab,cls)=>`<span class="rchip ${cls||""}"><i>${ico}</i>${lab}</span>`;
+  const trend = a => { const v=(a||[]).map(x=>x[1]); if(v.length<2) return null; const f=v[0], l=v[v.length-1]; if(f==null||l==null||f===0) return null; const chg=(l/f-1)*100; return { n:v.length, chg, dir: l>f?"naik":l<f?"turun":"datar" }; };
+  const tEps=trend(fh.eps), tRev=trend(fh.rev), tNi=trend(fh.ni);
+  let roeT=null;
+  if(fh.ni && fh.eq && fh.ni.length && fh.eq.length){
+    const m={}; fh.eq.forEach(([y,v])=>{ if(v) m[y]=v; });
+    const arr=fh.ni.filter(([y])=>m[y]).map(([y,ni])=>[y, ni/m[y]]);
+    if(arr.length>=2) roeT={ y0:arr[0][0], y1:arr[arr.length-1][0], f:arr[0][1], l:arr[arr.length-1][1] };
+  }
+  const yrs = (tEps&&tEps.n)||(tRev&&tRev.n)||(fh.eq&&fh.eq.length)||0;
+  let chips = ch("📅","riwayat "+yrs+" thn");
+  const arrow = d => d==="naik"?"📈":d==="turun"?"📉":"➖";
+  if(tEps) chips += ch(arrow(tEps.dir), "EPS "+(tEps.chg>=0?"+":"")+tEps.chg.toFixed(0)+"%", tEps.dir==="naik"?"ok":tEps.dir==="turun"?"bear":"");
+  if(tRev) chips += ch(arrow(tRev.dir), "omzet "+(tRev.chg>=0?"+":"")+tRev.chg.toFixed(0)+"%", tRev.dir==="turun"?"warn":"");
+  if(tNi)  chips += ch(arrow(tNi.dir), "laba "+(tNi.chg>=0?"+":"")+tNi.chg.toFixed(0)+"%", tNi.dir==="turun"?"bear":"");
+  if(roeT) chips += ch("🧮", "ROE "+(roeT.f*100).toFixed(0)+"%→"+(roeT.l*100).toFixed(0)+"% ("+roeT.y0+"–"+roeT.y1+")", roeT.l>=roeT.f?"ok":"warn");
+  const declining = (tEps&&tEps.dir==="turun") || (tNi&&tNi.dir==="turun");
+  const note = declining ? `<div class="bbbox no" style="margin-top:8px"><div class="bbt">⚠️ Laba/EPS menurun beberapa tahun</div><div>Hati-hati <b>value trap</b>: PER murah bisa karena laba menyusut, bukan diskon. Cek arah komoditas/industrinya.</div></div>` : "";
+  return `<div class="rbar">${chips}</div>${note}`;
+}
+
 const list=document.getElementById("list");
 const qEl=document.getElementById("q");
 const cntEl=document.getElementById("cnt");
@@ -927,6 +953,11 @@ function openModal(i){
     </div>
 
     <div class="sec">
+      <h3><span class="ico">📈</span> Tren Fundamental (riwayat tahunan)</h3>
+      ${fundTrendHTML(s)}
+    </div>
+
+    <div class="sec">
       <h3><span class="ico">🎯</span> Target Harga Fundamental (3 skenario)</h3>
       ${fundTargetsHTML(s)}
     </div>
@@ -987,7 +1018,8 @@ function openModal(i){
         <li><b>Time stop:</b> jika <b>3–4 minggu</b> harga tidak menyentuh TP1 & momentum melemah → keluar.</li>
         <li><b>Batal/invalidasi:</b> keluar bila close &lt; MA50 dengan volume besar, gagal breakout, atau akumulasi turun di bawah 45%.</li>
         <li><b>Dasar SL:</b> ${a.exit.slBasis}${a.exit.slClamped?` <b>(dibendung ke band ${SL_MIN_LBL}–${SL_MAX_LBL}%)</b>`:""} — ini bukan angka acak; bila dipangkas, alasannya disebut.</li>
-        <li><b>Ukuran posisi:</b> contoh modal ${CUR(s,a.exit.portVal)}, risiko 1% (${CUR(s,a.exit.riskAmt)}), jarak SL ${a.exit.slPct.toFixed(1)}% → posisi ± <b>${CUR(s,a.exit.posSize)}</b>${a.exit.posCapped?` <span style="color:var(--muted)">(sudah dipangkas ke batas konsentrasi ${(POS_CAP*100).toFixed(0)}% modal — tanpa pembatas, rumus risiko 1% menghasilkan ${CUR(s,a.exit.portVal*0.01/Math.max(0.0001,a.exit.slPct/100))}, terlalu terkonsentrasi untuk 1 nama)</span>`:""}.</li>
+        <li><b>Ukuran via volatilitas (risk-parity):</b> vol tahunan <b>${s.volAnn!=null?s.volAnn.toFixed(0)+"%":"—"}</b>${s.volAnn!=null?` → agar tiap posisi menyumbang risiko ~2% portofolio, ukuran ≤ <b>${Math.min(20,Math.round(200/s.volAnn))}% modal</b> (dibandingkan 1 nama 20%: risiko jauh lebih kecil).`:""}</li>
+        <li><b>Ukuran posisi:</b> contoh modal ${CUR(s,a.exit.portVal)}, risiko 1% (${CUR(s,a.exit.riskAmt)}), jarak SL ${a.exit.slPct.toFixed(1)}% → posisi ± <b>${CUR(s,a.exit.posSize)}</b>${a.exit.posCapped?` <span style="color:var(--muted)">(sudah dipangkas ke batas konsentrasi ${(POS_CAP*100).toFixed(0)}% modal)</span>`:""}.</li>
       </ul>
     </div>
 
@@ -1094,6 +1126,11 @@ document.getElementById("foot").textContent=`IDX ${cnt("IDX")} · US ${cnt("US")
 document.getElementById("guide").innerHTML=`
   <h2>📘 Cara membaca &amp; manajemen risiko</h2>
   <p>Skor tiap instrumen = <b>Valuasi (maks 36)</b> + <b>Kualitas (14)</b> + <b>Tren (28)</b> + <b>Momentum (20)</b> + <b>Aliran volume (26)</b> + <b>Kekuatan relatif vs indeks (12)</b> = maks 136. Skor tinggi = kondisi sedang "menarik secara terukur", <b>bukan</b> jaminan naik.</p>
+  <div class="rbar" style="margin:8px 0">
+    <span class="rchip warn"><i>🔬</i>validasi skor: IC ≈ 0 (bukan prediktor return)</span>
+    <span class="rchip"><i>📊</i>desil skor tertinggi ≈ +3,5–3,9%/bln (tidak monoton)</span>
+    <span class="rchip ok"><i>✅</i>yang berfungsi: skor sebagai filter + breakout + filter rejim</span>
+  </div>
   <p><b>Yang berubah setelah audit data &amp; metode (Okt 2026):</b> (1) PBV/PER dihitung ulang dengan konversi mata uang laporan (USD→IDR) — sebelumnya PBV PGAS/ADRO/BYAN salah ribuan kali. (2) Label "komoditas" hanya untuk energi/material/perkebunan, bukan Consumer Defensive. (3) Pertumbuhan laba/pendapatan &amp; ROE di-winsorize (−100%…+200%). (4) Valuasi kini <b>relatif median sektor</b>, bukan ambang absolut. (5) Ada gate <b>kualitas</b> (ROE, laba tumbuh, DER) + penangkap <b>value trap</b>. (6) Volume besar saat harga <b>turun</b> kini bernilai <b>negatif</b> (distribusi), bukan akumulasi. (7) Skor dikali pengali rezim. (8) Saham ARB didiskon −15 poin. (9) Crypto <b>tanpa</b> poin valuasi. (10) Sentimen berita pakai kata utuh + hanya judul yang menyebut emiten. (11) <b>Return historis memakai <i>adjusted close</i></b> (dividen &amp; split masuk) — sebelumnya tanggal ex-dividend dihitung sebagai penurunan harga dan bisa memicu reset skor secara keliru. (12) <b>Aturan ARA/ARB BEI hanya berlaku untuk saham IDX</b> — sebelumnya ikut menimpa saham AS &amp; crypto dengan satuan Rupiah. (13) <b>Bug ARB beruntun diperbaiki:</b> saat pasar tutup, 1 hari ARB sempat terbaca "2 hari berturut-turut" sehingga <b>47 saham IDX salah dieksklusi</b> (termasuk BBCA, BBRI, BMRI, TLKM, PGAS, ANTM). (14) Blok kata kunci aksi korporasi Indonesia dipisahkan dari blok AS/crypto (dulu berita buyback AS sempat mendapat +16 dobel). (15) Kata "insider" tanpa arah beli/jual tidak lagi memberi +8 — dulu berita <i>penjualan</i> insider justru menaikkan skor. (16) Setiap instrumen kini punya <b>indikator kualitas data</b> di bagian bawah analisis mendalam. (17) Riwayat saham AS/crypto kini 5 tahun (sebelumnya 2 tahun, sehingga poin konsistensi dividen tidak adil dibanding IDX).</p>
   <p><b>Keterbatasan yang masih disadari (belum diperbaiki):</b> komponen <b>Aliran Volume (26 poin)</b> menghitung OBV, MFI, dan rasio akumulasi — tiga ukuran yang sebenarnya berasal dari fenomena serupa (volume × arah harga). Bisa jadi 20-an poin datang dari satu sinyal yang sama, sehingga ranking sangat mirip dengan "saham yang baru naik". Selain itu, <b>indikator volume hanya menunjukkan tekanan beli/jual</b> — screener <b>tidak punya data siapa</b> yang bertransaksi, jadi label "akumulasi institusi" atau "bandar" tidak bisa dibuktikan dari data ini dan sengaja tidak dipakai.</p>
   <h3>🎯 Target harga fundamental (3 skenario)</h3>

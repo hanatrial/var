@@ -105,6 +105,19 @@ async function chartFull(sym, range = "1y") {
   const firstTrade = r.meta && r.meta.firstTradeDate ? new Date(r.meta.firstTradeDate * 1000).toISOString().slice(0, 10) : null;
   return { rows, dividends, splits, firstTrade };
 }
+
+// riwayat fundamental tahunan (untuk tren laba/omzet/ekuitas) — sumber gratis Yahoo
+async function fundHistory(sym) {
+  const types = "annualDilutedEPS,annualTotalRevenue,annualStockholdersEquity,annualNetIncome,annualOrdinarySharesNumber";
+  const url = `https://query1.finance.yahoo.com/ws/fundamentals-timeseries/v1/finance/timeseries/${encodeURIComponent(sym)}?symbol=${encodeURIComponent(sym)}&type=${types}&period1=1136073600&period2=${Math.floor(Date.now() / 1000)}`;
+  const j = await jget(url);
+  const res = j && j.timeseries && j.timeseries.result;
+  if (!res) return null;
+  const pick = k => { const n = res.find(x => x[k]); if (!n) return []; return n[k].filter(x => x && x.asOfDate && x.reportedValue && x.reportedValue.raw != null).map(x => [x.asOfDate.slice(0, 4), x.reportedValue.raw]).sort((a, b) => (a[0] < b[0] ? -1 : 1)); };
+  const o = { eps: pick("annualDilutedEPS"), rev: pick("annualTotalRevenue"), eq: pick("annualStockholdersEquity"), ni: pick("annualNetIncome"), shares: pick("annualOrdinarySharesNumber") };
+  if (!o.eps.length && !o.rev.length && !o.eq.length) return null;
+  return o;
+}
 async function chart(sym, range = "1y") { const f = await chartFull(sym, range); return f ? f.rows : null; }
 
 async function summary(sym) {
@@ -638,6 +651,11 @@ function finalizeScores(list, ctx) {
           if (!lastA || lastA.c !== Math.round(px * 10000) / 10000) s.seriesAll.push({ d: todayISO, c: Math.round(px * 10000) / 10000 });
           s.splits = (full.splits || []).slice(-12).map(x => ({ d: x.date, ratio: x.num + ":" + x.den }));
           s.ipo = full.firstTrade || null;
+          try { s.fundHist = await fundHistory(e.symbol); } catch (e2) {}
+          // volatilitas tahunan dari 252 hari terakhir (untuk ukuran posisi)
+          { const rr = refCloses.slice(-253); let sq = 0, n = 0;
+            for (let i = 1; i < rr.length; i++) { const d = Math.log(rr[i] / rr[i - 1]); if (isFinite(d)) { sq += d * d; n++; } }
+            s.volAnn = n > 20 ? Math.sqrt(sq / n * 252) * 100 : null; }
 
           results.push(s);
         }
