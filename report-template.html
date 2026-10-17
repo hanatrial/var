@@ -1070,9 +1070,11 @@ function openModal(i){
       <div class="rbar" style="margin-top:10px">
         <span class="rchip sm ok"><i>🕒</i>beli di open besok</span>
         <span class="rchip sm warn"><i>🚫</i>gap &gt;4% dilewat</span>
+        <span class="rchip sm"><i>📈</i>volume ≥1,5×</span>
         <span class="rchip sm"><i>🔢</i>N=10 slot</span>
         <span class="rchip sm"><i>⚖️</i>equal-weight</span>
         <span class="rchip sm bear"><i>🛑</i>stop −10%</span>
+        <span class="rchip sm"><i>📉</i>trailing ATR 2,5×</span>
         <span class="rchip sm"><i>⏳</i>minHold 5h · maks 4–12 mgg</span>
         <span class="rchip sm"><i>🐂</i>masuk saat IHSG&gt;MA50&amp;MA200</span>
         <span class="rchip sm"><i>💧</i>≥ Rp1 M/hari</span>
@@ -1205,6 +1207,8 @@ document.getElementById("guide").innerHTML=`
   <div class="rbar" style="margin:8px 0">
     <span class="rchip sm ok"><i>🕒</i>sinyal tutup → beli di open besok</span>
     <span class="rchip sm warn"><i>🚫</i>lewati jika gap buka &gt;4%</span>
+    <span class="rchip sm"><i>📈</i>volume ≥1,5×</span>
+    <span class="rchip sm"><i>📉</i>trailing ATR 2,5×</span>
     <span class="rchip sm"><i>🔢</i>N=10 slot · urut kekuatan relatif</span>
     <span class="rchip sm"><i>⚖️</i>equal-weight (bukan inverse-vol)</span>
     <span class="rchip sm bear"><i>🛑</i>hard stop −10% (wajib)</span>
@@ -1212,7 +1216,7 @@ document.getElementById("guide").innerHTML=`
     <span class="rchip sm"><i>🐂</i>masuk hanya saat IHSG&gt;MA50&amp;MA200</span>
     <span class="rchip sm"><i>💧</i>≥ Rp1 M/hari</span>
   </div>
-  <p>Hasil uji (universum penuh, biaya 0,6% round-trip): <b>N=10</b> CAGR 35,7% (DD −29%, Sharpe 1,56) · <b>N=20</b> 25,6% (−24%, 1,55) · <b>N=30</b> 24,9% (−21%, 1,74) → makin banyak slot = makin halus tapi return turun. <b>Hard stop −10%</b> menaikkan return sekaligus menurunkan DD (vs tanpa stop 29,9%/−43%); <b>gap filter &gt;4%</b> membantu (35,7% vs 29,0%); <b>equal-weight &gt; inverse-vol</b> (Sharpe 1,56 vs 1,17). Kandidat N10 + ATR2,5× + gap4%: DEV +26,8% / VAL +36,3% / OOS +36,9%. <span style="color:var(--muted)">Angka optimistis (survivorship bias & asumsi terisi penuh).</span></p>
+  <p>Hasil <b>uji menyeluruh (96 konfigurasi)</b>: <b>12 konfigurasi</b> mencapai FULL ≥20% <b>di semua periode</b> (DEV/VAL/OOS). Paling robust: <b>volume ≥1,5× · hold 4 mgg · exit trailing ATR 2,5× · stop −10% · N=10</b> → DEV <b>+28,0%</b> / VAL <b>+41,4%</b> / OOS <b>+40,4%</b> (DD −19…−25%, Sharpe 1,68). <b>Walk-forward 8 tahun: +40,1%</b> (IHSG −2,3%) — <b>tapi tidak rata</b>: 2022 hanya +1,7% dan 2023 +5,1%, sementara 2021/2024/2025 meledak (+85…+131%). Tahan biaya (biaya ×2 → FULL 29,9%). <span style="color:var(--muted)">Angka optimistis (survivorship bias & asumsi terisi penuh).</span></p>
   <h3>Penyaring otomatis yang sudah dipasang</h3>
   <ul>
     <li><b>Crash penalty</b>: jika turun ≤ −7% sehari atau ≤ −15% sepekan, skor Tren &amp; Momentum dipaksa 0.</li>
