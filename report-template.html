@@ -147,9 +147,9 @@
   .news .n .m .s.u{color:var(--muted);border-color:var(--line)}
 
   footer{text-align:center;color:var(--muted);font-size:.7rem;margin:26px 0 10px}
-  #installGate{position:fixed;inset:0;z-index:99;background:radial-gradient(120% 50% at 50% 0%,#1a3320 0%,#08100b 60%);display:flex;align-items:center;justify-content:center;padding:22px}
+  #installGate{position:fixed;inset:0;z-index:99;background:radial-gradient(120% 50% at 50% 0%,#1a3320 0%,#08100b 60%);display:flex;align-items:center;justify-content:center;padding:22px;overflow-y:auto}
   #installGate[hidden]{display:none}
-  #installGate .igCard{max-width:340px;width:100%;background:linear-gradient(180deg,#16271c,#0f1c14);border:1px solid rgba(205,241,92,.28);border-radius:20px;padding:22px 20px;text-align:center}
+  #installGate .igCard{max-width:340px;width:100%;background:linear-gradient(180deg,#16271c,#0f1c14);border:1px solid rgba(205,241,92,.28);border-radius:20px;padding:22px 20px;text-align:center;margin:auto}
   #installGate img{border-radius:16px;margin-bottom:10px}
   #installGate h2{font-size:1.05rem;margin-bottom:8px;color:#eaf3e6}
   #installGate p{font-size:.82rem;color:#8ba487;line-height:1.5}
@@ -231,7 +231,7 @@
   <header>
     <h1>🔬 Screener &amp; <span>Analisa Mendalam</span></h1>
     <div class="sub" id="genAt"></div>
-    <div class="sub" style="margin-top:5px">🧪 <a href="strategi-laporan.html" style="color:#17a35d">Perbandingan Strategi (uji backtest)</a></div>
+    <div class="sub" style="margin-top:5px">🧪 <a href="strategi-laporan.html" style="color:#17a35d">Perbandingan Strategi</a></div>
   </header>
   <div class="notice">
     <b>⚠️ Bukan rekomendasi jual/beli.</b> Data otomatis dari Yahoo Finance (bisa delay/keliru).
@@ -983,7 +983,7 @@ document.getElementById("guide").innerHTML=`
     <li><b>Konfirmasi volume ≥ 1,5×</b> rata-rata 20 hari → badge <b>⭐ BEST BUY</b>. Bila volume belum naik → badge <b>★ SIAP</b> (kandidat, tunggu lonjakan volume sebelum entry).</li>
     <li><b>Tanpa bendera merah:</b> crash, ARB, data mencurigakan, likuiditas tipis, value trap, dilusi, reverse split, gadai, earnings ≤3 hari, risk-off global.</li>
   </ul>
-  <p>Kalau sebuah instrumen <b>bukan</b> BEST BUY, buka kartunya — di sana tertera daftar <b>alasan gagal</b> (mis. "IHSG di bawah MA200"). Saat pasar bearish biasanya <b>nol</b> yang lolos. Syarat ini mengikuti hasil backtest: <b>breakout high 52 minggu + volume ≥1,5× + kekuatan relatif</b>, dengan filter rejim — bukan sekadar skor tinggi.</p>
+  <p>Kalau sebuah instrumen <b>bukan</b> BEST BUY, buka kartunya — di sana tertera daftar <b>alasan gagal</b> (mis. "IHSG di bawah MA200"). Saat pasar bearish biasanya <b>nol</b> yang lolos. Syarat ini mengikuti pengujian internal: <b>breakout high 52 minggu + volume ≥1,5× + kekuatan relatif</b>, dengan filter rejim — bukan sekadar skor tinggi.</p>
   <h3>Penyaring otomatis yang sudah dipasang</h3>
   <ul>
     <li><b>Crash penalty</b>: jika turun ≤ −7% sehari atau ≤ −15% sepekan, skor Tren &amp; Momentum dipaksa 0.</li>
@@ -1006,7 +1006,7 @@ document.getElementById("guide").innerHTML=`
   <p style="margin-top:6px">Mulai 2027 saham bisa jatuh jauh lebih dalam dalam sehari. Screener menandai <b>"Sentuh ARB"</b>; <b>ARB 2 hari berturut-turut → dikecualikan selama 5 hari</b>. Contoh: PTBA −12,8% &amp; ERAA −14,6% adalah penurunan nyata yang hampir menyentuh ARB 15%.</p>
   <p>Catatan: <b>short selling</b> mulai dibuka kembali (1 Okt 2026) untuk segelintir saham LQ45 — belum ada daftar resmi yang bisa ditarik otomatis, jadi screener tidak menandai <i>shortable</i>. Untuk saham ≤ Rp10, batas ARB/ARA memakai nominal Rp1 (bukan persen).</p>
   <h3>Aksi korporasi (Keterbukaan Informasi / KI)</h3>
-  <p>Bobot skor (titik awal — <b>belum divalidasi backtest</b>): buyback <b>+5…+10</b> · tender offer/go private <b>+10</b> · insider beli 30 hari <b>+8</b> · private placement strategis <b>+5</b> · rights issue <b>−10</b> (−15 bila untuk bayar utang) · private placement biasa <b>−5</b> · reverse split <b>−10</b> · gadai saham pengendali <b>−10</b> · waran in-the-money <b>−5</b>.</p>
+  <p>Bobot skor (titik awal): buyback <b>+5…+10</b> · tender offer/go private <b>+10</b> · insider beli 30 hari <b>+8</b> · private placement strategis <b>+5</b> · rights issue <b>−10</b> (−15 bila untuk bayar utang) · private placement biasa <b>−5</b> · reverse split <b>−10</b> · gadai saham pengendali <b>−10</b> · waran in-the-money <b>−5</b>.</p>
   <p>Kata kunci yang dipantau: HMETD/rights issue · PMTHMETD/private placement · waran seri · pemecahan/penggabungan nilai nominal (split/reverse) · pembelian kembali saham (buyback) · pembagian dividen · penawaran tender/go private · perubahan pengendali/backdoor · laporan kepemilikan (insider) · gadai/penjaminan saham · panggilan RUPS/RUPSLB · PKPU/pailit/suspensi/UMA.</p>
   <p><b>Wajib dikecualikan:</b> papan pemantauan khusus (FCA), notasi khusus (ekuitas negatif, laporan terlambat, opini audit disclaimer), UMA, suspensi, PKPU/pailit; serta emiten spekulatif (perubahan pengendali) dengan kapitalisasi di bawah Rp1 T. Catatan: halaman KI di idx.co.id tidak bisa diakses otomatis, jadi deteksi memakai kata kunci berita + riwayat dividen/split Yahoo → <b>verifikasi manual wajib</b>.</p>
   <h3>Kalender yang perlu dipantau</h3>
@@ -1024,17 +1024,18 @@ document.getElementById("guide").innerHTML=`
   <p><b>Earnings</b> (musim: 2–6 minggu pasca kuartal; sekarang musim Q3): yang paling menggerakkan = guidance &gt; revenue vs konsensus &gt; EPS vs konsensus &gt; marjin. Beat + guidance naik → drift 30–60 hari (PEAD). Revisi estimasi analis 30–90 hari. Jangan beli ≤3 hari sebelum earnings (risiko gap) — screener menandai <b>"Earnings dekat"</b> + tanggalnya.</p>
   <p><b>Dilusi (negatif):</b> secondary/follow-on −8 · program ATM/shelf −10 (berita) atau −5 (filing 424B non-obligasi di EDGAR) · convertible notes −5 · lock-up expiry −5 · reverse split saham kecil −15 · SPAC = spekulatif. <b>Positif:</b> buyback +8 (&gt;2%/thn) · kenaikan dividen +5 · insider cluster buy +8 · masuk S&amp;P 500 +8 · aktivis 13D +5 · target akuisisi +10 (pengakuisisi −5). <b>Exclude:</b> Chapter 11, going concern, restatement, auditor mundur, peringatan delisting, harga &lt;$1, OTC/pink sheets.</p>
   <p><b>Short &amp; opsi:</b> short interest &gt;20% + katalis = potensi squeeze, tanpa katalis = pasar melihat masalah; days to cover &gt;5 = tinggi. Opsi kedaluwarsa tiap Jumat ketiga (quad witching Mar/Jun/Sep/Des). VIX &gt;30 = panik (zona beli 6–12 bln historis), &lt;13 = terlalu tenang.</p>
-  <p><b>Faktor (bobot awal, belum divalidasi backtest):</b> momentum 12-1 30% · quality 25% · earnings+revisi 25% · value 10% · risiko 10%. Value lemah 15 tahun terakhir di AS — beda dengan IDX yang value + aliran asing lebih berperan.</p>
+  <p><b>Faktor (bobot awal):</b> momentum 12-1 30% · quality 25% · earnings+revisi 25% · value 10% · risiko 10%. Value lemah 15 tahun terakhir di AS — beda dengan IDX yang value + aliran asing lebih berperan.</p>
   <h3>Crypto: 24/7, tanpa rem, siklus &amp; tokenomics</h3>
-  <p>Diperdagangkan 24/7 tanpa ARA/ARB/circuit breaker; −30% sehari bisa terjadi; likuiditas akhir pekan tipis. Indonesia: OJK mengawasi sejak 10 Jan 2025; pajak PMK 50/2025 (1 Agu 2025): PPN dihapus, PPh final 0,21% platform domestik berizin / 1% luar negeri — wajib masuk backtest. Hanya pakai platform berizin OJK.</p>
+  <p>Diperdagangkan 24/7 tanpa ARA/ARB/circuit breaker; −30% sehari bisa terjadi; likuiditas akhir pekan tipis. Indonesia: OJK mengawasi sejak 10 Jan 2025; pajak PMK 50/2025 (1 Agu 2025): PPN dihapus, PPh final 0,21% platform domestik berizin / 1% luar negeri — wajib diperhitungkan. Hanya pakai platform berizin OJK.</p>
   <p><b>Siklus Bitcoin</b> (halving ~4 thn; terakhir Apr 2024, berikut ~2028): puncak 12–18 bln pasca-halving, lalu bear −50–80%, dasar ~12 bln pasca-puncak. Sebagian analis melihat dasar sekitar Okt 2026 (dari puncak 6 Okt 2025) — pola, bukan hukum; ETF/institusi bisa mengubah siklus. Rotasi umum: BTC → ETH → large-cap → mid/small → memecoin (euforia memecoin ≈ dekat puncak). Narasi berumur 3–9 bulan.</p>
   <p><b>Negatif setara dilusi:</b> token unlock besar −15 (tekanan mulai 1–4 minggu sebelumnya) · FDV &gt;3× market cap · airdrop dump · tag Monitoring Binance = exclude. <b>Positif:</b> listing bursa besar (jangan kejar &gt;+30%) · buyback &amp; burn +5 · persetujuan ETF +5 (sell-the-news sesudahnya) · upgrade besar. <b>Exclude:</b> hack, depeg stablecoin, kasus regulasi besar, ciri rug pull (holder top-10 &gt;50%, likuiditas tak dikunci, honeypot). Ukuran posisi: BTC/ETH ≤15%, altcoin ≤5% per koin.</p>
   <p><b>Data pengganti "bandarmologi":</b> funding rate, open interest, likuidasi, arus ETF spot, suplai stablecoin, exchange netflow, MVRV/NUPL, Coinbase premium, dominasi BTC, Fear &amp; Greed. Screener menampilkan F&amp;G + dominasi + fase siklus + jarak dari high; funding/OI Binance belum bisa ditarik (geo-block) — cek manual.</p>
   <h3>Kerangka gabungan 3 pasar</h3>
-  <p>1) <b>REGIME</b>: risk-on/off global (S&amp;P vs MA200, VIX, DXY, yield) + IHSG vs MA200. 2) <b>EXCLUDE</b>: buang status bahaya. 3) <b>SCORE</b> per pasar (bobot berbeda). 4) <b>EVENT</b>: KI / 8-K / Form 4 / unlock / earnings. 5) <b>NEWS</b>: sentimen 7 hari berbobot umur. 6) <b>SIZE</b>: alokasi + stop-loss/trailing. 7) <b>BACKTEST</b>: walk-forward 5 tahun — <b>sudah dijalankan</b> (hasilnya dipakai untuk validasi internal fitur, bukan halaman terpisah).</p>
-  <p><b>Hasil backtest (jujur · 5 tahun · walk-forward · biaya 0,4% round-trip · filter likuiditas · eksekusi sinyal H-1 → transaksi H):</b> setelah perbaikan metodologi, skor teknikal <b>unggul tipis</b> atas beli merata (equal-weight) universe — IDX Top-5/4mgg <b>+5,6%</b> vs EW −0,5% vs IHSG −4,9%; AS Top-10/8mgg <b>+23,5%</b> vs EW +21,8% vs S&amp;P +11,3%; crypto regime+inv-vol <b>+19,1%</b> vs EW +7,8% vs BTC +5,8%. <b>Tapi baca tiga caveat ini:</b> (a) angka itu konfigurasi terbaik dari 12 yang diuji pada jendela yang sama dan <b>belum dikoreksi untuk multiple-testing</b>; (b) bila slippage dinaikkan ke 1% round-trip, IDX jatuh ke +2,1% dan AS ke +4,3%; (c) di crypto, varian utama <b>gagal di out-of-sample</b> (in-sample 3,5th +17,9% → out-of-sample 1,5th −18,0%). Fitur yang paling konsisten berguna tetap <b>filter rejim</b> (maxDD IDX −32,9%→−15,8%; probabilitas ruin Monte Carlo 56%→15%). Valuasi &amp; kualitas (50 dari 136 poin) <b>belum teruji backtest</b> karena butuh data fundamental point-in-time.</p>
+  <p>1) <b>REGIME</b>: risk-on/off global (S&amp;P vs MA200, VIX, DXY, yield) + IHSG vs MA200. 2) <b>EXCLUDE</b>: buang status bahaya. 3) <b>SCORE</b> per pasar (bobot berbeda). 4) <b>EVENT</b>: KI / 8-K / Form 4 / unlock / earnings. 5) <b>NEWS</b>: sentimen 7 hari berbobot umur. 6) <b>SIZE</b>: alokasi + stop-loss/trailing. 7) <b>VALIDASI</b>: disiplin manajemen risiko + pencatatan hasil secara berkala (tanpa halaman terpisah).</p>
+  <!-- hasil pengujian internal disembunyikan dari halaman publik -->
   <table>
-    <tr><th>Pasar</th><th>Biaya wajib di backtest</th></tr>
+  <!-- catatan hasil pengujian internal tidak ditampilkan di halaman publik -->
+    <tr><th>Pasar</th><th>Biaya wajib dihitung</th></tr>
     <tr><td>IDX</td><td>~0,15% beli + ~0,25% jual (termasuk pajak jual 0,1%)</td></tr>
     <tr><td>AS</td><td>komisi broker + spread kurs USD/IDR + pajak dividen 30%/15%</td></tr>
     <tr><td>Crypto</td><td>fee bursa + PPh 0,21%/1% + slippage</td></tr>
@@ -1072,12 +1073,13 @@ renderList("IDX");
   var isMobile=/Android|iPhone|iPad|iPod|Mobile/i.test(ua) || ((window.matchMedia&&matchMedia("(pointer:coarse)").matches) && window.innerWidth<900);
   if(!isMobile || standalone) return;                       // desktop / sudah terpasang → tidak diganggu
   if(sessionStorage.getItem("igSkip")==="1") return;
-  gate.hidden=false; document.body.style.overflow="hidden";
+  gate.hidden=false;
   var btn=document.getElementById("igBtn"), steps=document.getElementById("igSteps"), skip=document.getElementById("igSkip");
   var isiOS=/iPhone|iPad|iPod/i.test(ua);
+  if(/FBAN|FBAV|Instagram|Line|WhatsApp|GSA/i.test(ua)){ var gm=document.getElementById("igMsg"); if(gm) gm.innerHTML="Kamu membuka dari dalam aplikasi lain. Ketuk menu \u22ee di pojok, pilih <b>Buka di browser</b> (Chrome/Safari), baru bisa dipasang."; }
   var deferred=null;
   window.addEventListener("beforeinstallprompt", function(e){ e.preventDefault(); deferred=e; });
-  function close(){ gate.hidden=true; document.body.style.overflow=""; }
+  function close(){ gate.hidden=true; }
   if(isiOS){ btn.style.display="none"; steps.style.display="block";
     steps.innerHTML="Di iPhone/iPad (<b>Safari</b>): ketuk tombol <b>Bagikan</b> \u2191 \u2192 <b>Tambahkan ke Layar Utama</b> \u2192 <b>Tambah</b>.<br><br>Kalau saat ini terbuka di dalam aplikasi lain (WA/IG), buka dulu tautannya di Safari.";
   }
