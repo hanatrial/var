@@ -956,6 +956,56 @@ function btEntryHTML(s,bt){
   </div>`;
 }
 
+/* ---------- POSISI SAYA (IDX) — harga & tanggal beli disimpan di browser ini saja (localStorage) ---------- */
+const POS_KEY="posIDX";
+function posLoad(){ try{ return JSON.parse(localStorage.getItem(POS_KEY)||"{}")||{}; }catch(e){ return {}; } }
+function posSave(o){ try{ localStorage.setItem(POS_KEY,JSON.stringify(o)); }catch(e){} }
+function bursaSelisih(a,b){ if(!a||!b||a>=b) return 0; const d=new Date(a+"T00:00:00Z"); let k=0;
+  while(d.toISOString().slice(0,10)<b){ d.setUTCDate(d.getUTCDate()+1); if(isBursa(d)) k++; } return k; }
+function posHTML(s){
+  const p=posLoad()[s.ticker]; const t0=tglClose(s);
+  const inp="background:var(--card2);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:.85rem;width:100%";
+  const form=`<h3 style="margin-top:14px"><span class="ico">📌</span> Posisi saya</h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0">
+      <label style="font-size:.7rem;color:var(--muted)">Harga beli (Rp)<input id="posPx" type="number" step="any" inputmode="decimal" style="${inp}" value="${p?p.p:""}" placeholder="mis. 3172"></label>
+      <label style="font-size:.7rem;color:var(--muted)">Tanggal beli<input id="posDt" type="date" style="${inp}" value="${p?p.d:""}"></label>
+    </div>
+    <div class="rbar"><button class="rchip sm ok" id="posSave">💾 Simpan</button>${p?`<button class="rchip sm bear" id="posDel">🗑 Hapus</button>`:""}</div>`;
+  if(!p) return `<div class="sec">${form}<p class="plan">Isi harga &amp; tanggal belimu → stop loss, take profit, hari ke-berapa, dan tanggal keluar dihitung otomatis. Tersimpan di browser ini saja.</p></div>`;
+  const e=+p.p, sl=e*(1-BT.hardStop/100), tp=e*(1+BT.tp/100), p3=e*(1+BT.timeMin/100);
+  const px=s.px, held=bursaSelisih(p.d,t0), tCek=bursaKe(p.d,BT.timeDays), tJual=bursaKe(p.d,BT.timeDays+1);
+  const pl=(px/e-1)*100, ma=s.ma50, besok=t0?bursaKe(t0,1):null;
+  let st, why;
+  if(px<=sl){ st="no"; why=`JUAL — stop loss kena (harga ${CUR(s,px)} ≤ ${CUR(s,sl)})`; }
+  else if(px>=tp){ st="ok"; why=`JUAL — target +${BT.tp}% tercapai (harga ${CUR(s,px)} ≥ ${CUR(s,tp)})`; }
+  else if(ma!=null && px<ma){ st="no"; why=`JUAL di open ${fmtTgl(besok)} — close ${CUR(s,px)} di bawah MA${BT.exitMA} (${CUR(s,ma)})`; }
+  else if(held>=BT.timeDays && px<p3){ st="no"; why=`JUAL di open ${fmtTgl(besok)} — sudah ${held} hari bursa, untung belum +${BT.timeMin}% (${CUR(s,p3)})`; }
+  else { st="ok"; why=`TAHAN — di atas MA${BT.exitMA}, belum kena stop/target${held>=BT.timeDays?`, untung sudah &gt; +${BT.timeMin}%`:""}`; }
+  const box=(cls,k,v,sub)=>`<div class="b ${cls}"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${sub}</div></div>`;
+  return `<div class="sec">${form}
+    <div class="bbbox ${st}" style="margin-top:10px"><div class="bbt">${st==="ok"?"✅":"⛔"} ${why}</div><div>Harga terakhir ${CUR(s,px)} (${fmtTgl(t0)})</div></div>
+    <div class="lvl">
+      ${box("en","MASUK",fmtTgl(p.d),"harga beli "+CUR(s,e))}
+      ${box("en","HARI KE",held+" / "+BT.timeDays,"hari bursa sejak beli")}
+      ${box(pl>=0?"tp":"sl","UNTUNG / RUGI",(pl>=0?"+":"")+pl.toFixed(1)+"%","sekarang "+CUR(s,px))}
+      ${box("sl","STOP LOSS","≤ "+CUR(s,sl),"−"+BT.hardStop+"% dari harga beli")}
+      ${box("tp","TAKE PROFIT","≥ "+CUR(s,tp),"+"+BT.tp+"% dari harga beli")}
+      ${box("en","BATAS +"+BT.timeMin+"%",CUR(s,p3),"untuk cek waktu")}
+      ${box(ma!=null&&px<ma?"sl":"tp","MA"+BT.exitMA+" HARI INI",CUR(s,ma),px<ma?"close di bawah → jual":"close di atas → aman")}
+      ${box("en","CEK WAKTU",fmtTgl(tCek),"close &lt; "+CUR(s,p3)+" → jual open "+fmtTgl(tJual))}
+    </div>
+  </div>`;
+}
+function posWire(s,redraw){
+  const sv=document.getElementById("posSave"), dl=document.getElementById("posDel");
+  if(sv) sv.addEventListener("click",()=>{
+    const pr=parseFloat(document.getElementById("posPx").value), dt=document.getElementById("posDt").value;
+    if(!(pr>0)||!/^\d{4}-\d{2}-\d{2}$/.test(dt)){ alert("Isi harga beli dan tanggal beli dulu."); return; }
+    const o=posLoad(); o[s.ticker]={p:pr,d:dt}; posSave(o); redraw();
+  });
+  if(dl) dl.addEventListener("click",()=>{ const o=posLoad(); delete o[s.ticker]; posSave(o); redraw(); });
+}
+
 const list=document.getElementById("list");
 const qEl=document.getElementById("q");
 const cntEl=document.getElementById("cnt");
@@ -968,6 +1018,7 @@ const matches = (s,t) => norm(s.ticker).includes(t) || norm(s.name).includes(t) 
 function renderList(m){
   if(m) curMkt=m;
   list.innerHTML="";
+  const MYPOS=posLoad();
   const t=norm(query.trim());
   const isCand=x=>x.market==="IDX" ? !!labelOf(x).ok : (labelOf(x).ok||labelOf(x).ready);   // IDX: hanya BEST BUY penuh (punya plan)
   const bbAll=DATA.filter(x=>x.market===curMkt && isCand(x)).length;
@@ -1017,7 +1068,7 @@ function renderList(m){
         <div class="chg ${chUp?"up":"down"}">${PCT(s.chg1d)}</div>
         <div class="mini">${mini}</div>
       </div>
-      <div class="tags">${bb.ok?`<span class="tag bb">⭐ BEST BUY${s.market==="IDX"?" (uji)":""}</span>`:(bb.ready&&s.market!=="IDX")?'<span class="tag bb2">★ SIAP · tunggu volume</span>':""}${commodityGroup(s)?`<span class="tag commod">🌾 ${commodityGroup(s)}</span>`:""}${tags(s).map(([a,b])=>`<span class="tag ${b}">${a}</span>`).join("")}</div>
+      <div class="tags">${(s.market==="IDX"&&MYPOS[s.ticker])?'<span class="tag bb2">📌 posisi saya</span>':""}${bb.ok?`<span class="tag bb">⭐ BEST BUY${s.market==="IDX"?" (uji)":""}</span>`:(bb.ready&&s.market!=="IDX")?'<span class="tag bb2">★ SIAP · tunggu volume</span>':""}${commodityGroup(s)?`<span class="tag commod">🌾 ${commodityGroup(s)}</span>`:""}${tags(s).map(([a,b])=>`<span class="tag ${b}">${a}</span>`).join("")}</div>
       <div class="chev">›</div>`;
     list.appendChild(c);
   });
@@ -1088,7 +1139,8 @@ function openModal(i){
   const planBtn=document.getElementById("planBtn"), planPop=document.getElementById("planPop");
   planBtn.hidden=!bt;
   planPop.hidden=true;
-  if(bt) document.getElementById("planPopBody").innerHTML = btBox+btEntryHTML(s,bt);
+  const renderPlan=()=>{ document.getElementById("planPopBody").innerHTML = btBox+btEntryHTML(s,bt)+posHTML(s); posWire(s,renderPlan); };
+  if(bt) renderPlan();
   const body=document.getElementById("mBody");
   body.innerHTML=`
     <div class="rbar" id="mrBtns" style="margin:2px 0 6px">
