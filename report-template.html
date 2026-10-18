@@ -922,14 +922,10 @@ function btEntryHTML(s,bt){
   const trail=bt.trailPx!=null?bt.trailPx:null;
   const trailK = trail==null ? "ATR belum tersedia → andalkan SL &amp; batas waktu"
     : ("puncak − 2,5×ATR ("+(bt.atr!=null?CUR(s,bt.atr):"—")+")"+(trail<=sl?" · masih di bawah SL → yang kena SL":" · garis ikut naik")+" · mulai "+fmtTgl(tMin)+" (hari ke-5)");
-  const v = bt.ok ? {cls:"ok", icon:"⚡", t:"MASUK — beli di open hari bursa berikutnya"}
-        : bt.ready ? {cls:"no", icon:"🔊", t:"BELUM MASUK — semua syarat lolos kecuali volume ≥1,5×"}
-        : {cls:"no", icon:"🕒", t:"BELUM MASUK — ada syarat yang belum lolos"};
   const gagal=bt.checks.filter(x=>!x.ok).map(x=>(x.neg||x.k).replace(/&amp;/g,"&"));
   const jangan="buka &gt; <b>"+CUR(s,batal)+"</b> (gap &gt; +4%)"+(gagal.length?" atau "+gagal.join(" · "):"");
   return `<div class="sec">
     <h3><span class="ico">🎯</span> Rencana Masuk &amp; Keluar — aturan uji (IDX)</h3>
-    <div class="bbbox ${v.cls}" style="margin-top:6px"><div class="bbt">${v.icon} ${v.t}</div></div>
     <div class="lvl">
       <div class="b en"><div class="k">ENTRY — harga beli</div><div class="v">${CUR(s,px)} – ${CUR(s,batal)}</div><div class="s">open ${fmtTgl(tEntry)} · 09:00 WIB = 10:00 WITA</div></div>
       <div class="b sl"><div class="k">STOP LOSS</div><div class="v">≤ ${CUR(s,sl)}</div><div class="s">−10% dari harga beli · jual open berikutnya</div></div>
@@ -1064,7 +1060,7 @@ function openModal(i){
     : bt.ready
     ? `<div class="bbbox ok"><div class="bbt">★ SIAP — tinggal konfirmasi volume</div><ul>${bt.checks.map(x=>`<li style="${x.ok?"":"color:#946200"}">${x.ok?"✓":"⚠"} ${x.k} — ${x.v}</li>`).join("")}</ul><div style="margin-top:4px">Volume belum ≥1,5× → aturan uji <b>belum masuk</b>. Pasang alert volume.</div>${btFoot}</div>`
     : `<div class="bbbox no"><div class="bbt">Tidak masuk (aturan uji backtest)</div><ul>${bt.checks.filter(x=>!x.ok).map(x=>`<li class="blk">✕ ${x.k} — ${x.v}</li>`).join("")}${bt.checks.filter(x=>x.ok).map(x=>`<li style="color:#8ba487">✓ ${x.k}</li>`).join("")}</ul>${btFoot}</div>`);
-  const bbHTML = btBox || bbHTMLscore;
+  const bbHTML = bbHTMLscore;
   document.getElementById("mTk").textContent=s.ticker;
   document.getElementById("mNm").textContent=(s.name||"")+" · "+(s.sector||(s.market==="CRYPTO"?"Kripto":s.market==="US"?"US":"IDX"));
   document.getElementById("mPx").textContent=CUR(s,s.px);
@@ -1074,7 +1070,7 @@ function openModal(i){
   const planBtn=document.getElementById("planBtn"), planPop=document.getElementById("planPop");
   planBtn.hidden=!bt;
   planPop.hidden=true;
-  if(bt) document.getElementById("planPopBody").innerHTML=btEntryHTML(s,bt);
+  if(bt) document.getElementById("planPopBody").innerHTML=btBox+btEntryHTML(s,bt);
   const body=document.getElementById("mBody");
   body.innerHTML=`
     <div class="rbar" id="mrBtns" style="margin:2px 0 6px">
