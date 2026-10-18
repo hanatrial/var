@@ -561,6 +561,8 @@ function finalizeScores(list, ctx) {
 
           // --- bahan sinyal backtest (dipakai penuh hanya untuk IDX, lihat run8.js) ---
           // puncak close 252 bar SEBELUM hari ini → dasar uji breakout 52 minggu (tanpa look-ahead)
+          const hi55 = refHighs.length >= 55 ? Math.max.apply(null, refHighs.slice(-55)) : null;   // high tertinggi 55 bar SEBELUM hari ini (breakout 55 hari)
+          const ma200Prev = indC.length >= 221 ? sma(indC.slice(0, -20), 200) : null;                   // MA200 dua puluh bar lalu (cek MA200 naik)
           const hi252 = refCloses.length >= 63 ? Math.max.apply(null, refCloses.slice(-252)) : null;
           let atr14 = null;
           if (indC.length >= 15) {
@@ -581,10 +583,10 @@ function finalizeScores(list, ctx) {
             mcap: q.marketCap ?? null, divYield: q.trailingAnnualDividendYield ?? null,
             high52: q.fiftyTwoWeekHigh ?? null, low52: q.fiftyTwoWeekLow ?? null,
             avgVol: q.averageDailyVolume3Month ?? volMA20,
-            ma20: sma(indC, 20), ma50: sma(indC, 50), ma200: sma(indC, 200),
+            ma20: sma(indC, 20), ma50: sma(indC, 50), ma100: sma(indC, 100), ma200: sma(indC, 200), ma200Prev, hi55,
             rsi: rsi(indC, 14), mfi: mfi(indH, indL, indC, indV, 14), obv: obvSlope(indC, indV),
             accum: accumulation(indC, indV, 20), volSpike: volMA20 ? volToday / volMA20 : null,
-            ret1d: ret(1), ret5d: ret(5), ret1m: ret(21), ret3m: ret(63), ret6m: ret(126), hi20, lo20,
+            ret1d: ret(1), ret5d: ret(5), ret1m: ret(21), ret3m: ret(63), ret6m: ret(126), ret120: ret(120), hi20, lo20,
             offHigh: hi20 ? (px / hi20 - 1) * 100 : null, volToday, hi252, atr14,
           };
           // aksi korporasi struktural (dari riwayat dividen/split Yahoo)
@@ -713,7 +715,7 @@ function finalizeScores(list, ctx) {
       const closes = base.concat(px);
       const chg = rq[0] ? (rq[0].regularMarketChangePercent ?? null) : null;
       regime = {
-        name: "IHSG", px, chg1d: chg, ma200: sma(closes, 200), ma50: sma(closes, 50),
+        name: "IHSG", px, chg1d: chg, ma200: sma(closes, 200), ma50: sma(closes, 50), ma20: sma(closes, 20),
         bearish: sma(closes, 200) != null && px < sma(closes, 200),
         ret1m: closes.length > 22 ? (px / closes[closes.length - 22] - 1) * 100 : null,
         ret6m: closes.length > 127 ? (px / closes[closes.length - 127] - 1) * 100 : null,

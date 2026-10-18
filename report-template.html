@@ -663,37 +663,44 @@ function bestBuy(s){
   return {ok:blocks.length===0&&volOK, ready:blocks.length===0, volOK, good, blocks, warns, min, bench:BM?BM.label:s.market};
 }
 
-/* ---------- SINYAL BACKTEST — hanya IDX (satu-satunya pasar yang diuji; run8.js) ----------
-   Aturan ini PERSIS hasil uji: breakout 52 minggu + volume ≥1,5× + kekuatan relatif vs IHSG
-   + likuiditas ≥ Rp1 M/hari + rejim IHSG > MA50 & MA200. Skor/valuasi TIDAK dipakai di sini,
-   karena bagian itu tidak bisa diuji historis (tidak ada fundamental point-in-time). */
-const BT={ rvol:1.5, gapMax:4, hardStop:10, atrK:2.5, minHold:5, maxHold:20, N:10, liq:1e9 };
+/* ---------- SINYAL BACKTEST — hanya IDX (aturan "breakout momentum", engine backtest-saham-idx, versi 5 saham) ----------
+   Entry: sinyal di close, beli di open besok. Skor/valuasi TIDAK dipakai di sini karena tidak bisa diuji historis.
+   Uji silang (2015–2026): 222 saham ≈ +38%/th · 912 saham ≈ +40%/th (DD −23…−30%). Tahun lemah: 2015, 2023, 2026. */
+const BT={ volX:2, brk:55, mom:20, ext:40, dayMax:20, gapMax:5, hardStop:10, tp:100, exitMA:50, timeDays:40, timeMin:3, N:5, liq:2e9, minPx:200, cool:20 };
 function btIdx(s){
   if(!s || s.market!=="IDX") return null;
   const R=REGIME||{};
-  const regOK = R.px!=null && R.ma50!=null && R.ma200!=null && R.px>R.ma50 && R.px>R.ma200;
-  const hi252 = s.hi252!=null ? s.hi252 : null;
-  const brkOK = hi252!=null && s.px>hi252;
+  const regOK = R.px!=null && R.ma20!=null && R.ma200!=null && R.px>R.ma20 && R.ma20>R.ma200;
+  const trendOK = s.ma50!=null && s.ma100!=null && s.ma200!=null && s.ma200Prev!=null && s.px>s.ma50 && s.ma50>s.ma100 && s.ma200>s.ma200Prev;
+  const brkOK = s.hi55!=null && s.px>=s.hi55;
   const vs = s.volSpike;
-  const volOK = vs!=null && vs>=BT.rvol;
-  const rsOK = s.ret6m!=null && R.ret6m!=null && s.ret6m>R.ret6m;
-  const liqOK = s.turnover!=null && s.turnover>=BT.liq;
+  const volOK = vs!=null && vs>=BT.volX;
+  const ext = (s.ma20!=null && s.ma20>0) ? (s.px/s.ma20-1)*100 : null;
+  const momOK = s.ret120!=null && s.ret120>=BT.mom && ext!=null && ext<=BT.ext && s.chg1d!=null && s.chg1d<=BT.dayMax;
+  const liqOK = s.turnover!=null && s.turnover>=BT.liq && s.px>=BT.minPx && !s.ipoBaru;
+  const labaOK = s.eps!=null && s.eps>0;
   const checks=[
-    {k:"Rejim: IHSG di atas MA50 &amp; MA200", neg:"IHSG belum di atas MA50 &amp; MA200", ok:regOK,
-     v: R.px!=null?`IHSG ${ID(R.px)} · MA50 ${R.ma50!=null?ID(R.ma50):"—"} · MA200 ${R.ma200!=null?ID(R.ma200):"—"}`:"data rejim tidak tersedia"},
-    {k:"Breakout 52 minggu (harga tembus puncak setahun)", neg:"harga belum tembus puncak 52 minggu", ok:brkOK,
-     v: hi252!=null?`${CUR(s,s.px)} vs puncak ${CUR(s,hi252)} (${((s.px/hi252-1)*100).toFixed(1)}%)`:"puncak 252 bar tidak tersedia"},
-    {k:`Volume ≥ ${BT.rvol.toFixed(1)}× rata-rata 20 hari`, neg:`volume < ${BT.rvol.toFixed(1)}× rata-rata 20 hari`, ok:volOK, v: vs!=null?`${vs.toFixed(2)}×`:"volume tidak tersedia"},
-    {k:"Kekuatan relatif vs IHSG (6 bulan)", neg:"return 6 bulan tidak lebih besar dari IHSG", ok:rsOK,
-     v: (s.ret6m!=null&&R.ret6m!=null)?`saham ${PCT(s.ret6m)} vs IHSG ${PCT(R.ret6m)}`:"data 6 bulan tidak lengkap"},
-    {k:"Likuiditas ≥ Rp1 M/hari", neg:"turnover < Rp1 M/hari", ok:liqOK, v: s.turnover!=null?`Rp ${(s.turnover/1e9).toFixed(2)} M/hari`:"tidak tersedia"},
+    {k:"Rejim: IHSG &gt; MA20 &amp; MA20 &gt; MA200", neg:"IHSG belum &gt; MA20 &amp; MA20 belum &gt; MA200", ok:regOK,
+     v: R.px!=null?`IHSG ${ID(R.px)} · MA20 ${R.ma20!=null?ID(R.ma20):"—"} · MA200 ${R.ma200!=null?ID(R.ma200):"—"}`:"data rejim tidak tersedia"},
+    {k:"Tren: harga &gt; MA50 &gt; MA100 &amp; MA200 naik (vs 20 hari lalu)", neg:"struktur tren belum lengkap (harga &gt; MA50 &gt; MA100, MA200 naik)", ok:trendOK,
+     v: (s.ma50!=null&&s.ma100!=null)?`harga ${CUR(s,s.px)} · MA50 ${CUR(s,s.ma50)} · MA100 ${CUR(s,s.ma100)} · MA200 ${(s.ma200!=null&&s.ma200Prev!=null&&s.ma200>s.ma200Prev)?"naik":"tidak naik / data kurang"}`:"MA100/MA200 belum tersedia"},
+    {k:"Breakout 55 hari (harga ≥ high tertinggi 55 hari)", neg:"harga belum tembus high 55 hari", ok:brkOK,
+     v: s.hi55!=null?`${CUR(s,s.px)} vs high 55 hari ${CUR(s,s.hi55)} (${((s.px/s.hi55-1)*100).toFixed(1)}%)`:"high 55 hari belum tersedia"},
+    {k:`Volume ≥ ${BT.volX.toFixed(1)}× rata-rata 20 hari`, neg:`volume < ${BT.volX.toFixed(1)}× rata-rata 20 hari`, ok:volOK, v: vs!=null?`${vs.toFixed(2)}×`:"volume tidak tersedia"},
+    {k:`Momentum 120 hari ≥ +${BT.mom}% · tidak &gt;${BT.ext}% di atas MA20 · naik hari ini ≤${BT.dayMax}%`, neg:"momentum/ekstensi tidak memenuhi (≥+20% 120 hari, ≤40% di atas MA20, naik hari ini ≤20%)", ok:momOK,
+     v: s.ret120!=null?`120 hari ${PCT(s.ret120)} · jarak MA20 ${ext!=null?PCT(ext):"—"} · hari ini ${s.chg1d!=null?PCT(s.chg1d):"—"}`:"return 120 hari belum tersedia"},
+    {k:"Universe: nilai transaksi ≥ Rp2 M/hari · harga ≥ Rp200 · listing ≥ 1 tahun", neg:"universe tidak lolos (transaksi &lt; Rp2 M/hari, harga &lt; Rp200, atau IPO &lt; 1 tahun)", ok:liqOK,
+     v: s.turnover!=null?`Rp ${(s.turnover/1e9).toFixed(2)} M/hari · ${CUR(s,s.px)}${s.ipoBaru?" · IPO &lt; 1 tahun":""}`:"tidak tersedia"},
+    {k:"Laba bersih positif (EPS trailing &gt; 0)", neg:"laba bersih belum positif / data laba tidak tersedia", ok:labaOK,
+     v: s.eps!=null?`EPS ${CUR(s,s.eps)}`:"data laba tidak tersedia"},
   ];
   const pass = checks.every(x=>x.ok);
   const ready = !pass && vs!=null && !volOK && checks.filter(x=>x.ok).length===checks.length-1;   // semua lolos kecuali volume
-  return {checks, ok:pass, ready, volOK, atr:(s.atr14!=null?s.atr14:null),
-          slPx:s.px*(1-BT.hardStop/100),
-          trailPx:(s.atr14!=null&&s.atr14>0)?(s.px-BT.atrK*s.atr14):null};
+  return {checks, ok:pass, ready, volOK, mom:s.ret120!=null?s.ret120:null, ma50:s.ma50!=null?s.ma50:null,
+          slPx:s.px*(1-BT.hardStop/100), tpPx:s.px*(1+BT.tp/100)};
 }
+let BT_RANK=null, BT_RN=0;
+function btRankOf(s){ if(!BT_RANK){ const c=DATA.filter(x=>x.market==="IDX").filter(x=>{const b=btIdx(x);return b&&b.ok}).sort((a,b)=>(b.ret120||0)-(a.ret120||0)); BT_RANK=new Map(c.map((x,i)=>[x.ticker,i+1])); BT_RN=c.length; } return {r:BT_RANK.get(s.ticker)||null,n:BT_RN}; }
 /* label kandidat: IDX pakai aturan uji, pasar lain tetap pakai skor */
 function labelOf(s){ return s.market==="IDX" ? btIdx(s) : bestBuy(s); }
 
@@ -914,26 +921,26 @@ function tglClose(s){const se=(s.seriesAll&&s.seriesAll.length)?s.seriesAll:(s.s
 function btEntryHTML(s,bt){
   const t0=tglClose(s);
   const tEntry=t0?bursaKe(t0,1):null;
-  const tMin=t0?bursaKe(t0,6):null;
-  const tMax=t0?bursaKe(t0,21):null;
+  const tTime=t0?bursaKe(t0,BT.timeDays+1):null;
   const px=s.px;
   const sl=px*(1-BT.hardStop/100);           // dihitung dari harga beli (open besok), bukan dari close
+  const tp=px*(1+BT.tp/100);
   const batal=px*(1+BT.gapMax/100);
-  const trail=bt.trailPx!=null?bt.trailPx:null;
-  const trailK = trail==null ? "ATR belum tersedia → andalkan SL &amp; batas waktu"
-    : ("puncak − 2,5×ATR ("+(bt.atr!=null?CUR(s,bt.atr):"—")+")"+(trail<=sl?" · masih di bawah SL → yang kena SL":" · garis ikut naik")+" · mulai "+fmtTgl(tMin)+" (hari ke-5)");
-  const gagal=bt.checks.filter(x=>!x.ok).map(x=>(x.neg||x.k).replace(/&amp;/g,"&"));
-  const jangan="buka &gt; <b>"+CUR(s,batal)+"</b> (gap &gt; +4%)"+(gagal.length?" atau "+gagal.join(" · "):"");
+  const gagal=bt.checks.filter(x=>!x.ok).map(x=>(x.neg||x.k).replace(/&amp;/g,"&").replace(/&gt;/g,">").replace(/&lt;/g,"<"));
+  const jangan="buka &gt; <b>"+CUR(s,batal)+"</b> (gap &gt; +"+BT.gapMax+"%)"+(gagal.length?" atau "+gagal.join(" · "):"");
+  const ma50t = bt.ma50!=null ? CUR(s,bt.ma50) : "—";
   return `<div class="sec">
     <h3><span class="ico">🎯</span> Rencana Masuk &amp; Keluar — aturan uji (IDX)</h3>
     <div class="lvl">
       <div class="b en"><div class="k">ENTRY — harga beli</div><div class="v">${CUR(s,px)} – ${CUR(s,batal)}</div><div class="s">open ${fmtTgl(tEntry)} · 09:00 WIB = 10:00 WITA</div></div>
-      <div class="b sl"><div class="k">STOP LOSS</div><div class="v">≤ ${CUR(s,sl)}</div><div class="s">−10% dari harga beli · jual open berikutnya</div></div>
-      <div class="b tp"><div class="k">TP (trailing)</div><div class="v">${trail!=null?CUR(s,trail):"—"}</div><div class="s">${trailK}</div></div>
+      <div class="b sl"><div class="k">STOP LOSS</div><div class="v">≤ ${CUR(s,sl)}</div><div class="s">−${BT.hardStop}% dari harga beli · pasang order, intraday</div></div>
+      <div class="b tp"><div class="k">TAKE PROFIT</div><div class="v">≥ ${CUR(s,tp)}</div><div class="s">+${BT.tp}% dari harga beli · intraday (jarang tercapai, tapi penyumbang laba terbesar)</div></div>
     </div>
     <p class="plan">Angka dihitung dari <b>close terakhir ${CUR(s,px)}</b> (${fmtTgl(t0)}, tutup 15:50 WIB) — SL &amp; TP final mengikuti harga beli besok pagi.</p>
+    <p class="plan">📉 <b>Keluar tren:</b> close &lt; <b>MA${BT.exitMA}</b> (sekarang ${ma50t}) → jual di open berikutnya. Ini pemicu keluar yang paling sering.</p>
+    <p class="plan">⏳ <b>Time stop:</b> setelah ${BT.timeDays} hari bursa (cek tutup ${fmtTgl(tTime)}), bila belum ≥ +${BT.timeMin}% dari harga beli → jual di open berikutnya.</p>
+    <p class="plan">🔢 <b>Ukuran posisi:</b> maks <b>${BT.N} saham</b>, masing-masing 1/${BT.N} modal (${100/BT.N}%). Bila kandidat &gt; slot kosong, pilih <b>momentum 120 hari tertinggi</b>. Saham yang baru dijual: tunggu ${BT.cool} hari bursa sebelum dibeli lagi.</p>
     <p class="plan">🚫 <b>Jangan masuk kalau:</b> ${jangan}</p>
-    <p class="plan">⏳ <b>Maksimal hold 20 hari bursa → sampai ${fmtTgl(tMax)}</b> (tutup hari ke-20, jual di open berikutnya). SL/trailing biasanya keluar lebih dulu.</p>
   </div>`;
 }
 
@@ -1054,11 +1061,11 @@ function openModal(i){
     : bb.ready
     ? `<div class="bbbox ok"><div class="bbt">★ SIAP — tinggal konfirmasi volume</div><ul>${bb.good.map(g=>`<li>✓ ${g}</li>`).join("")}${bb.warns.map(w=>`<li style="color:#946200">⚠ ${w}</li>`).join("")}</ul>${bbFoot}</div>`
     : `<div class="bbbox no"><div class="bbt">Bukan BEST BUY</div><ul>${bb.blocks.map(b=>`<li class="blk">✕ ${b}</li>`).join("")}${bb.good.length?`<li style="color:#8ba487">Sudah terpenuhi: ${bb.good.join(" · ")}</li>`:""}</ul></div>`;
-  const btFoot = `<div style="font-size:.7rem;color:#8b96a8;margin-top:8px">Lima syarat uji (run8.js — IDX 2015–2026). <b>Skor &amp; valuasi tidak dipakai</b> di sini karena tidak bisa diuji historis.</div>`;
+  const btFoot = `<div style="font-size:.7rem;color:#8b96a8;margin-top:8px">Tujuh syarat uji (aturan breakout momentum — IDX 2015–2026, versi 5 saham). <b>Skor &amp; valuasi tidak dipakai</b> di sini karena tidak bisa diuji historis.</div>`;
   const btBox = !bt ? null : (bt.ok
-    ? `<div class="bbbox ok"><div class="bbt">⭐ BEST BUY — sinyal lengkap (aturan uji backtest)</div><ul>${bt.checks.map(x=>`<li>✓ ${x.k} — ${x.v}</li>`).join("")}</ul><div style="margin-top:4px">Masuk <b>open besok</b>, batal bila gap buka &gt; +4%.</div>${btFoot}</div>`
+    ? `<div class="bbbox ok"><div class="bbt">⭐ BEST BUY — sinyal lengkap (aturan uji backtest)</div><ul>${bt.checks.map(x=>`<li>✓ ${x.k} — ${x.v}</li>`).join("")}</ul><div style="margin-top:4px">Masuk <b>open besok</b>, batal bila gap buka &gt; +5%.${(()=>{const r=btRankOf(s);return r.r?` Urutan momentum 120 hari: <b>#${r.r} dari ${r.n}</b> kandidat — hanya ${BT.N} teratas yang dibeli.`:""})()}</div>${btFoot}</div>`
     : bt.ready
-    ? `<div class="bbbox ok"><div class="bbt">★ SIAP — tinggal konfirmasi volume</div><ul>${bt.checks.map(x=>`<li style="${x.ok?"":"color:#946200"}">${x.ok?"✓":"⚠"} ${x.k} — ${x.v}</li>`).join("")}</ul><div style="margin-top:4px">Volume belum ≥1,5× → aturan uji <b>belum masuk</b>. Pasang alert volume.</div>${btFoot}</div>`
+    ? `<div class="bbbox ok"><div class="bbt">★ SIAP — tinggal konfirmasi volume</div><ul>${bt.checks.map(x=>`<li style="${x.ok?"":"color:#946200"}">${x.ok?"✓":"⚠"} ${x.k} — ${x.v}</li>`).join("")}</ul><div style="margin-top:4px">Volume belum ≥2× → aturan uji <b>belum masuk</b>. Pasang alert volume.</div>${btFoot}</div>`
     : `<div class="bbbox no"><div class="bbt">Tidak masuk (aturan uji backtest)</div><ul>${bt.checks.filter(x=>!x.ok).map(x=>`<li class="blk">✕ ${x.k} — ${x.v}</li>`).join("")}${bt.checks.filter(x=>x.ok).map(x=>`<li style="color:#8ba487">✓ ${x.k}</li>`).join("")}</ul>${btFoot}</div>`);
   const bbHTML = bbHTMLscore;
   document.getElementById("mTk").textContent=s.ticker;
@@ -1296,31 +1303,34 @@ document.getElementById("guide").innerHTML=`
   <h3>🎯 Target harga fundamental (3 skenario)</h3>
   <p>Di setiap kartu → modal, ada bagian <b>Target Harga Fundamental</b>: <b>Pesimistis / Realistis / Optimistis</b>, dihitung dari <b>4 metode</b> (PER wajar × EPS, PBV wajar × nilai buku, Graham √(22,5×EPS×BVPS), dan dividen) plus acuan <b>median sektor</b>. Ini <b>skenario</b>, bukan ramalan.</p>
   <h3>⭐ Cara memakai tombol BEST BUY / SIAP</h3>
-  <p><b>Tab IDX — badge dari aturan uji backtest (bukan dari skor):</b> <b>⭐ BEST BUY (uji)</b> = lima syarat uji lolos semua (termasuk volume) → boleh masuk; <b>★ SIAP</b> = empat syarat lolos, <b>hanya volume</b> yang belum → <b>belum masuk</b>, tunggu lonjakan volume.</p>
+  <p><b>Tab IDX — badge dari aturan uji backtest (bukan dari skor):</b> <b>⭐ BEST BUY (uji)</b> = tujuh syarat uji lolos semua (termasuk volume) → boleh masuk; <b>★ SIAP</b> = enam syarat lolos, <b>hanya volume</b> yang belum → <b>belum masuk</b>, tunggu lonjakan volume.</p>
   <ul>
-    <li><b>Rejim:</b> IHSG di atas <b>MA50 dan MA200</b> (dua-duanya) — kalau tidak, tidak ada entry baru.</li>
-    <li><b>Breakout 52 minggu:</b> harga di atas puncak <b>close 252 bar</b> sebelumnya.</li>
-    <li><b>Volume ≥ 1,5×</b> rata-rata 20 hari.</li>
-    <li><b>Kekuatan relatif:</b> return <b>6 bulan</b> saham lebih tinggi dari return 6 bulan IHSG.</li>
-    <li><b>Likuiditas ≥ Rp1 miliar/hari.</b></li>
+    <li><b>Rejim:</b> IHSG &gt; <b>MA20</b> dan MA20 &gt; <b>MA200</b> — kalau tidak, tidak ada entry baru.</li>
+    <li><b>Tren:</b> harga &gt; MA50 &gt; MA100, dan MA200 naik dibanding 20 hari lalu.</li>
+    <li><b>Breakout 55 hari:</b> harga ≥ high tertinggi 55 hari sebelumnya.</li>
+    <li><b>Volume ≥ 2×</b> rata-rata 20 hari.</li>
+    <li><b>Momentum:</b> naik ≥ +20% dalam 120 hari, tidak lebih dari 40% di atas MA20, dan naik hari ini ≤ 20%.</li>
+    <li><b>Universe:</b> nilai transaksi ≥ Rp2 miliar/hari, harga ≥ Rp200, listing ≥ 1 tahun.</li>
+    <li><b>Laba bersih positif</b> (EPS trailing &gt; 0).</li>
   </ul>
   <p><b>Tab US &amp; Crypto</b> masih memakai syarat skor (skor ≥ 90/85 · dekat high 52 mg ≥94% · tren ≥20/28 · relatif ≥8/12 · tanpa bendera merah) karena kedua pasar itu <b>belum diuji</b> dengan aturan di atas.</p>
   <p>Kalau bukan BEST BUY, buka kartunya: tertera <b>syarat mana yang belum lolos beserta angkanya</b>. Saat rejim bearish biasanya <b>nol</b> yang lolos — itu memang perilaku aturan ujinya (menahan diri saat pasar turun).</p>
   <h3>⚙️ Kerangka eksekusi (agar semua sinyal terkelola)</h3>
   <div class="rbar" style="margin:8px 0">
     <span class="rchip sm ok"><i>🕒</i>sinyal tutup → beli di open besok</span>
-    <span class="rchip sm warn"><i>🚫</i>lewati jika gap buka &gt;4%</span>
-    <span class="rchip sm"><i>📈</i>volume ≥1,5×</span>
-    <span class="rchip sm"><i>📉</i>trailing ATR 2,5×</span>
-    <span class="rchip sm"><i>🔢</i>N=10 slot · urut kekuatan relatif</span>
-    <span class="rchip sm"><i>⚖️</i>equal-weight (bukan inverse-vol)</span>
-    <span class="rchip sm bear"><i>🛑</i>hard stop −10% (wajib)</span>
-    <span class="rchip sm"><i>⏳</i>minHold 5 hari · maks 4–12 mgg</span>
-    <span class="rchip sm"><i>🐂</i>masuk hanya saat IHSG&gt;MA50&amp;MA200</span>
-    <span class="rchip sm"><i>💧</i>≥ Rp1 M/hari</span>
+    <span class="rchip sm warn"><i>🚫</i>lewati jika gap buka &gt;5%</span>
+    <span class="rchip sm"><i>📈</i>volume ≥2× · breakout 55 hari</span>
+    <span class="rchip sm"><i>📉</i>keluar: close &lt; MA50</span>
+    <span class="rchip sm"><i>🎯</i>TP +100% (intraday)</span>
+    <span class="rchip sm"><i>🔢</i>N=5 slot · urut momentum 120 hari</span>
+    <span class="rchip sm"><i>⚖️</i>equal-weight 20% per saham</span>
+    <span class="rchip sm bear"><i>🛑</i>stop −10% (wajib)</span>
+    <span class="rchip sm"><i>⏳</i>time stop 40 hari bila &lt; +3%</span>
+    <span class="rchip sm"><i>🐂</i>masuk hanya saat IHSG&gt;MA20&gt;MA200</span>
+    <span class="rchip sm"><i>💧</i>≥ Rp2 M/hari</span>
   </div>
-  <p>Hasil <b>uji menyeluruh (96 konfigurasi)</b>: <b>12 konfigurasi</b> mencapai FULL ≥20% <b>di semua periode</b> (DEV/VAL/OOS). Paling robust: <b>volume ≥1,5× · hold 4 mgg · exit trailing ATR 2,5× · stop −10% · N=10</b> → DEV <b>+28,0%</b> / VAL <b>+41,4%</b> / OOS <b>+40,4%</b> (DD −19…−25%, Sharpe 1,68). <b>Walk-forward 8 tahun: +40,1%</b> (IHSG −2,3%) — <b>tapi tidak rata</b>: 2022 hanya +1,7% dan 2023 +5,1%, sementara 2021/2024/2025 meledak (+85…+131%). Tahan biaya (biaya ×2 → FULL 29,9%). <span style="color:var(--muted)">Angka optimistis (survivorship bias & asumsi terisi penuh).</span></p>
-  <p><b>Per-transaksi (config itu, 2015–2026):</b> CAGR <b>+36,2%</b> · DD <b>−23,3%</b> · Sharpe 1,68 · <b>965 transaksi</b> · menang <b>45%</b> (rata-rata <b>+22,2%</b>) · kalah <b>55%</b> (rata-rata <b>−10,2%</b>) · rata-rata <b>+4,3%</b> per transaksi · hold median <b>16 hari bursa</b>. Alasan keluar: batas waktu 374× · trailing ATR 285× · hard stop 306×. Sebaran: p50 <b>−2,2%</b>, p90 <b>+31,3%</b>, terbaik +377% — <b>median transaksi rugi tipis; laba datang dari ekor kanan</b>. Hard stop bisa tembus saat gap/suspend (terburuk −35,7%).</p>
+  <p><b>Aturan breakout momentum, versi 5 saham.</b> Uji silang 2015–2026 di dua kumpulan data berbeda: <b>222 saham ≈ +38%/th</b> (DD −23%) dan <b>912 saham ≈ +40%/th</b> (DD −30%); biaya + slippage ≈ 0,8% per putaran sudah dihitung. Versi 3 saham mencatat +55,7% di data 222 saham, tapi turun ke <b>+28,5%</b> di data 912 saham (DD −36%) — jadi <b>jangan berharap 55%</b>. Ekspektasi realistis: <b>30–40% per tahun</b>.</p>
+  <p><b>Karakter:</b> menang sekitar 40%, rata-rata untung jauh lebih besar dari rata-rata rugi (laba datang dari beberapa saham yang naik dua kali lipat; tanpa TP +100% CAGR turun ke 27–32%). Tahun lemah: <b>2015, 2023, 2026</b> bisa datar atau negatif. Belum memperhitungkan ARB/ARA beruntun (stop bisa terlewat), suspensi, dan antrean; universe masih bias saham yang bertahan hidup. <span style="color:var(--muted)">Ini hasil backtest, bukan jaminan.</span></p>
   <h3>Penyaring otomatis yang sudah dipasang</h3>
   <ul>
     <li><b>Crash penalty</b>: jika turun ≤ −7% sehari atau ≤ −15% sepekan, skor Tren &amp; Momentum dipaksa 0.</li>
