@@ -667,14 +667,14 @@ function btIdx(s){
   const rsOK = s.ret6m!=null && R.ret6m!=null && s.ret6m>R.ret6m;
   const liqOK = s.turnover!=null && s.turnover>=BT.liq;
   const checks=[
-    {k:"Rejim: IHSG di atas MA50 &amp; MA200", ok:regOK,
+    {k:"Rejim: IHSG di atas MA50 &amp; MA200", neg:"IHSG belum di atas MA50 &amp; MA200", ok:regOK,
      v: R.px!=null?`IHSG ${ID(R.px)} · MA50 ${R.ma50!=null?ID(R.ma50):"—"} · MA200 ${R.ma200!=null?ID(R.ma200):"—"}`:"data rejim tidak tersedia"},
-    {k:"Breakout 52 minggu (harga tembus puncak setahun)", ok:brkOK,
+    {k:"Breakout 52 minggu (harga tembus puncak setahun)", neg:"harga belum tembus puncak 52 minggu", ok:brkOK,
      v: hi252!=null?`${CUR(s,s.px)} vs puncak ${CUR(s,hi252)} (${((s.px/hi252-1)*100).toFixed(1)}%)`:"puncak 252 bar tidak tersedia"},
-    {k:`Volume ≥ ${BT.rvol.toFixed(1)}× rata-rata 20 hari`, ok:volOK, v: vs!=null?`${vs.toFixed(2)}×`:"volume tidak tersedia"},
-    {k:"Kekuatan relatif vs IHSG (6 bulan)", ok:rsOK,
+    {k:`Volume ≥ ${BT.rvol.toFixed(1)}× rata-rata 20 hari`, neg:`volume < ${BT.rvol.toFixed(1)}× rata-rata 20 hari`, ok:volOK, v: vs!=null?`${vs.toFixed(2)}×`:"volume tidak tersedia"},
+    {k:"Kekuatan relatif vs IHSG (6 bulan)", neg:"return 6 bulan tidak lebih besar dari IHSG", ok:rsOK,
      v: (s.ret6m!=null&&R.ret6m!=null)?`saham ${PCT(s.ret6m)} vs IHSG ${PCT(R.ret6m)}`:"data 6 bulan tidak lengkap"},
-    {k:"Likuiditas ≥ Rp1 M/hari", ok:liqOK, v: s.turnover!=null?`Rp ${(s.turnover/1e9).toFixed(2)} M/hari`:"tidak tersedia"},
+    {k:"Likuiditas ≥ Rp1 M/hari", neg:"turnover < Rp1 M/hari", ok:liqOK, v: s.turnover!=null?`Rp ${(s.turnover/1e9).toFixed(2)} M/hari`:"tidak tersedia"},
   ];
   const pass = checks.every(x=>x.ok);
   const ready = !pass && vs!=null && !volOK && checks.filter(x=>x.ok).length===checks.length-1;   // semua lolos kecuali volume
@@ -913,7 +913,7 @@ function btEntryHTML(s,bt){
   const v = bt.ok ? {cls:"ok", icon:"⚡", t:"MASUK — beli di open hari bursa berikutnya"}
         : bt.ready ? {cls:"no", icon:"🔊", t:"BELUM MASUK — semua syarat lolos kecuali volume ≥1,5×"}
         : {cls:"no", icon:"🕒", t:"BELUM MASUK — ada syarat yang belum lolos"};
-  const gagal=bt.checks.filter(x=>!x.ok).map(x=>x.k.replace(/&amp;/g,"&"));
+  const gagal=bt.checks.filter(x=>!x.ok).map(x=>(x.neg||x.k).replace(/&amp;/g,"&"));
   const jangan="buka &gt; <b>"+CUR(s,batal)+"</b> (gap &gt; +4%)"+(gagal.length?" atau "+gagal.join(" · "):"");
   return `<div class="sec">
     <h3><span class="ico">🎯</span> Rencana Masuk &amp; Keluar — aturan uji (IDX)</h3>

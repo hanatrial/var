@@ -40,7 +40,8 @@ function plan(tk) {
   const html = H.btEntryHTML(s, bt);
   const txt = html.replace(/<[^>]+>/g, "|").replace(/\|+/g, " | ").replace(/\s+/g, " ").trim();
   console.log("  verdict: " + (txt.split("|")[2] || "").trim());
-  console.log("  tabel: " + txt.slice(txt.indexOf("AKSI"), txt.indexOf("AKSI") + 700));
+  const i0 = txt.indexOf("ENTRY");
+  console.log("  kotak: " + txt.slice(i0 >= 0 ? i0 : 0, (i0 >= 0 ? i0 : 0) + 640));
   return { s, bt };
 }
 ["PTSP", "AUTO", "ACES"].forEach(plan);
