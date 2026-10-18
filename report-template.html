@@ -962,6 +962,8 @@ function posLoad(){ try{ return JSON.parse(localStorage.getItem(POS_KEY)||"{}")|
 function posSave(o){ try{ localStorage.setItem(POS_KEY,JSON.stringify(o)); }catch(e){} }
 function bursaSelisih(a,b){ if(!a||!b||a>=b) return 0; const d=new Date(a+"T00:00:00Z"); let k=0;
   while(d.toISOString().slice(0,10)<b){ d.setUTCDate(d.getUTCDate()+1); if(isBursa(d)) k++; } return k; }
+function posTag(s,p){ const e=+p.p, pl=(s.px/e-1)*100, d=new Date(p.d+"T00:00:00Z"); const tg=isNaN(d)?p.d:(d.getUTCDate()+" "+NMB[d.getUTCMonth()]);
+  return `<span class="tag bb2">📌 masuk ${tg} @ ${CUR(s,e)} · ${pl>=0?"+":""}${pl.toFixed(1)}%</span>`; }
 function posHTML(s){
   const p=posLoad()[s.ticker]; const t0=tglClose(s);
   const inp="background:var(--card2);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:.85rem;width:100%";
@@ -1068,7 +1070,7 @@ function renderList(m){
         <div class="chg ${chUp?"up":"down"}">${PCT(s.chg1d)}</div>
         <div class="mini">${mini}</div>
       </div>
-      <div class="tags">${(s.market==="IDX"&&MYPOS[s.ticker])?'<span class="tag bb2">📌 posisi saya</span>':""}${bb.ok?`<span class="tag bb">⭐ BEST BUY${s.market==="IDX"?" (uji)":""}</span>`:(bb.ready&&s.market!=="IDX")?'<span class="tag bb2">★ SIAP · tunggu volume</span>':""}${commodityGroup(s)?`<span class="tag commod">🌾 ${commodityGroup(s)}</span>`:""}${tags(s).map(([a,b])=>`<span class="tag ${b}">${a}</span>`).join("")}</div>
+      <div class="tags">${(s.market==="IDX"&&MYPOS[s.ticker])?posTag(s,MYPOS[s.ticker]):""}${bb.ok?`<span class="tag bb">⭐ BEST BUY${s.market==="IDX"?" (uji)":""}</span>`:(bb.ready&&s.market!=="IDX")?'<span class="tag bb2">★ SIAP · tunggu volume</span>':""}${commodityGroup(s)?`<span class="tag commod">🌾 ${commodityGroup(s)}</span>`:""}${tags(s).map(([a,b])=>`<span class="tag ${b}">${a}</span>`).join("")}</div>
       <div class="chev">›</div>`;
     list.appendChild(c);
   });
