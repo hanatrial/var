@@ -260,6 +260,7 @@
   </header>
   <div class="rbar scroll" style="margin-bottom:10px">
     <span class="rchip sm" id="genAt"></span>
+    <span class="rchip sm" id="liveBadge" hidden></span>
   </div>
   <div id="regimeBar"></div>
   <div class="mkts" id="mktTabs">
@@ -1116,8 +1117,9 @@ function dqHTML(s){
 /* ---------- render modal ---------- */
 const overlay=document.getElementById("overlay");
 const modal=document.getElementById("modal");
+let MODAL_S=null;
 function openModal(i){
-  const s=DATA[i], a=analyze(s);
+  const s=DATA[i], a=analyze(s); MODAL_S=s;
   const BM=BENCH(s.market);
   const bb=bestBuy(s);
   const bt=(s.market==="IDX")?btIdx(s):null;
@@ -1355,6 +1357,52 @@ document.getElementById("foot").textContent=`IDX ${cnt("IDX")} · US ${cnt("US")
   b.className="rbar scroll"; b.innerHTML=h;
 })();
 
+/* ---------- HARGA LIVE CRYPTO (Coinpaprika — publik, tanpa kunci, CORS; cache server 5 dtk) ----------
+   Hanya harga & perubahan 24 jam yang diperbarui otomatis tiap 60 dtk saat tab Crypto terbuka.
+   Indikator/skor/label BEST BUY tetap dari data terakhir workflow. Gagal → data lama dipakai. */
+const CP_ID={BTC:"btc-bitcoin",ETH:"eth-ethereum",SOL:"sol-solana",BNB:"bnb-binance-coin",XRP:"xrp-xrp",ADA:"ada-cardano",DOGE:"doge-dogecoin",AVAX:"avax-avalanche",DOT:"dot-polkadot",LINK:"link-chainlink",LTC:"ltc-litecoin",TRX:"trx-tron",BCH:"bch-bitcoin-cash",XLM:"xlm-stellar",TON:"ton-tontoken",NEAR:"near-near-protocol",APT:"apt-aptos",UNI:"uni-uniswap",AAVE:"aave-new",HBAR:"hbar-hedera-hashgraph",SUI:"sui-sui",ARB:"arb-arbitrum",OP:"op-optimism",INJ:"inj-injective-protocol"};
+const LIVE_EVERY=60000;
+let LIVE_AT=null, LIVE_ERR=false, LIVE_BUSY=false;
+function liveBadge(){
+  const el=document.getElementById("liveBadge"); if(!el) return;
+  if(curMkt!=="CRYPTO"){ el.hidden=true; return; }
+  el.hidden=false;
+  el.className="rchip sm "+(LIVE_ERR?"warn":"ok");
+  el.innerHTML = LIVE_ERR ? "<i>⚠</i>live gagal — pakai data terakhir"
+    : LIVE_AT ? "<i>🟢</i>LIVE · "+LIVE_AT.toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit",second:"2-digit"})+" · Coinpaprika"
+    : "<i>⏳</i>memuat harga live…";
+}
+async function liveFetch(){
+  if(LIVE_BUSY) return; LIVE_BUSY=true;
+  try{
+    const r=await fetch("https://api.coinpaprika.com/v1/tickers?limit=250",{cache:"no-store"});
+    if(!r.ok) throw new Error("HTTP "+r.status);
+    const arr=await r.json();
+    const by=new Map(arr.map(x=>[x.id,x]));
+    let n=0;
+    DATA.forEach((s,gi)=>{
+      if(s.market!=="CRYPTO") return;
+      const x=by.get(CP_ID[s.ticker]), q=x&&x.quotes&&x.quotes.USD;
+      if(!q||!(q.price>0)) return;
+      s.px=q.price; if(q.percent_change_24h!=null) s.chg1d=q.percent_change_24h; s.liveAt=Date.now(); n++;
+      const card=list.querySelector('.card[data-i="'+gi+'"]');
+      if(card){ card.querySelector(".px").textContent=CUR(s,s.px);
+        const ch=card.querySelector(".chg"); ch.textContent=PCT(s.chg1d); ch.className="chg "+((s.chg1d||0)>=0?"up":"down"); }
+    });
+    if(!n) throw new Error("tidak ada koin cocok");
+    if(MODAL_S && MODAL_S.market==="CRYPTO" && modal.classList.contains("show")){
+      const up=(MODAL_S.chg1d||0)>=0;
+      document.getElementById("mPx").textContent=CUR(MODAL_S,MODAL_S.px);
+      document.getElementById("mChg").innerHTML=`<span class="${up?"up":"down"}">${up?"▲":"▼"} ${PCT(MODAL_S.chg1d)} 24 jam</span>`;
+    }
+    LIVE_AT=new Date(); LIVE_ERR=false;
+  }catch(e){ LIVE_ERR=true; }
+  LIVE_BUSY=false; liveBadge();
+}
+const _renderListBase=renderList;
+renderList=function(m){ _renderListBase(m); liveBadge(); if(curMkt==="CRYPTO" && (!LIVE_AT || Date.now()-LIVE_AT>20000)) liveFetch(); };
+setInterval(()=>{ if(curMkt==="CRYPTO" && !document.hidden) liveFetch(); }, LIVE_EVERY);
+document.addEventListener("visibilitychange",()=>{ if(!document.hidden && curMkt==="CRYPTO" && (!LIVE_AT || Date.now()-LIVE_AT>LIVE_EVERY)) liveFetch(); });
 renderList("IDX");
 </script>
 <script>if("serviceWorker" in navigator){navigator.serviceWorker.register("./sw.js").catch(function(){});}</script>
