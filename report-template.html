@@ -275,7 +275,6 @@
   <div class="cnt" id="cnt"></div>
   <div class="hint">👆 <b>Ketuk kartu</b> untuk analisa mendalam</div>
   <div class="list" id="list"></div>
-  <section class="guide" id="guide"></section>
   <footer id="foot"></footer>
 </div>
 
@@ -957,10 +956,11 @@ function renderList(m){
   if(m) curMkt=m;
   list.innerHTML="";
   const t=norm(query.trim());
-  const bbAll=DATA.filter(x=>x.market===curMkt && (labelOf(x).ok||labelOf(x).ready)).length;
+  const isCand=x=>x.market==="IDX" ? !!labelOf(x).ok : (labelOf(x).ok||labelOf(x).ready);   // IDX: hanya BEST BUY penuh (punya plan)
+  const bbAll=DATA.filter(x=>x.market===curMkt && isCand(x)).length;
   const bbMkt = curMkt==="IDX" ? " · aturan uji backtest" : "";
-  if(bbCntEl) bbCntEl.textContent = bbAll ? `${bbAll} kandidat BEST BUY / SIAP${bbMkt} di tab ini` : `Belum ada kandidat BEST BUY${bbMkt} di tab ini`;
-  const items=DATA.map((s,gi)=>({s,gi})).filter(x=>x.s.market===curMkt && (!t || matches(x.s,t)) && (!bbOnly || labelOf(x.s).ok || labelOf(x.s).ready));
+  if(bbCntEl) bbCntEl.textContent = bbAll ? `${bbAll} kandidat BEST BUY${curMkt==="IDX"?"":" / SIAP"}${bbMkt} di tab ini` : `Belum ada kandidat BEST BUY${bbMkt} di tab ini`;
+  const items=DATA.map((s,gi)=>({s,gi})).filter(x=>x.s.market===curMkt && (!t || matches(x.s,t)) && (!bbOnly || isCand(x.s)));
   // hitung hasil di semua pasar (biar jalan walau beda tab)
   const hits = t ? DATA.map((s,gi)=>({s,gi})).filter(x=>matches(x.s,t)) : [];
   const inMkt = hits.filter(x=>x.s.market===curMkt).length;
@@ -986,7 +986,7 @@ function renderList(m){
   items.forEach(({s,gi})=>{
     const c=document.createElement("div");
     const bb=labelOf(s);
-    c.className="card"+(s.excluded?" excluded":"")+(bb.ok?" isbb":bb.ready?" isbb2":"");
+    c.className="card"+(s.excluded?" excluded":"")+(bb.ok?" isbb":(bb.ready&&s.market!=="IDX")?" isbb2":"");
     c.dataset.i=gi;
     const chUp=(s.chg1d||0)>=0;
     const mini = s.pe!=null
@@ -1004,7 +1004,7 @@ function renderList(m){
         <div class="chg ${chUp?"up":"down"}">${PCT(s.chg1d)}</div>
         <div class="mini">${mini}</div>
       </div>
-      <div class="tags">${bb.ok?`<span class="tag bb">⭐ BEST BUY${s.market==="IDX"?" (uji)":""}</span>`:bb.ready?'<span class="tag bb2">★ SIAP · tunggu volume</span>':""}${commodityGroup(s)?`<span class="tag commod">🌾 ${commodityGroup(s)}</span>`:""}${tags(s).map(([a,b])=>`<span class="tag ${b}">${a}</span>`).join("")}</div>
+      <div class="tags">${bb.ok?`<span class="tag bb">⭐ BEST BUY${s.market==="IDX"?" (uji)":""}</span>`:(bb.ready&&s.market!=="IDX")?'<span class="tag bb2">★ SIAP · tunggu volume</span>':""}${commodityGroup(s)?`<span class="tag commod">🌾 ${commodityGroup(s)}</span>`:""}${tags(s).map(([a,b])=>`<span class="tag ${b}">${a}</span>`).join("")}</div>
       <div class="chev">›</div>`;
     list.appendChild(c);
   });
@@ -1064,8 +1064,6 @@ function openModal(i){
   const btFoot = `<div style="font-size:.7rem;color:#8b96a8;margin-top:8px">Tujuh syarat uji (aturan breakout momentum — IDX 2015–2026, versi 5 saham). <b>Skor &amp; valuasi tidak dipakai</b> di sini karena tidak bisa diuji historis.</div>`;
   const btBox = !bt ? null : (bt.ok
     ? `<div class="bbbox ok"><div class="bbt">⭐ BEST BUY — sinyal lengkap (aturan uji backtest)</div><ul>${bt.checks.map(x=>`<li>✓ ${x.k} — ${x.v}</li>`).join("")}</ul><div style="margin-top:4px">Masuk <b>open besok</b>, batal bila gap buka &gt; +5%.${(()=>{const r=btRankOf(s);return r.r?` Urutan momentum 120 hari: <b>#${r.r} dari ${r.n}</b> kandidat — hanya ${BT.N} teratas yang dibeli.`:""})()}</div>${btFoot}</div>`
-    : bt.ready
-    ? `<div class="bbbox ok"><div class="bbt">★ SIAP — tinggal konfirmasi volume</div><ul>${bt.checks.map(x=>`<li style="${x.ok?"":"color:#946200"}">${x.ok?"✓":"⚠"} ${x.k} — ${x.v}</li>`).join("")}</ul><div style="margin-top:4px">Volume belum ≥2× → aturan uji <b>belum masuk</b>. Pasang alert volume.</div>${btFoot}</div>`
     : `<div class="bbbox no"><div class="bbt">Tidak masuk (aturan uji backtest)</div><ul>${bt.checks.filter(x=>!x.ok).map(x=>`<li class="blk">✕ ${x.k} — ${x.v}</li>`).join("")}${bt.checks.filter(x=>x.ok).map(x=>`<li style="color:#8ba487">✓ ${x.k}</li>`).join("")}</ul>${btFoot}</div>`);
   const bbHTML = bbHTMLscore;
   document.getElementById("mTk").textContent=s.ticker;
@@ -1077,7 +1075,7 @@ function openModal(i){
   const planBtn=document.getElementById("planBtn"), planPop=document.getElementById("planPop");
   planBtn.hidden=!bt;
   planPop.hidden=true;
-  if(bt) document.getElementById("planPopBody").innerHTML=btBox+btEntryHTML(s,bt);
+  if(bt) document.getElementById("planPopBody").innerHTML = btBox+btEntryHTML(s,bt);
   const body=document.getElementById("mBody");
   body.innerHTML=`
     <div class="rbar" id="mrBtns" style="margin:2px 0 6px">
@@ -1290,124 +1288,6 @@ document.getElementById("foot").textContent=`IDX ${cnt("IDX")} · US ${cnt("US")
   b.className="rbar scroll"; b.innerHTML=h;
 })();
 
-document.getElementById("guide").innerHTML=`
-  <h2>📘 Cara membaca &amp; manajemen risiko</h2>
-  <p>Skor tiap instrumen = <b>Valuasi (maks 36)</b> + <b>Kualitas (14)</b> + <b>Tren (28)</b> + <b>Momentum (20)</b> + <b>Aliran volume (26)</b> + <b>Kekuatan relatif vs indeks (12)</b> = maks 136. Skor tinggi = kondisi sedang "menarik secara terukur", <b>bukan</b> jaminan naik.</p>
-  <div class="rbar" style="margin:8px 0">
-    <span class="rchip warn"><i>🔬</i>validasi skor: IC ≈ 0 (bukan prediktor return)</span>
-    <span class="rchip"><i>📊</i>desil skor tertinggi ≈ +3,5–3,9%/bln (tidak monoton)</span>
-    <span class="rchip ok"><i>✅</i>yang berfungsi: skor sebagai filter + breakout + filter rejim</span>
-  </div>
-  <p><b>Yang berubah setelah audit data &amp; metode (Okt 2026):</b> (1) PBV/PER dihitung ulang dengan konversi mata uang laporan (USD→IDR) — sebelumnya PBV PGAS/ADRO/BYAN salah ribuan kali. (2) Label "komoditas" hanya untuk energi/material/perkebunan, bukan Consumer Defensive. (3) Pertumbuhan laba/pendapatan &amp; ROE di-winsorize (−100%…+200%). (4) Valuasi kini <b>relatif median sektor</b>, bukan ambang absolut. (5) Ada gate <b>kualitas</b> (ROE, laba tumbuh, DER) + penangkap <b>value trap</b>. (6) Volume besar saat harga <b>turun</b> kini bernilai <b>negatif</b> (distribusi), bukan akumulasi. (7) Skor dikali pengali rezim. (8) Saham ARB didiskon −15 poin. (9) Crypto kini <b>punya poin valuasi &amp; kualitas</b> (proxy jaringan: NVT = mcap/turnover + drawdown dari puncak; kualitas: likuiditas + ukuran mcap + umur token) — sebelumnya 0, sehingga skor crypto tak sebanding. (10) Sentimen berita pakai kata utuh + hanya judul yang menyebut emiten. (11) <b>Return historis memakai <i>adjusted close</i></b> (dividen &amp; split masuk) — sebelumnya tanggal ex-dividend dihitung sebagai penurunan harga dan bisa memicu reset skor secara keliru. (12) <b>Aturan ARA/ARB BEI hanya berlaku untuk saham IDX</b> — sebelumnya ikut menimpa saham AS &amp; crypto dengan satuan Rupiah. (13) <b>Bug ARB beruntun diperbaiki:</b> saat pasar tutup, 1 hari ARB sempat terbaca "2 hari berturut-turut" sehingga <b>47 saham IDX salah dieksklusi</b> (termasuk BBCA, BBRI, BMRI, TLKM, PGAS, ANTM). (14) Blok kata kunci aksi korporasi Indonesia dipisahkan dari blok AS/crypto (dulu berita buyback AS sempat mendapat +16 dobel). (15) Kata "insider" tanpa arah beli/jual tidak lagi memberi +8 — dulu berita <i>penjualan</i> insider justru menaikkan skor. (16) Setiap instrumen kini punya <b>indikator kualitas data</b> di bagian bawah analisis mendalam. (17) Riwayat saham AS/crypto kini 5 tahun (sebelumnya 2 tahun, sehingga poin konsistensi dividen tidak adil dibanding IDX).</p>
-  <p><b>Keterbatasan yang masih disadari (belum diperbaiki):</b> komponen <b>Aliran Volume (26 poin)</b> menghitung OBV, MFI, dan rasio akumulasi — tiga ukuran yang sebenarnya berasal dari fenomena serupa (volume × arah harga). Bisa jadi 20-an poin datang dari satu sinyal yang sama, sehingga ranking sangat mirip dengan "saham yang baru naik". Selain itu, <b>indikator volume hanya menunjukkan tekanan beli/jual</b> — screener <b>tidak punya data siapa</b> yang bertransaksi, jadi label "akumulasi institusi" atau "bandar" tidak bisa dibuktikan dari data ini dan sengaja tidak dipakai.</p>
-  <h3>🎯 Target harga fundamental (3 skenario)</h3>
-  <p>Di setiap kartu → modal, ada bagian <b>Target Harga Fundamental</b>: <b>Pesimistis / Realistis / Optimistis</b>, dihitung dari <b>4 metode</b> (PER wajar × EPS, PBV wajar × nilai buku, Graham √(22,5×EPS×BVPS), dan dividen) plus acuan <b>median sektor</b>. Ini <b>skenario</b>, bukan ramalan.</p>
-  <h3>⭐ Cara memakai tombol BEST BUY / SIAP</h3>
-  <p><b>Tab IDX — badge dari aturan uji backtest (bukan dari skor):</b> <b>⭐ BEST BUY (uji)</b> = tujuh syarat uji lolos semua (termasuk volume) → boleh masuk; <b>★ SIAP</b> = enam syarat lolos, <b>hanya volume</b> yang belum → <b>belum masuk</b>, tunggu lonjakan volume.</p>
-  <ul>
-    <li><b>Rejim:</b> IHSG &gt; <b>MA20</b> dan MA20 &gt; <b>MA200</b> — kalau tidak, tidak ada entry baru.</li>
-    <li><b>Tren:</b> harga &gt; MA50 &gt; MA100, dan MA200 naik dibanding 20 hari lalu.</li>
-    <li><b>Breakout 55 hari:</b> harga ≥ high tertinggi 55 hari sebelumnya.</li>
-    <li><b>Volume ≥ 2×</b> rata-rata 20 hari.</li>
-    <li><b>Momentum:</b> naik ≥ +20% dalam 120 hari, tidak lebih dari 40% di atas MA20, dan naik hari ini ≤ 20%.</li>
-    <li><b>Universe:</b> nilai transaksi ≥ Rp2 miliar/hari, harga ≥ Rp200, listing ≥ 1 tahun.</li>
-    <li><b>Laba bersih positif</b> (EPS trailing &gt; 0).</li>
-  </ul>
-  <p><b>Tab US &amp; Crypto</b> masih memakai syarat skor (skor ≥ 90/85 · dekat high 52 mg ≥94% · tren ≥20/28 · relatif ≥8/12 · tanpa bendera merah) karena kedua pasar itu <b>belum diuji</b> dengan aturan di atas.</p>
-  <p>Kalau bukan BEST BUY, buka kartunya: tertera <b>syarat mana yang belum lolos beserta angkanya</b>. Saat rejim bearish biasanya <b>nol</b> yang lolos — itu memang perilaku aturan ujinya (menahan diri saat pasar turun).</p>
-  <h3>⚙️ Kerangka eksekusi (agar semua sinyal terkelola)</h3>
-  <div class="rbar" style="margin:8px 0">
-    <span class="rchip sm ok"><i>🕒</i>sinyal tutup → beli di open besok</span>
-    <span class="rchip sm warn"><i>🚫</i>lewati jika gap buka &gt;5%</span>
-    <span class="rchip sm"><i>📈</i>volume ≥2× · breakout 55 hari</span>
-    <span class="rchip sm"><i>📉</i>keluar: close &lt; MA50</span>
-    <span class="rchip sm"><i>🎯</i>TP +100% (intraday)</span>
-    <span class="rchip sm"><i>🔢</i>N=5 slot · urut momentum 120 hari</span>
-    <span class="rchip sm"><i>⚖️</i>equal-weight 20% per saham</span>
-    <span class="rchip sm bear"><i>🛑</i>stop −10% (wajib)</span>
-    <span class="rchip sm"><i>⏳</i>time stop 40 hari bila &lt; +3%</span>
-    <span class="rchip sm"><i>🐂</i>masuk hanya saat IHSG&gt;MA20&gt;MA200</span>
-    <span class="rchip sm"><i>💧</i>≥ Rp2 M/hari</span>
-  </div>
-  <p><b>Aturan breakout momentum, versi 5 saham.</b> Uji silang 2015–2026 di dua kumpulan data berbeda: <b>222 saham ≈ +38%/th</b> (DD −23%) dan <b>912 saham ≈ +40%/th</b> (DD −30%); biaya + slippage ≈ 0,8% per putaran sudah dihitung. Versi 3 saham mencatat +55,7% di data 222 saham, tapi turun ke <b>+28,5%</b> di data 912 saham (DD −36%) — jadi <b>jangan berharap 55%</b>. Ekspektasi realistis: <b>30–40% per tahun</b>.</p>
-  <p><b>Karakter:</b> menang sekitar 40%, rata-rata untung jauh lebih besar dari rata-rata rugi (laba datang dari beberapa saham yang naik dua kali lipat; tanpa TP +100% CAGR turun ke 27–32%). Tahun lemah: <b>2015, 2023, 2026</b> bisa datar atau negatif. Belum memperhitungkan ARB/ARA beruntun (stop bisa terlewat), suspensi, dan antrean; universe masih bias saham yang bertahan hidup. <span style="color:var(--muted)">Ini hasil backtest, bukan jaminan.</span></p>
-  <h3>Penyaring otomatis yang sudah dipasang</h3>
-  <ul>
-    <li><b>Crash penalty</b>: jika turun ≤ −7% sehari atau ≤ −15% sepekan, skor Tren &amp; Momentum dipaksa 0.</li>
-    <li><b>Data sanity</b>: lonjakan harian &gt;25% tanpa dukungan volume ditandai "Data mencurigakan".</li>
-    <li><b>Commodity flag</b>: energi/material/agri — PER rendah bisa berarti puncak siklus; bobot valuasi dipangkas.</li>
-    <li><b>Liquidity filter</b>: nilai transaksi &lt; Rp5 miliar/hari (IDX) dipotong skornya &amp; diberi tanda.</li>
-    <li><b>Market regime</b>: jika IHSG di bawah MA200, semua hasil dibaca dengan asumsi pasar bearish.</li>
-    <li><b>Batas ARB/ARA</b>: menandai saham yang menyentuh ARB; ARB 2 hari berturut-turut → dikecualikan 5 hari.</li>
-    <li><b>Aksi korporasi</b>: menilai buyback/tender/insider/dilusi/dll dari berita &amp; riwayat dividen-split.</li>
-  </ul>
-  <h3>Aturan ARB/ARA BEI (penting — berubah 2027)</h3>
-  <p>Harga minimum saham BEI turun dari Rp50 ke <b>Rp1</b> (28 Sep 2026). Batas auto reject:</p>
-  <table>
-    <tr><th>Harga</th><th>ARA</th><th>ARB s/d 31 Des 2026</th><th>ARB mulai 1 Jan 2027</th></tr>
-    <tr><td>Rp1–10</td><td>Rp1</td><td>Rp1</td><td>Rp1</td></tr>
-    <tr><td>Rp11–200</td><td>35%</td><td>15%</td><td>35%</td></tr>
-    <tr><td>Rp200–5.000</td><td>25%</td><td>15%</td><td>25%</td></tr>
-    <tr><td>&gt;Rp5.000</td><td>20%</td><td>15%</td><td>20%</td></tr>
-  </table>
-  <p style="margin-top:6px">Mulai 2027 saham bisa jatuh jauh lebih dalam dalam sehari. Screener menandai <b>"Sentuh ARB"</b>; <b>ARB 2 hari berturut-turut → dikecualikan selama 5 hari</b>. Contoh: PTBA −12,8% &amp; ERAA −14,6% adalah penurunan nyata yang hampir menyentuh ARB 15%.</p>
-  <p>Catatan: <b>short selling</b> mulai dibuka kembali (1 Okt 2026) untuk segelintir saham LQ45 — belum ada daftar resmi yang bisa ditarik otomatis, jadi screener tidak menandai <i>shortable</i>. Untuk saham ≤ Rp10, batas ARB/ARA memakai nominal Rp1 (bukan persen).</p>
-  <h3>Aksi korporasi (Keterbukaan Informasi / KI)</h3>
-  <p>Bobot skor (titik awal): buyback <b>+5…+10</b> · tender offer/go private <b>+10</b> · insider beli 30 hari <b>+8</b> · private placement strategis <b>+5</b> · rights issue <b>−10</b> (−15 bila untuk bayar utang) · private placement biasa <b>−5</b> · reverse split <b>−10</b> · gadai saham pengendali <b>−10</b> · waran in-the-money <b>−5</b>.</p>
-  <p>Kata kunci yang dipantau: HMETD/rights issue · PMTHMETD/private placement · waran seri · pemecahan/penggabungan nilai nominal (split/reverse) · pembelian kembali saham (buyback) · pembagian dividen · penawaran tender/go private · perubahan pengendali/backdoor · laporan kepemilikan (insider) · gadai/penjaminan saham · panggilan RUPS/RUPSLB · PKPU/pailit/suspensi/UMA.</p>
-  <p><b>Wajib dikecualikan:</b> papan pemantauan khusus (FCA), notasi khusus (ekuitas negatif, laporan terlambat, opini audit disclaimer), UMA, suspensi, PKPU/pailit; serta emiten spekulatif (perubahan pengendali) dengan kapitalisasi di bawah Rp1 T. Catatan: halaman KI di idx.co.id tidak bisa diakses otomatis, jadi deteksi memakai kata kunci berita + riwayat dividen/split Yahoo → <b>verifikasi manual wajib</b>.</p>
-  <h3>Kalender yang perlu dipantau</h3>
-  <table>
-    <tr><th>Event</th><th>Waktu</th><th>Dampak</th></tr>
-    <tr><td>Laporan kuartal III</td><td>akhir Oktober</td><td>sedang–besar</td></tr>
-    <tr><td>Laporan tahunan</td><td>akhir Maret</td><td>rally dividen</td></tr>
-    <tr><td>Musim RUPS &amp; dividen</td><td>April–Juni</td><td>cum/ex date</td></tr>
-    <tr><td>Review MSCI</td><td>Feb, Mei, Agu, Nov</td><td>arus dana asing</td></tr>
-    <tr><td>Window dressing</td><td>Desember</td><td>big caps terdorong</td></tr>
-  </table>
-  <h3>Saham AS: tanpa ARA/ARB, earnings adalah raja</h3>
-  <p>Saham AS bisa ±50% sehari (terutama saat laporan laba). Rem otomatis: LULD (halt 5 menit per saham), circuit breaker S&amp;P 500 (−7%/−13% halt, −20% tutup sehari). Settlement T+1 (ex-date = record date). Earnings biasanya keluar di luar jam bursa → harga gap saat buka. Aturan $1 Nasdaq/NYSE: di bawah $1 selama 30 hari bursa → surat peringatan delisting (biasanya diikuti reverse split). Untuk investor Indonesia: risiko kurs USD/IDR + pajak dividen AS 30% (15% dengan W-8BEN).</p>
-  <p><b>"KI" versi AS = SEC EDGAR</b> (data.sec.gov, JSON gratis): 8-K kejadian material · 10-Q/10-K laporan · Form 4 insider · 13D/13G &gt;5% · 13F portofolio fund · S-3/424B shelf &amp; ATM · S-1 IPO · SC TO tender offer · DEF 14A proxy RUPS. Screener menarik filing 60 hari terakhir otomatis; usulan laporan semesteran (10-S, Mei 2026) masih usulan.</p>
-  <p><b>Earnings</b> (musim: 2–6 minggu pasca kuartal; sekarang musim Q3): yang paling menggerakkan = guidance &gt; revenue vs konsensus &gt; EPS vs konsensus &gt; marjin. Beat + guidance naik → drift 30–60 hari (PEAD). Revisi estimasi analis 30–90 hari. Jangan beli ≤3 hari sebelum earnings (risiko gap) — screener menandai <b>"Earnings dekat"</b> + tanggalnya.</p>
-  <p><b>Dilusi (negatif):</b> secondary/follow-on −8 · program ATM/shelf −10 (berita) atau −5 (filing 424B non-obligasi di EDGAR) · convertible notes −5 · lock-up expiry −5 · reverse split saham kecil −15 · SPAC = spekulatif. <b>Positif:</b> buyback +8 (&gt;2%/thn) · kenaikan dividen +5 · insider cluster buy +8 · masuk S&amp;P 500 +8 · aktivis 13D +5 · target akuisisi +10 (pengakuisisi −5). <b>Exclude:</b> Chapter 11, going concern, restatement, auditor mundur, peringatan delisting, harga &lt;$1, OTC/pink sheets.</p>
-  <p><b>Short &amp; opsi:</b> short interest &gt;20% + katalis = potensi squeeze, tanpa katalis = pasar melihat masalah; days to cover &gt;5 = tinggi. Opsi kedaluwarsa tiap Jumat ketiga (quad witching Mar/Jun/Sep/Des). VIX &gt;30 = panik (zona beli 6–12 bln historis), &lt;13 = terlalu tenang.</p>
-  <p><b>Faktor (bobot awal):</b> momentum 12-1 30% · quality 25% · earnings+revisi 25% · value 10% · risiko 10%. Value lemah 15 tahun terakhir di AS — beda dengan IDX yang value + aliran asing lebih berperan.</p>
-  <h3>Crypto: 24/7, tanpa rem, siklus &amp; tokenomics</h3>
-  <p>Diperdagangkan 24/7 tanpa ARA/ARB/circuit breaker; −30% sehari bisa terjadi; likuiditas akhir pekan tipis. Indonesia: OJK mengawasi sejak 10 Jan 2025; pajak PMK 50/2025 (1 Agu 2025): PPN dihapus, PPh final 0,21% platform domestik berizin / 1% luar negeri — wajib diperhitungkan. Hanya pakai platform berizin OJK.</p>
-  <p><b>Siklus Bitcoin</b> (halving ~4 thn; terakhir Apr 2024, berikut ~2028): puncak 12–18 bln pasca-halving, lalu bear −50–80%, dasar ~12 bln pasca-puncak. Sebagian analis melihat dasar sekitar Okt 2026 (dari puncak 6 Okt 2025) — pola, bukan hukum; ETF/institusi bisa mengubah siklus. Rotasi umum: BTC → ETH → large-cap → mid/small → memecoin (euforia memecoin ≈ dekat puncak). Narasi berumur 3–9 bulan.</p>
-  <p><b>Negatif setara dilusi:</b> token unlock besar −15 (tekanan mulai 1–4 minggu sebelumnya) · FDV &gt;3× market cap · airdrop dump · tag Monitoring Binance = exclude. <b>Positif:</b> listing bursa besar (jangan kejar &gt;+30%) · buyback &amp; burn +5 · persetujuan ETF +5 (sell-the-news sesudahnya) · upgrade besar. <b>Exclude:</b> hack, depeg stablecoin, kasus regulasi besar, ciri rug pull (holder top-10 &gt;50%, likuiditas tak dikunci, honeypot). Ukuran posisi: BTC/ETH ≤15%, altcoin ≤5% per koin.</p>
-  <p><b>Data pengganti "bandarmologi":</b> funding rate, open interest, likuidasi, arus ETF spot, suplai stablecoin, exchange netflow, MVRV/NUPL, Coinbase premium, dominasi BTC, Fear &amp; Greed. Screener menampilkan F&amp;G + dominasi + fase siklus + jarak dari high; funding/OI Binance belum bisa ditarik (geo-block) — cek manual.</p>
-  <h3>Kerangka gabungan 3 pasar</h3>
-  <p>1) <b>REGIME</b>: risk-on/off global (S&amp;P vs MA200, VIX, DXY, yield) + IHSG vs MA200. 2) <b>EXCLUDE</b>: buang status bahaya. 3) <b>SCORE</b> per pasar (bobot berbeda). 4) <b>EVENT</b>: KI / 8-K / Form 4 / unlock / earnings. 5) <b>NEWS</b>: sentimen 7 hari berbobot umur. 6) <b>SIZE</b>: alokasi + stop-loss/trailing. 7) <b>VALIDASI</b>: disiplin manajemen risiko + pencatatan hasil secara berkala (tanpa halaman terpisah).</p>
-  <!-- hasil pengujian internal disembunyikan dari halaman publik -->
-  <table>
-  <!-- catatan hasil pengujian internal tidak ditampilkan di halaman publik -->
-    <tr><th>Pasar</th><th>Biaya wajib dihitung</th></tr>
-    <tr><td>IDX</td><td>~0,15% beli + ~0,25% jual (termasuk pajak jual 0,1%)</td></tr>
-    <tr><td>AS</td><td>komisi broker + spread kurs USD/IDR + pajak dividen 30%/15%</td></tr>
-    <tr><td>Crypto</td><td>fee bursa + PPh 0,21%/1% + slippage</td></tr>
-  </table>
-  <h3>Manajemen risiko (paling menentukan hasil akhir)</h3>
-  <ul>
-    <li>Maksimal <b>20% modal per saham</b>, maksimal <b>40% per sektor</b>.</li>
-    <li>Stop-loss <b>3% di bawah support terdekat</b> (support ditembus = thesis batal), dibendung ke band <b>${SL_BAND_MIN}%–${SL_BAND_MAX}%</b> dari harga entry; atau keluar bila harga close di bawah <b>MA50</b>. Bila batas band yang menentukan, alasannya disebut di tiap kartu — stop bukan angka acak.</li>
-    <li>Kripto maksimal <b>10–20% portofolio</b>, porsi terbesar di BTC/ETH.</li>
-  </ul>
-  <h3>Realistis nggak target 30%/tahun?</h3>
-  <p>Simulasi Monte Carlo (200.000 skenario, asumsi kasar dari volatilitas historis — bukan data pasti):</p>
-  <table>
-    <tr><th>Aset</th><th>Peluang ≥ +30%</th><th>Peluang rugi besar</th></tr>
-    <tr><td>IHSG (indeks)</td><td>13%</td><td>9%</td></tr>
-    <tr><td>S&amp;P 500</td><td>13%</td><td>4%</td></tr>
-    <tr><td>Nasdaq 100</td><td>23%</td><td>10%</td></tr>
-    <tr><td>5 saham pilihan screener</td><td>26%</td><td>26%</td></tr>
-    <tr><td>Bitcoin</td><td>36%</td><td>33%</td></tr>
-    <tr><td>Altcoin</td><td>26%</td><td>56%</td></tr>
-    <tr><td>Campuran 50% US / 30% IDX / 20% BTC</td><td>18%</td><td>6%</td></tr>
-  </table>
-  <p style="margin-top:8px">Target 30%/tahun hanya realistis bila siap menerima risiko rugi 20%+ dengan peluang yang kurang lebih sama besar. <b>Target yang lebih sehat: 15–25%/tahun dengan drawdown maksimum di bawah 25%.</b> Screener bagus tidak menjamin 30% — gunanya menggeser peluang sedikit dan memotong kerugian besar lebih cepat.</p>
-  <p style="margin-top:8px"><b>Catatan kejujuran &amp; keterbatasan yang belum terselesaikan:</b> (1) Pengujian internal memakai <b>daftar simbol hari ini</b> sehingga <b>survivorship bias belum terhilangkan</b> — saham yang delisting/suspend 2021–2026 tidak ikut terhitung, sehingga hasil bisa terlalu tinggi. (2) Sinyal dibentuk dari penutupan hari H-1 dan dieksekusi di penutupan H (tanpa look-ahead pada data), tapi simulasi mengasumsikan <b>seluruh order terisi</b> pada harga penutupan — tanpa antrean, kedalaman buku, atau pembatasan fraksi harga BEI, sehingga hasil <b>lebih optimistis</b> daripada kenyataan; varian stres slippage 1% ditampilkan untuk memperkirakan jaraknya. (3) Valuasi &amp; kualitas (50 dari 136 poin) <b>tidak ikut diuji</b> karena data fundamental point-in-time tidak tersedia gratis. (4) Harga historis Yahoo untuk aksi korporasi (split/dividen) belum diverifikasi silang ke sumber bursa. (5) Semua metrik memakai rf 3%/tahun, sd sampel, dan annualisasi 252 hari (return) / 365,25 hari (CAGR). Alat bantu analisa, bukan jaminan untung dan bukan nasihat keuangan berlisensi.</p>
-`;
 renderList("IDX");
 </script>
 <script>if("serviceWorker" in navigator){navigator.serviceWorker.register("./sw.js").catch(function(){});}</script>
