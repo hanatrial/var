@@ -969,9 +969,10 @@ function posHTML(s){
   const p=posLoad()[s.ticker]; const t0=tglClose(s);
   const inp="background:var(--card2);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:.85rem;width:100%";
   const form=`<h3 style="margin-top:14px"><span class="ico">📌</span> Posisi saya</h3>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:8px 0">
       <label style="font-size:.7rem;color:var(--muted)">Harga beli (Rp)<input id="posPx" type="number" step="any" inputmode="decimal" style="${inp}" value="${p?p.p:""}" placeholder="mis. 3172"></label>
       <label style="font-size:.7rem;color:var(--muted)">Tanggal beli<input id="posDt" type="date" style="${inp}" value="${p?p.d:""}"></label>
+      <label style="font-size:.7rem;color:var(--muted)">Jumlah lot<input id="posLot" type="number" inputmode="numeric" style="${inp}" value="${p&&p.l>0?p.l:""}" placeholder="mis. 59"></label>
     </div>
     <div class="rbar"><button class="rchip sm ok" id="posSave">💾 Simpan</button>${p?`<button class="rchip sm bear" id="posDel">🗑 Hapus</button>`:""}</div>`;
   if(!p) return `<div class="sec">${form}<p class="plan">Isi harga &amp; tanggal belimu → stop loss, take profit, hari ke-berapa, dan tanggal keluar dihitung otomatis. Tersimpan di browser ini saja.</p></div>`;
@@ -1004,9 +1005,65 @@ function posWire(s,redraw){
   if(sv) sv.addEventListener("click",()=>{
     const pr=parseFloat(document.getElementById("posPx").value), dt=document.getElementById("posDt").value;
     if(!(pr>0)||!/^\d{4}-\d{2}-\d{2}$/.test(dt)){ alert("Isi harga beli dan tanggal beli dulu."); return; }
-    const o=posLoad(); o[s.ticker]={p:pr,d:dt}; posSave(o); redraw();
+    const o=posLoad(); o[s.ticker]={p:pr,d:dt,l:parseInt(document.getElementById("posLot").value)||0}; posSave(o); redraw();
   });
   if(dl) dl.addEventListener("click",()=>{ const o=posLoad(); delete o[s.ticker]; posSave(o); redraw(); });
+}
+
+/* ---------- PESAN WA KE DEALER (IDX) — dibuat otomatis dari angka plan & posisi ---------- */
+const WA_KEY="waPrefs";
+function waPrefs(){ try{ return JSON.parse(localStorage.getItem(WA_KEY)||"{}")||{}; }catch(e){ return {}; } }
+function waPrefSave(o){ try{ localStorage.setItem(WA_KEY,JSON.stringify(o)); }catch(e){} }
+function tickOf(p){ return p<200?1:p<500?2:p<2000?5:p<5000?10:25; }
+function tickFloor(v){ const t=tickOf(v); return Math.floor(v/t+1e-9)*t; }
+function tickCeil(v){ const t=tickOf(v); return Math.ceil(v/t-1e-9)*t; }
+function rpf(n){ return Math.round(n).toLocaleString("id-ID"); }
+function waMsgs(s){
+  const pf=waPrefs(), kode=(pf.kode||"XXX").trim()||"XXX";
+  const budget=pf.budget>0 ? "Rp "+rpf(pf.budget) : "Rp [isi budget]";
+  const t0=tglClose(s), tBeli=t0?fmtTgl(bursaKe(t0,1)):"[tanggal]", tBesok=tBeli;
+  const px=s.px, maxBeli=tickFloor(px*(1+BT.gapMax/100));
+  const pos=posLoad()[s.ticker]; const lotTxt=pos&&pos.l>0 ? pos.l+" lot" : "[jumlah lot]";
+  const m1=`Halo, kode nasabah saya ${kode}. Titip order untuk ${tBeli} (Day order, limit):\n- BUY ${s.ticker} | budget ${budget} | max harga beli Rp ${rpf(maxBeli)}.\nKalau limit tidak tercapai, biarkan tidak terisi. Mohon konfirmasi order sudah masuk.`;
+  let m2;
+  if(pos){ const e=+pos.p, tp=tickCeil(e*(1+BT.tp/100)), sl=tickCeil(e*(1-BT.hardStop/100));
+    m2=`Halo, kode nasabah saya ${kode}. Order ${s.ticker} tadi terisi di Rp ${rpf(e)} (${lotTxt}). Mohon pasang:\n- SELL limit (take profit) ${lotTxt} di Rp ${rpf(tp)}.\n- Stop loss: jual ${lotTxt} kalau harga <= Rp ${rpf(sl)}.\nKalau stop loss tidak bisa lewat chat, mohon kabari.`;
+  } else m2=`Isi dulu "Posisi saya" (harga beli, tanggal, jumlah lot) di atas, lalu pesan ini terisi otomatis.`;
+  const tk=tickOf(px), limJual=Math.max(tk, tickFloor(px)-2*tk);
+  const bat = pos ? `\n- Mohon batalkan order lama ${s.ticker} yang masih antre (take profit Rp ${rpf(tickCeil(pos.p*(1+BT.tp/100)))} dan stop loss Rp ${rpf(tickCeil(pos.p*(1-BT.hardStop/100)))}).` : `\n- Mohon batalkan order lama ${s.ticker} yang masih antre (take profit & stop loss).`;
+  const m3=`Halo, kode nasabah saya ${kode}. Titip order untuk ${tBesok} (Day order, limit):\n- SELL ALL: semua saham ${s.ticker} (${lotTxt}) di minimal harga Rp ${rpf(limJual)}.${bat}\nKalau limit tidak tercapai, biarkan tidak terisi. Mohon konfirmasi.`;
+  const info3 = pos
+    ? `Kirim hanya kalau close sore ini &lt; MA${BT.exitMA} (<b>${s.ma50!=null?CUR(s,s.ma50):"—"}</b>)${bursaSelisih(pos.d,t0)>=BT.timeDays?` atau &lt; harga beli × ${1+BT.timeMin/100} (<b>${CUR(s,tickCeil(pos.p*(1+BT.timeMin/100)))}</b>)`:` (garis +${BT.timeMin}% baru berlaku mulai hari ke-${BT.timeDays}; sekarang hari ke-${bursaSelisih(pos.d,t0)})`}. Harga terakhir ${CUR(s,px)} — angka MA diperbarui tiap data dimuat.`
+    : `Kirim hanya kalau close sore ini &lt; MA${BT.exitMA} (<b>${s.ma50!=null?CUR(s,s.ma50):"—"}</b>). Isi Posisi saya supaya batas +${BT.timeMin}% ikut dihitung.`;
+  return {m1,m2,m3,info3};
+}
+function waHTML(s){
+  const pf=waPrefs(), M=waMsgs(s);
+  const inp="background:var(--card2);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:.85rem;width:100%";
+  const ta="width:100%;min-height:96px;background:var(--card2);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:.78rem;line-height:1.45;font-family:inherit;resize:vertical";
+  const blk=(n,title,sub,txt)=>`<div style="margin-top:12px"><div style="font-weight:800;font-size:.82rem">${title}</div><div style="font-size:.7rem;color:var(--muted);margin:2px 0 6px">${sub}</div>
+    <textarea id="waT${n}" readonly style="${ta}">${txt.replace(/&/g,"&amp;").replace(/</g,"&lt;")}</textarea>
+    <div class="rbar" style="margin-top:6px"><button class="rchip sm ok" data-wa="copy" data-n="${n}">📋 Salin</button><button class="rchip sm" data-wa="send" data-n="${n}">📲 Kirim via WA</button></div></div>`;
+  return `<div class="sec"><h3 style="margin-top:14px"><span class="ico">📲</span> Pesan WA ke dealer</h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0">
+      <label style="font-size:.7rem;color:var(--muted)">Kode nasabah<input id="waKode" type="text" style="${inp}" value="${(pf.kode||"").replace(/"/g,"&quot;")}" placeholder="XXX"></label>
+      <label style="font-size:.7rem;color:var(--muted)">Budget beli (Rp)<input id="waBudget" type="number" inputmode="numeric" style="${inp}" value="${pf.budget>0?pf.budget:""}" placeholder="mis. 3000000"></label>
+    </div>
+    ${blk(1,"1️⃣ Pesan 1 — malam sebelum, titip order beli","Kirim malam ini untuk beli di open besok. Batas maksimal = close × 1,05 (dibulatkan ke tick).",M.m1)}
+    ${blk(2,"2️⃣ Pesan 2 — setelah order terisi, pasang TP &amp; SL","Perlu Posisi saya terisi (harga beli, tanggal, lot). TP dan SL dihitung dari harga beli sebenarnya.",M.m2)}
+    ${blk(3,"3️⃣ Pesan jual — kalau MA50 / garis +3% tertembus","Angka diperbarui dari data terbaru. "+M.info3,M.m3)}
+  </div>`;
+}
+function waWire(s,redraw){
+  const save=()=>{ const o=waPrefs(); o.kode=document.getElementById("waKode").value; o.budget=parseFloat(document.getElementById("waBudget").value)||0; waPrefSave(o); const M=waMsgs(s); ["m1","m2","m3"].forEach((k,i)=>{ const t=document.getElementById("waT"+(i+1)); if(t) t.value=M[k]; }); };
+  ["waKode","waBudget"].forEach(id=>{ const el=document.getElementById(id); if(el) el.addEventListener("input",save); });
+  document.querySelectorAll("[data-wa]").forEach(b=>b.addEventListener("click",()=>{
+    const ta=document.getElementById("waT"+b.dataset.n), txt=ta.value;
+    if(b.dataset.wa==="send"){ window.open("https://wa.me/?text="+encodeURIComponent(txt),"_blank","noopener"); return; }
+    const done=()=>{ const o=b.textContent; b.textContent="✅ Tersalin"; setTimeout(()=>{b.textContent=o},1500); };
+    if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(done).catch(()=>{ ta.select(); try{document.execCommand("copy")}catch(e){} done(); });
+    else { ta.select(); try{document.execCommand("copy")}catch(e){} done(); }
+  }));
 }
 
 const list=document.getElementById("list");
@@ -1143,7 +1200,7 @@ function openModal(i){
   const planBtn=document.getElementById("planBtn"), planPop=document.getElementById("planPop");
   planBtn.hidden=!bt;
   planPop.hidden=true;
-  const renderPlan=()=>{ document.getElementById("planPopBody").innerHTML = btBox+btEntryHTML(s,bt)+posHTML(s); posWire(s,renderPlan); };
+  const renderPlan=()=>{ document.getElementById("planPopBody").innerHTML = btBox+btEntryHTML(s,bt)+posHTML(s)+waHTML(s); posWire(s,renderPlan); waWire(s,renderPlan); };
   if(bt) renderPlan();
   const body=document.getElementById("mBody");
   body.innerHTML=`
