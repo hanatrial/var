@@ -134,6 +134,9 @@
   .lvl .b.sl{border-color:var(--red)} .lvl .b.en{border-color:var(--blue)} .lvl .b.tp{border-color:var(--lime)}
   .lvl .b .k{font-size:.6rem;color:var(--muted);text-transform:uppercase}
   .lvl .b .v{font-size:.95rem;font-weight:800;margin-top:2px;font-variant-numeric:tabular-nums}
+  .lvl .b .s{font-size:.6rem;color:var(--muted);margin-top:4px;line-height:1.35}
+  .plan{font-size:.74rem;color:var(--muted);margin-top:7px;line-height:1.5}
+  .plan b{color:var(--text)}
   .verdict{background:rgba(205,241,92,.08);border:1px solid rgba(205,241,92,.25);border-radius:12px;padding:12px 14px;font-size:.84rem;color:#e6f3df;margin-top:6px}
   .verdict b{color:var(--lime)}
   .news{display:flex;flex-direction:column;gap:8px;margin-top:8px}
@@ -232,6 +235,7 @@
   .rchip{white-space:nowrap;line-height:1.15}
   .rchip.sm{font-size:.72rem;padding:6px 10px}
   @media(min-width:720px){.rbar.scroll{flex-wrap:wrap;overflow:visible;padding-bottom:0}}
+@media(max-width:560px){.lvl{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -894,49 +898,34 @@ function tglClose(s){const se=(s.seriesAll&&s.seriesAll.length)?s.seriesAll:(s.s
   while(!isBursa(d)){d.setUTCDate(d.getUTCDate()-1);}   // mundur ke hari bursa terakhir
   return d.toISOString().slice(0,10);}
 
-/* ---------- rencana masuk/keluar IDX — angka & tanggal konkret (aturan uji backtest) ---------- */
+/* ---------- rencana masuk/keluar IDX — kotak ENTRY / SL / TP (aturan uji backtest) ---------- */
 function btEntryHTML(s,bt){
   const t0=tglClose(s);
   const tEntry=t0?bursaKe(t0,1):null;
   const tMin=t0?bursaKe(t0,6):null;
-  const tMed=t0?bursaKe(t0,17):null;
   const tMax=t0?bursaKe(t0,21):null;
   const px=s.px;
   const sl=px*(1-BT.hardStop/100);           // dihitung dari harga beli (open besok), bukan dari close
   const batal=px*(1+BT.gapMax/100);
   const trail=bt.trailPx!=null?bt.trailPx:null;
-  const trailNote = trail==null ? "ATR belum tersedia → pakai SL & batas waktu"
-    : (trail<=sl ? "masih di bawah SL → yang kena SL −10%" : "garis naik ikut puncak");
+  const trailK = trail==null ? "ATR belum tersedia → andalkan SL &amp; batas waktu"
+    : ("puncak − 2,5×ATR ("+(bt.atr!=null?CUR(s,bt.atr):"—")+")"+(trail<=sl?" · masih di bawah SL → yang kena SL":" · garis ikut naik")+" · mulai "+fmtTgl(tMin)+" (hari ke-5)");
   const v = bt.ok ? {cls:"ok", icon:"⚡", t:"MASUK — beli di open hari bursa berikutnya"}
         : bt.ready ? {cls:"no", icon:"🔊", t:"BELUM MASUK — semua syarat lolos kecuali volume ≥1,5×"}
-        : {cls:"no", icon:"🕒", t:"BELUM MASUK — ada syarat yang belum lolos (lihat daftar di atas)"};
-  const R=[
-    ["<b>Sinyal</b> dibaca dari", "close terakhir <b>"+CUR(s,px)+"</b>", fmtTgl(t0)+" · sesi tutup 15:50 WIB"],
-    ["<b>ENTRY</b> — harga beli", "dari <b>"+CUR(s,px)+"</b> (≈ open) sampai <b>"+CUR(s,batal)+"</b>", "<b>"+fmtTgl(tEntry)+"</b> · 09:00 WIB = 10:00 WITA"],
-    ["<b>BATAL</b> entry", "kalau buka &gt; <b>"+CUR(s,batal)+"</b> (gap &gt; +4%)", fmtTgl(tEntry)+" · sebelum 09:00 WIB · lewati"],
-    ["<b>STOP LOSS (SL)</b>", "≤ <b>"+CUR(s,sl)+"</b> (−10% dari harga beli)", "cek di close 15:50 WIB · jual open berikutnya"],
-    ["<b>TP / trailing</b> — garis jual", trail!=null?("puncak − 2,5×ATR ("+(bt.atr!=null?CUR(s,bt.atr):"—")+") → hari ini <b>"+CUR(s,trail)+"</b>"):"puncak − 2,5×ATR(14)", "mulai "+fmtTgl(tMin)+" (hari ke-5) · "+trailNote],
-    ["<b>BERHENTI</b> maksimum", "habis 20 hari bursa", "<b>"+fmtTgl(tMax)+"</b> · jual di open berikutnya"],
-  ];
-  const rows=R.map(r=>`<tr style="border-top:1px solid var(--line)"><td style="padding:6px 8px 6px 0;width:36%">${r[0]}</td><td style="padding:6px 8px;width:32%">${r[1]}</td><td style="padding:6px 0;color:var(--muted)">${r[2]}</td></tr>`).join("");
+        : {cls:"no", icon:"🕒", t:"BELUM MASUK — ada syarat yang belum lolos"};
+  const gagal=bt.checks.filter(x=>!x.ok).map(x=>x.k.replace(/&amp;/g,"&"));
+  const jangan="buka &gt; <b>"+CUR(s,batal)+"</b> (gap &gt; +4%)"+(gagal.length?" atau "+gagal.join(" · "):"");
   return `<div class="sec">
     <h3><span class="ico">🎯</span> Rencana Masuk &amp; Keluar — aturan uji (IDX)</h3>
     <div class="bbbox ${v.cls}" style="margin-top:6px"><div class="bbt">${v.icon} ${v.t}</div></div>
-    <table style="width:100%;border-collapse:collapse;font-size:.76rem;margin-top:8px">
-      <tr style="text-align:left;color:var(--muted);font-size:.68rem"><th style="padding:0 8px 4px 0">AKSI</th><th style="padding:0 8px 4px">ANGKA</th><th style="padding:0 0 4px">TANGGAL &amp; JAM (WIB)</th></tr>
-      ${rows}
-    </table>
-    <div class="rbar" style="margin-top:8px">
-      <span class="rchip sm">Bobot <b>1/10 modal</b></span>
-      <span class="rchip sm">N=10 slot · sama rata</span>
-      <span class="rchip sm bear">SL bisa tembus saat gap/suspend (uji: terburuk −35,7%)</span>
+    <div class="lvl">
+      <div class="b en"><div class="k">ENTRY — harga beli</div><div class="v">${CUR(s,px)} – ${CUR(s,batal)}</div><div class="s">open ${fmtTgl(tEntry)} · 09:00 WIB = 10:00 WITA</div></div>
+      <div class="b sl"><div class="k">STOP LOSS</div><div class="v">≤ ${CUR(s,sl)}</div><div class="s">−10% dari harga beli · jual open berikutnya</div></div>
+      <div class="b tp"><div class="k">TP (trailing)</div><div class="v">${trail!=null?CUR(s,trail):"—"}</div><div class="s">${trailK}</div></div>
     </div>
-    <ul>
-      <li><b>Cara baca tiap hari:</b> yang dipantau <b>harga tutup</b> (15:50 WIB). Kalau kena syarat keluar → jual <b>100%</b> posisi di <b>open hari bursa berikutnya</b> (09:00 WIB). Tidak jual setengah-setengah. SL dihitung dari <b>harga beli</b>, jadi kalau open besok beda: <b>SL = harga beli × 0,90</b>.</li>
-      <li><b>Hari ke-1 sampai ke-4 cuma ada SL −10%</b>; trailing baru jalan <b>hari ke-5</b>. ATR dikunci saat masuk (ATR 14 hari di harga beli) → garis TP tidak berubah-ubah.</li>
-      <li><b>Kalau garis TP masih di bawah SL</b>, yang kena tetap SL −10% — trailing baru berguna setelah puncak naik di atas <b>SL + 2,5×ATR</b>.</li>
-      <li><b>Tanggal</b> perkiraan pakai kalender Sen–Jum (libur bursa belum dipotong → tambah 1 hari per libur). Backtest-nya sendiri pakai <b>kalender IHSG asli</b> (2.848 bar), jadi di uji libur sudah otomatis tak dihitung.</li>
-    </ul>
+    <p class="plan">Angka dihitung dari <b>close terakhir ${CUR(s,px)}</b> (${fmtTgl(t0)}, tutup 15:50 WIB) — SL &amp; TP final mengikuti harga beli besok pagi.</p>
+    <p class="plan">🚫 <b>Jangan masuk kalau:</b> ${jangan}</p>
+    <p class="plan">⏳ <b>Maksimal hold 20 hari bursa → sampai ${fmtTgl(tMax)}</b> (tutup hari ke-20, jual di open berikutnya). SL/trailing biasanya keluar lebih dulu.</p>
   </div>`;
 }
 
