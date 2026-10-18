@@ -1127,7 +1127,7 @@ let curMkt="IDX", query="", bbOnly=false;
 const norm = x => String(x||"").toLowerCase();
 const matches = (s,t) => norm(s.ticker).includes(t) || norm(s.name).includes(t) || norm(s.sector).includes(t) || norm(s.symbol).includes(t);
 
-/* tab Crypto: hanya BTC, ETH, BNB + plan (aturan MA50, hasil backtest 2018-2026) */
+/* tab Crypto: hanya BTC, ETH, BNB + plan (aturan F: MA50 dengan jarak masuk sesuai kondisi pasar BTC) */
 const CR3=[{s:"BTC",n:"Bitcoin"},{s:"ETH",n:"Ethereum"},{s:"BNB",n:"BNB"}];
 let cr3Cache=null;
 async function renderCrypto3(){
@@ -1135,28 +1135,41 @@ async function renderCrypto3(){
   try{
     if(!cr3Cache||Date.now()-cr3Cache.t>60000){
       const res=await Promise.all(CR3.map(async c=>{
-        const r=await fetch("https://data-api.binance.vision/api/v3/klines?symbol="+c.s+"USDT&interval=1d&limit=200");
+        const r=await fetch("https://data-api.binance.vision/api/v3/klines?symbol="+c.s+"USDT&interval=1d&limit=260");
         if(!r.ok)throw new Error(c.s+" "+r.status);
         const cl=(await r.json()).map(k=>+k[4]);const n=cl.length,L=50;
         const ma=i=>{let s=0;for(let k=i-L+1;k<=i;k++)s+=cl[k];return s/L;};
         const px=cl[n-1],m=ma(n-1),above=px>m;let days=0;
         for(let i=n-1;i>=L-1;i--){if((cl[i]>ma(i))===above)days++;else break;}
-        return {c,px,m,above,days,gap:(px/m-1)*100};
+        return {c,cl,px,m,above,days,gap:(px/m-1)*100};
       }));
-      cr3Cache={t:Date.now(),res};
+      /* kondisi pasar dari BTC: MA200 dan kemiringannya 30 hari (aturan F hasil backtest) */
+      const bc=res.find(x=>x.c.s==="BTC").cl,bn=bc.length;
+      const sma=(a,end,L)=>{let s=0;for(let k=end-L+1;k<=end;k++)s+=a[k];return s/L;};
+      const m200=sma(bc,bn-1,200),m200p=sma(bc,bn-31,200),slope=(m200/m200p-1)*100,bpx=bc[bn-1];
+      const reg=(bpx>m200&&slope>=2)?"BULL":(bpx<m200&&slope<=-2)?"BEAR":"SIDE";
+      const buf=reg==="BULL"?10:reg==="BEAR"?15:0;
+      res.forEach(x=>{x.ready=x.gap>=buf;});
+      cr3Cache={t:Date.now(),res,reg,buf,slope,btcGap:(bpx/m200-1)*100};
     }
     if(curMkt!=="CRYPTO")return;
-    const res=cr3Cache.res,on=res.filter(x=>x.above);
+    const res=cr3Cache.res,reg=cr3Cache.reg,buf=cr3Cache.buf,on=res.filter(x=>x.ready);
+    const regName={BULL:"BULLISH",SIDE:"SIDEWAYS",BEAR:"BEARISH"}[reg];
     const fx=x=>x>=1000?x.toLocaleString("en-US",{maximumFractionDigits:0}):x.toLocaleString("en-US",{maximumFractionDigits:2});
-    list.innerHTML=`<div class="csum">${on.length?`<b>${on.length} dari 3 koin boleh dipegang</b> (${on.map(x=>x.c.s).join(", ")}) → ${on.length*33}% modal masuk, sisanya cash.`:"<b>Ketiganya di bawah MA50</b> → 100% cash."}</div>`+
-    res.map(({c,px,m,above,days,gap})=>`<div class="cc">
-      <div class="h"><div class="tk">${c.s}<small>${c.n}</small></div><div class="st ${above?"in":"out"}">${above?(days<=1?"BARU MASUK":"BOLEH MASUK"):(days<=1?"BARU KELUAR":"BELUM, TUNGGU")}</div></div>
-      <div class="g"><div><div class="k">Harga</div><div class="v">${fx(px)}</div></div><div><div class="k">MA50 (level sinyal)</div><div class="v">${fx(m)}</div></div><div><div class="k">Jarak ke MA50</div><div class="v" style="color:${above?"var(--lime)":"var(--red)"}">${gap>=0?"+":""}${gap.toFixed(1)}%</div></div></div>
-      <div class="pl">🎯 <b>Plan:</b> ${above
-        ?`pegang ${c.s} 33% modal. Tahan selama harga tetap di atas <b>${fx(m)}</b> (sudah ${days} hari di atas). <b>Jual semua</b> kalau harga turun di bawah level itu.`
-        :`<b>Belum masuk.</b> Beli 33% modal begitu harga di atas <b>${fx(m)}</b> (perlu +${(-gap/(1+gap/100)*1).toFixed(1)}% dari sekarang). Kalau masih pegang, jual: sudah ${days} hari di bawah MA50.`}</div>
-    </div>`).join("")+
-    `<div class="cnote"><b>Aturan:</b> tiap koin dipegang 33% modal selama harga di atas MA50 (rata-rata 50 hari); turun di bawah MA50 → jual; ketiganya di bawah → 100% cash. Cek satu kali sehari di jam yang sama (boleh jam berapa pun; backtest 24 jam berbeda hasilnya mirip). Backtest BTC+ETH+BNB 2019 sampai Okt 2026: CAGR median sekitar 83% (2023 sampai sekarang sekitar 33%), drawdown −32% sampai −53%. Hasil historis, universe koin yang selamat, bukan saran investasi.</div>`;
+    const need=buf>0?"MA50 +"+buf+"%":"MA50";
+    list.innerHTML=`<div class="csum"><b>Pasar sekarang: ${regName}</b> (BTC ${cr3Cache.btcGap>=0?"+":""}${cr3Cache.btcGap.toFixed(0)}% dari MA200, MA200 ${cr3Cache.slope>=0?"naik":"turun"} ${Math.abs(cr3Cache.slope).toFixed(1)}% / 30 hari).<br>Syarat beli: harga ≥ <b>${need}</b> · Syarat jual: harga &lt; MA50.<br>${on.length?`<b>${on.length} dari 3 koin boleh dibeli</b> (${on.map(x=>x.c.s).join(", ")}) → ${on.length*33}% modal masuk, sisanya cash.`:"<b>Belum ada koin yang boleh dibeli</b> → 100% cash."}</div>`+
+    res.map(({c,px,m,above,days,gap,ready})=>{const tgt=m*(1+buf/100),up=(tgt/px*100-100).toFixed(1);
+    const st=ready?(days<=1?"BARU BOLEH BELI":"BOLEH BELI / PEGANG"):above?"TAHAN, BELUM BELI":(days<=1?"BARU KELUAR, JUAL":"JANGAN BELI");
+    return `<div class="cc">
+      <div class="h"><div class="tk">${c.s}<small>${c.n}</small></div><div class="st ${ready?"in":"out"}">${st}</div></div>
+      <div class="g"><div><div class="k">Harga</div><div class="v">${fx(px)}</div></div><div><div class="k">MA50 (level jual)</div><div class="v">${fx(m)}</div></div><div><div class="k">Jarak ke MA50</div><div class="v" style="color:${above?"var(--lime)":"var(--red)"}">${gap>=0?"+":""}${gap.toFixed(1)}%</div></div></div>
+      <div class="pl">🎯 ${ready
+        ?`<b>Beli / pegang 33% modal.</b> Jual semua kalau harga turun di bawah ${fx(m)}.`
+        :above
+        ?`<b>Jangan beli baru.</b> Beli kalau harga ≥ ${fx(tgt)} (+${up}% lagi). Kalau sudah pegang: tahan, jual kalau &lt; ${fx(m)}.`
+        :`<b>Jangan beli.</b> Beli kalau harga ≥ ${fx(tgt)} (+${up}% lagi). Kalau masih pegang: jual.`}</div>
+    </div>`}).join("")+
+    `<div class="cnote"><b>Mekanisme (aturan F):</b> tiap koin 33% modal. Syarat beli menyesuaikan kondisi pasar BTC: <b>bullish</b> harga ≥ MA50 +10%, <b>sideways</b> ≥ MA50, <b>bearish</b> ≥ MA50 +15%. Jual semua kalau harga &lt; MA50. Tidak ada yang lolos → 100% cash. Bullish = BTC &gt; MA200 dan MA200 naik ≥2%/30 hari; bearish = BTC &lt; MA200 dan MA200 turun ≥2%; selain itu sideways. Cek sekali sehari (08:30 WITA cukup). Backtest 2019-Okt 2026: CAGR sekitar 77%, drawdown sekitar −40%, 2022 −25% (beli-tahan −61%). Hasil historis, tiga koin yang selamat, bukan saran investasi.</div>`;
   }catch(e){
     if(curMkt==="CRYPTO")list.innerHTML='<div class="nores">Gagal memuat data Binance ('+e.message+'). Muat ulang halaman.</div>';
   }
