@@ -904,23 +904,19 @@ function btEntryHTML(s,bt){
   const px=s.px;
   const sl=px*(1-BT.hardStop/100);           // dihitung dari harga beli (open besok), bukan dari close
   const batal=px*(1+BT.gapMax/100);
-  const tpA=px*1.222, tpB=px*1.313;          // rata-rata pemenang & p90 pemenang di uji 2015–2026
   const trail=bt.trailPx!=null?bt.trailPx:null;
-  const trailNote = trail==null ? "ATR belum tersedia → andalkan SL & batas waktu"
-    : (trail<=sl ? "nilainya di bawah SL → yang kena lebih dulu tetap SL −10%" : "naik terus mengikuti harga tertinggi sejak masuk");
+  const trailNote = trail==null ? "ATR belum tersedia → pakai SL & batas waktu"
+    : (trail<=sl ? "masih di bawah SL → yang kena SL −10%" : "garis naik ikut puncak");
   const v = bt.ok ? {cls:"ok", icon:"⚡", t:"MASUK — beli di open hari bursa berikutnya"}
         : bt.ready ? {cls:"no", icon:"🔊", t:"BELUM MASUK — semua syarat lolos kecuali volume ≥1,5×"}
         : {cls:"no", icon:"🕒", t:"BELUM MASUK — ada syarat yang belum lolos (lihat daftar di atas)"};
   const R=[
-    ["<b>Sinyal</b> dibaca dari", "close terakhir <b>"+CUR(s,px)+"</b>", "<b>"+fmtTgl(t0)+"</b> · sesi tutup 15:50 WIB"],
-    ["<b>MASUK</b> kalau sinyal ⭐", "beli di harga <b>open</b>", "<b>"+fmtTgl(tEntry)+"</b> · 09:00 WIB = 10:00 WITA"],
-    ["<b>BATAL</b> masuk", "open &gt; <b>"+CUR(s,batal)+"</b> (gap &gt; +4%)", fmtTgl(tEntry)+" · sebelum 09:00 WIB"],
-    ["<b>STOP LOSS (SL)</b> — jual", "≤ <b>"+CUR(s,sl)+"</b> (−10% dari harga beli)", "tiap hari bursa 09:00–15:50 WIB"],
-    ["<b>TARGET (TP)</b>", "<b>Tidak ada</b> — aturan uji tidak pasang TP", "keluar <b>100%</b> posisi, bukan sebagian"],
-    ["<b>Angka pemenang</b> (statistik uji)", "rata-rata <b>+22,2%</b> = "+CUR(s,tpA)+" · p90 <b>+31,3%</b> = "+CUR(s,tpB), "bukan perintah jual — cuma penanda hasil uji"],
-    ["<b>TRAILING</b> mulai hari ke-5", trail!=null?("≤ <b>"+CUR(s,trail)+"</b> = harga tertinggi − 2,5×ATR "+(bt.atr!=null?CUR(s,bt.atr):"—")):"harga tertinggi − 2,5×ATR(14)", "mulai "+fmtTgl(tMin)+" · "+trailNote],
-    ["<b>BERHENTI</b> maksimum", "20 hari bursa", "<b>"+fmtTgl(tMax)+"</b> · jual di close 15:50 WIB"],
-    ["Biasanya sudah keluar", "median 16 hari bursa", "± "+fmtTgl(tMed)+" (uji: 965 transaksi)"],
+    ["<b>Sinyal</b> dibaca dari", "close terakhir <b>"+CUR(s,px)+"</b>", fmtTgl(t0)+" · sesi tutup 15:50 WIB"],
+    ["<b>ENTRY</b> — harga beli", "dari <b>"+CUR(s,px)+"</b> (≈ open) sampai <b>"+CUR(s,batal)+"</b>", "<b>"+fmtTgl(tEntry)+"</b> · 09:00 WIB = 10:00 WITA"],
+    ["<b>BATAL</b> entry", "kalau buka &gt; <b>"+CUR(s,batal)+"</b> (gap &gt; +4%)", fmtTgl(tEntry)+" · sebelum 09:00 WIB · lewati"],
+    ["<b>STOP LOSS (SL)</b>", "≤ <b>"+CUR(s,sl)+"</b> (−10% dari harga beli)", "cek di close 15:50 WIB · jual open berikutnya"],
+    ["<b>TP / trailing</b> — garis jual", trail!=null?("puncak − 2,5×ATR ("+(bt.atr!=null?CUR(s,bt.atr):"—")+") → hari ini <b>"+CUR(s,trail)+"</b>"):"puncak − 2,5×ATR(14)", "mulai "+fmtTgl(tMin)+" (hari ke-5) · "+trailNote],
+    ["<b>BERHENTI</b> maksimum", "habis 20 hari bursa", "<b>"+fmtTgl(tMax)+"</b> · jual di open berikutnya"],
   ];
   const rows=R.map(r=>`<tr style="border-top:1px solid var(--line)"><td style="padding:6px 8px 6px 0;width:36%">${r[0]}</td><td style="padding:6px 8px;width:32%">${r[1]}</td><td style="padding:6px 0;color:var(--muted)">${r[2]}</td></tr>`).join("");
   return `<div class="sec">
@@ -936,10 +932,10 @@ function btEntryHTML(s,bt){
       <span class="rchip sm bear">SL bisa tembus saat gap/suspend (uji: terburuk −35,7%)</span>
     </div>
     <ul>
-      <li><b>Tanggal</b> dihitung dari close terakhir (${fmtTgl(t0)}) pakai kalender Sen–Jum — <b>libur bursa belum dipotong</b>, tambah 1 hari per hari libur. (Backtest-nya sendiri <b>pakai kalender IHSG asli</b>: 2.848 bar, jadi libur sudah otomatis tak dihitung; yang di sini baru perkiraan tanggal.) Kalau sinyalnya muncul di hari lain, semua tanggal bergeser sama.</li>
-      <li><b>SL dihitung dari harga beli</b> (open hari masuk). Kalau open besok beda dari harga sekarang, hitung ulang: <b>SL = harga beli × 0,90</b>.</li>
-      <li><b>Keluar = mana yang lebih dulu:</b> SL −10%, atau setelah 5 hari bursa close &lt; puncak − 2,5×ATR, atau tanggal batas di atas — dan selalu <b>jual seluruh posisi</b> (bukan sebagian). Di uji: batas waktu 374× · trailing 285× · SL 306×.</li>
-      <li><b>Backtest pakai 0 target / 0 TP.</b> Angka <b>+22,2%</b> dan <b>+31,3%</b> cuma rata-rata &amp; p90 dari <b>965 transaksi</b> pemenang (2015–2026) — cuma penanda, <b>bukan perintah jual</b>, dan tak ada jual setengah-setengah. Untuk apa penanda ini: tahu kapan posisi sudah termasuk "lumayan" sebelum trailing mengambil puncaknya.</li>
+      <li><b>Cara baca tiap hari:</b> yang dipantau <b>harga tutup</b> (15:50 WIB). Kalau kena syarat keluar → jual <b>100%</b> posisi di <b>open hari bursa berikutnya</b> (09:00 WIB). Tidak jual setengah-setengah. SL dihitung dari <b>harga beli</b>, jadi kalau open besok beda: <b>SL = harga beli × 0,90</b>.</li>
+      <li><b>Hari ke-1 sampai ke-4 cuma ada SL −10%</b>; trailing baru jalan <b>hari ke-5</b>. ATR dikunci saat masuk (ATR 14 hari di harga beli) → garis TP tidak berubah-ubah.</li>
+      <li><b>Kalau garis TP masih di bawah SL</b>, yang kena tetap SL −10% — trailing baru berguna setelah puncak naik di atas <b>SL + 2,5×ATR</b>.</li>
+      <li><b>Tanggal</b> perkiraan pakai kalender Sen–Jum (libur bursa belum dipotong → tambah 1 hari per libur). Backtest-nya sendiri pakai <b>kalender IHSG asli</b> (2.848 bar), jadi di uji libur sudah otomatis tak dihitung.</li>
     </ul>
   </div>`;
 }
