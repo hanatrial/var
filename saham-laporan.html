@@ -106,7 +106,12 @@
   .modal .grab{width:42px;height:5px;border-radius:3px;background:rgba(255,255,255,.18);margin:0 auto 12px}
   .modal .m-tk{font-weight:800;font-size:1.15rem;color:var(--lime)}
   .modal .m-nm{font-size:.8rem;color:var(--muted)}
-  .modal .m-px{font-size:1.9rem;font-weight:800;margin:6px 0 2px;font-variant-numeric:tabular-nums}
+  .modal .pxrow{display:flex;align-items:center;gap:10px;margin:6px 0 2px}
+  .modal .m-px{font-size:1.9rem;font-weight:800;font-variant-numeric:tabular-nums}
+  .modal .planbtn{background:var(--lime);color:#12321f;border:none;border-radius:999px;padding:7px 16px;font-weight:800;font-size:.78rem;cursor:pointer;letter-spacing:.3px;white-space:nowrap}
+  .modal .planpop{position:absolute;left:12px;right:12px;top:100%;background:#fff;border:1px solid var(--line);border-radius:16px;padding:14px;max-height:62vh;overflow-y:auto;z-index:6;box-shadow:0 14px 34px rgba(0,0,0,.18)}
+  .modal .planpop[hidden]{display:none}
+  .modal .planx{position:absolute;top:9px;right:10px;width:26px;height:26px;border-radius:50%;background:#eef6f1;border:none;color:#12321f;cursor:pointer;font-size:.8rem;display:grid;place-items:center}
   .modal .m-chg{font-size:.82rem;font-weight:700}
   .modal .close{position:absolute;top:16px;right:18px;width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.08);border:none;color:var(--text);font-size:1.1rem;display:grid;place-items:center;cursor:pointer}
   .modal .body{padding:4px 18px 30px;overflow-y:auto;-webkit-overflow-scrolling:touch}
@@ -281,8 +286,15 @@
     <button class="close" id="closeBtn">✕</button>
     <div class="m-tk" id="mTk"></div>
     <div class="m-nm" id="mNm"></div>
-    <div class="m-px" id="mPx"></div>
+    <div class="pxrow">
+      <div class="m-px" id="mPx"></div>
+      <button class="planbtn" id="planBtn" hidden>🎯 PLAN</button>
+    </div>
     <div class="m-chg" id="mChg"></div>
+    <div class="planpop" id="planPop" hidden>
+      <button class="planx" id="planX">✕</button>
+      <div id="planPopBody"></div>
+    </div>
   </div>
   <div class="body" id="mBody"></div>
 </div>
@@ -1058,6 +1070,11 @@ function openModal(i){
   document.getElementById("mPx").textContent=CUR(s,s.px);
   const chUp=(s.chg1d||0)>=0;
   document.getElementById("mChg").innerHTML=`<span class="${chUp?"up":"down"}">${chUp?"▲":"▼"} ${PCT(s.chg1d)} hari ini</span>`;
+  // rencana IDX = popup di samping harga (toggle PLAN); US/CRYPTO tetap blok "Level, Entry & Exit" di body
+  const planBtn=document.getElementById("planBtn"), planPop=document.getElementById("planPop");
+  planBtn.hidden=!bt;
+  planPop.hidden=true;
+  if(bt) document.getElementById("planPopBody").innerHTML=btEntryHTML(s,bt);
   const body=document.getElementById("mBody");
   body.innerHTML=`
     <div class="rbar" id="mrBtns" style="margin:2px 0 6px">
@@ -1070,7 +1087,7 @@ function openModal(i){
 
     <div class="verdict">${a.verdict}</div>
     ${bbHTML}
-    ${bt?btEntryHTML(s,bt):entryAdviceHTML(s)}
+    ${bt?"":entryAdviceHTML(s)}
 
     <div class="sec">
       <h3><span class="ico">🎯</span> Ringkasan Skor</h3>
@@ -1212,6 +1229,11 @@ qEl.addEventListener("keydown",e=>{ if(e.key==="Enter"){ clearTimeout(qT); query
 qxEl.addEventListener("click",()=>{ qEl.value=""; query=""; qxEl.hidden=true; renderList(); qEl.focus(); });
 document.getElementById("closeBtn").addEventListener("click",closeModal);
 overlay.addEventListener("click",closeModal);
+/* toggle PLAN: popup rencana masuk/keluar di samping harga (IDX) */
+document.getElementById("planBtn").addEventListener("click",()=>{
+  const p=document.getElementById("planPop"); p.hidden=!p.hidden;
+});
+document.getElementById("planX").addEventListener("click",()=>{document.getElementById("planPop").hidden=true;});
 
 /* ---------- meta, banner regime & panduan ---------- */
 (function(){
