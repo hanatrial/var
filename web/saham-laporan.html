@@ -264,6 +264,40 @@
   .rchip.sm{font-size:.72rem;padding:6px 10px}
   @media(min-width:720px){.rbar.scroll{flex-wrap:wrap;overflow:visible;padding-bottom:0}}
 @media(max-width:560px){.lvl{grid-template-columns:1fr}}
+
+  /* ---- popup Mekanisme ---- */
+  .mekbtn{cursor:pointer;font-family:inherit}
+  .mekbtn:hover{border-color:var(--lime)}
+  .mkov{position:fixed;inset:0;z-index:9999;background:rgba(10,20,16,.55);display:none;align-items:flex-start;justify-content:center;padding:18px 12px;overflow-y:auto}
+  .mkov.on{display:flex}
+  .mkbox{background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:18px;width:100%;max-width:640px;padding:16px 16px 18px;margin:auto}
+  .mkhd{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+  .mkhd b{font-size:1rem}
+  .mkx{border:1px solid var(--line);background:transparent;color:var(--text);border-radius:999px;width:32px;height:32px;font-size:1rem;cursor:pointer}
+  .mktabs{display:flex;gap:6px;margin-bottom:14px}
+  .mktabs button{flex:1;padding:9px 8px;border-radius:12px;border:1px solid var(--line);background:transparent;color:var(--muted);font-weight:700;font-size:.8rem;cursor:pointer;font-family:inherit}
+  .mktabs button.on{background:var(--lime);color:#fff;border-color:var(--lime)}
+  .mkp{display:none}.mkp.on{display:block}
+  .mkh{font-size:.72rem;font-weight:800;letter-spacing:.06em;color:var(--muted);margin:14px 0 8px}
+  .mkg{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+  .mkt{border:1px solid var(--line);border-radius:12px;padding:10px 11px;background:var(--card2)}
+  .mkt .e{font-size:1.05rem}
+  .mkt .n{font-size:.78rem;font-weight:800;margin-top:2px}
+  .mkt .v{font-size:.72rem;color:var(--muted);margin-top:1px}
+  .mkt.buy{border-color:rgba(23,163,93,.45)}
+  .mkt.sell{border-color:rgba(229,72,77,.45)}
+  .mkt.sell .n{color:var(--red)}
+  .mkrow{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+  .mkpill{font-size:.72rem;font-weight:700;padding:5px 10px;border-radius:999px;border:1px solid var(--line);color:var(--text)}
+  .mkpill.in{background:var(--lime);color:#fff;border-color:var(--lime)}
+  .mkpill.out{border-color:var(--red);color:var(--red)}
+  .mkpill.mid{border-color:var(--blue);color:var(--blue)}
+  .mkreg{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .mkreg .mkt{text-align:center}
+  .mkreg .big{font-size:1.35rem;font-weight:800;margin:4px 0 2px;color:var(--lime)}
+  .mksvg{width:100%;height:auto;display:block;border:1px solid var(--line);border-radius:12px;background:var(--card2)}
+  .mkft{font-size:.68rem;color:var(--muted);margin-top:14px}
+  @media (max-width:420px){.mkreg .big{font-size:1.1rem}}
 </style>
 </head>
 <body>
@@ -284,6 +318,7 @@
   <div class="rbar scroll" style="margin-bottom:10px">
     <span class="rchip sm" id="genAt"></span>
     <span class="rchip sm" id="liveBadge" hidden></span>
+    <button class="rchip sm mekbtn" id="mekBtn" type="button">📖 Mekanisme</button>
   </div>
   <div id="regimeBar"></div>
   <div class="mkts" id="mktTabs">
@@ -1600,6 +1635,80 @@ renderList("IDX");
   });
   window.addEventListener("appinstalled", close);
   skip.addEventListener("click", function(){ sessionStorage.setItem("igSkip","1"); close(); });
+})();
+</script>
+
+<div class="mkov" id="mkOv" aria-hidden="true"><div class="mkbox" role="dialog" aria-label="Mekanisme plan">
+  <div class="mkhd"><b>📖 Mekanisme Plan</b><button class="mkx" id="mkX" type="button" aria-label="Tutup">✕</button></div>
+  <div class="mktabs"><button type="button" data-p="idx" class="on">🇮🇩 Saham Indo</button><button type="button" data-p="cr">₿ Crypto</button></div>
+
+  <div class="mkp on" id="mkp-idx">
+    <div class="mkh">BELI · SEMUA 7 HARUS ✓</div>
+    <div class="mkg">
+      <div class="mkt buy"><div class="e">🐂</div><div class="n">Rejim</div><div class="v">IHSG &gt; MA20 &gt; MA200</div></div>
+      <div class="mkt buy"><div class="e">📈</div><div class="n">Tren</div><div class="v">Harga &gt; MA50 &gt; MA100</div></div>
+      <div class="mkt buy"><div class="e">🚀</div><div class="n">Breakout</div><div class="v">High 55 hari</div></div>
+      <div class="mkt buy"><div class="e">🔊</div><div class="n">Volume</div><div class="v">≥ 2× rata-rata</div></div>
+      <div class="mkt buy"><div class="e">⚡</div><div class="n">Momentum</div><div class="v">+20% dalam 120 hari</div></div>
+      <div class="mkt buy"><div class="e">💧</div><div class="n">Likuid</div><div class="v">≥ Rp2 M/hari</div></div>
+      <div class="mkt buy"><div class="e">💰</div><div class="n">Laba</div><div class="v">EPS &gt; 0</div></div>
+      <div class="mkt"><div class="e">🛒</div><div class="n">Eksekusi</div><div class="v">Beli di open besok</div></div>
+    </div>
+    <div class="mkh">JUAL · YANG KENA DULUAN</div>
+    <div class="mkg">
+      <div class="mkt sell"><div class="e">📉</div><div class="n">Close &lt; MA50</div><div class="v">Jual open besok</div></div>
+      <div class="mkt sell"><div class="e">🛑</div><div class="n">Stop −10%</div><div class="v">dari harga beli</div></div>
+      <div class="mkt sell"><div class="e">🎯</div><div class="n">Target +100%</div><div class="v">dari harga beli</div></div>
+      <div class="mkt sell"><div class="e">⏱️</div><div class="n">40 hari</div><div class="v">untung &lt; +3% → jual</div></div>
+    </div>
+    <div class="mkrow"><span class="mkpill">Maks 5 posisi</span><span class="mkpill">Jeda 20 hari setelah jual</span></div>
+  </div>
+
+  <div class="mkp" id="mkp-cr">
+    <div class="mkh">KONDISI PASAR (DARI BTC) → SYARAT BELI</div>
+    <div class="mkreg">
+      <div class="mkt"><div class="e">🐂</div><div class="n">BULLISH</div><div class="big">+10%</div><div class="v">BTC &gt; MA200<br>MA200 naik</div></div>
+      <div class="mkt"><div class="e">↔️</div><div class="n">SIDEWAYS</div><div class="big">0%</div><div class="v">di luar<br>keduanya</div></div>
+      <div class="mkt"><div class="e">🐻</div><div class="n">BEARISH</div><div class="big">+15%</div><div class="v">BTC &lt; MA200<br>MA200 turun</div></div>
+    </div>
+    <div class="mkv" style="font-size:.68rem;color:var(--muted);text-align:center;margin-top:6px">angka = jarak di atas MA50 untuk boleh beli</div>
+    <div class="mkh">CARA KERJA PER KOIN</div>
+    <svg class="mksvg" viewBox="0 0 320 135" role="img" aria-label="Harga naik melewati garis beli lalu turun ke MA50 untuk jual">
+      <line x1="8" y1="92" x2="312" y2="92" stroke="#e5484d" stroke-width="1.5" stroke-dasharray="5 4"/>
+      <line x1="8" y1="58" x2="312" y2="58" stroke="#17a35d" stroke-width="1.5"/>
+      <rect x="8" y="58" width="304" height="34" fill="#6cc5ff" opacity=".12"/>
+      <polyline points="10,114 50,104 90,88 120,76 150,52 190,34 230,48 265,78 292,104" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" style="color:var(--text)"/>
+      <circle cx="141" cy="58" r="5.5" fill="#17a35d"/>
+      <circle cx="281" cy="92" r="5.5" fill="#e5484d"/>
+      <text x="12" y="52" font-size="9.5" font-weight="700" fill="#17a35d">GARIS BELI</text>
+      <text x="12" y="126" font-size="9.5" font-weight="700" fill="#e5484d">MA50 = GARIS JUAL</text>
+      <text x="150" y="77" font-size="9" fill="#2f7fe0">zona tunggu</text>
+      <text x="132" y="50" font-size="9.5" font-weight="800" fill="#17a35d" text-anchor="end">BELI</text>
+      <text x="274" y="108" font-size="9.5" font-weight="800" fill="#e5484d" text-anchor="end">JUAL</text>
+    </svg>
+    <div class="mkrow"><span class="mkpill">33% modal per koin</span><span class="mkpill">BTC · ETH · BNB</span><span class="mkpill">Tidak lolos → cash</span></div>
+    <div class="mkh">STATUS DI KARTU</div>
+    <div class="mkrow">
+      <span class="mkpill in">BOLEH BELI / PEGANG</span>
+      <span class="mkpill mid">TAHAN, BELUM BELI</span>
+      <span class="mkpill out">JANGAN BELI</span>
+      <span class="mkpill out">BARU KELUAR, JUAL</span>
+    </div>
+  </div>
+  <div class="mkft">Hasil backtest historis dari koin dan saham yang selamat sampai sekarang. Bukan saran investasi.</div>
+</div></div>
+
+<script>
+(function(){
+  var ov=document.getElementById("mkOv"),btn=document.getElementById("mekBtn"); if(!ov||!btn) return;
+  function tab(p){ ov.querySelectorAll(".mktabs button").forEach(function(b){b.classList.toggle("on",b.dataset.p===p);}); ov.querySelectorAll(".mkp").forEach(function(d){d.classList.toggle("on",d.id==="mkp-"+p);}); }
+  function open(){ tab(typeof curMkt!=="undefined"&&curMkt==="CRYPTO"?"cr":"idx"); ov.classList.add("on"); ov.setAttribute("aria-hidden","false"); document.body.style.overflow="hidden"; }
+  function close(){ ov.classList.remove("on"); ov.setAttribute("aria-hidden","true"); document.body.style.overflow=""; }
+  btn.addEventListener("click",open);
+  document.getElementById("mkX").addEventListener("click",close);
+  ov.addEventListener("click",function(e){ if(e.target===ov) close(); });
+  ov.querySelectorAll(".mktabs button").forEach(function(b){ b.addEventListener("click",function(){ tab(b.dataset.p); }); });
+  document.addEventListener("keydown",function(e){ if(e.key==="Escape") close(); });
 })();
 </script>
 <script>if("serviceWorker" in navigator){navigator.serviceWorker.register("./sw.js").catch(function(){});}</script>
