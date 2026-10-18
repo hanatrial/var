@@ -642,7 +642,35 @@ function tags(s){
 
 /* ---------- BEST BUY ---------- */
 const BB_MIN={IDX:80,US:90,CRYPTO:85};
+/* ---------- BEST BUY US: momentum 12-1 Top-3 + filter rejim S&P ----------
+   Aturan (backtest harian 1991–2026, 75 saham AS, tanpa look-ahead, biaya 0,1%/sisi):
+   akhir bulan ambil 3 saham dengan momentum 12-1 terbaik, bobot sama; hold 1 bulan; cash bila S&P500 < MA200.
+   Hasil: ±33%/th, DD −43%, 11 dari 35 tahun < 10%, 5 tahun negatif. CATATAN: sebagian besar hasil berasal dari saham
+   yang kini sudah jadi pemenang (survivorship bias) — tanpa 14 saham pemenang hindsight hasilnya turun ke ±16%/th. */
+let US_RANK=null, US_N=0;
+function usRankOf(s){
+  if(!US_RANK){
+    const c=DATA.filter(x=>x.market==="US" && !x.excluded && !x.ipoBaru && x.mom121!=null).sort((a,b)=>b.mom121-a.mom121);
+    US_RANK=new Map(c.map((x,i)=>[x.ticker,i+1])); US_N=c.length;
+  }
+  return {r:US_RANK.get(s.ticker)||null,n:US_N};
+}
+function usMomBB(s){
+  const BM=BENCH(s.market), good=[], blocks=[], warns=[];
+  const bear = !!(BM&&BM.bearish);
+  if(bear) blocks.push(`${BM.label} di bawah MA200 (rejim bearish) — aturan ini pegang cash`); else good.push(`${BM.label} di atas MA200 (rejim sehat)`);
+  const rk=usRankOf(s);
+  if(s.excluded) blocks.push("Dikecualikan screener");
+  else if(s.ipoBaru) blocks.push("IPO < 1 tahun (momentum 12 bulan belum valid)");
+  else if(s.mom121==null) blocks.push("Data momentum 12-1 tidak tersedia");
+  else if(rk.r!=null && rk.r<=3) good.push(`Momentum 12-1 ${s.mom121>=0?"+":""}${s.mom121.toFixed(1)}% — peringkat #${rk.r} dari ${rk.n} saham AS (masuk Top-3)`);
+  else blocks.push(`Momentum 12-1 ${s.mom121>=0?"+":""}${s.mom121.toFixed(1)}% — peringkat #${rk.r} dari ${rk.n} (butuh Top-3)`);
+  const ok=blocks.length===0;
+  if(ok) warns.push("Pegang sampai keluar dari Top-3 atau S&P500 < MA200; cek ulang tiap akhir bulan. Tanpa TP; backtest tidak memakai SL.");
+  return {ok, ready:false, volOK:true, good, blocks, warns, min:null, bench:BM?BM.label:s.market, usMom:true};
+}
 function bestBuy(s){
+  if(s.market==="US") return usMomBB(s);
   const min=BB_MIN[s.market]!=null?BB_MIN[s.market]:80;
   const f=(s.score&&s.score.flags)||{}, cf=(s.ca&&s.ca.flags)||[];
   const BM=BENCH(s.market);
@@ -1243,7 +1271,7 @@ function openModal(i){
   const BM=BENCH(s.market);
   const bb=bestBuy(s);
   const bt=(s.market==="IDX")?btIdx(s):null;
-  const bbFoot = `<div style="font-size:.7rem;color:#8b96a8;margin-top:8px">Ambang ${bb.bench}: skor ≥ ${bb.min} · dekat high 52 minggu (≥94% puncak) · volume ≥1,5× · tren ≥20/28 · relatif ≥8/12 · rejim sehat · tanpa flag merah.</div>`;
+  const bbFoot = bb.usMom ? `<div style="font-size:.7rem;color:#8b96a8;margin-top:8px">Aturan US: 3 saham momentum 12-1 terbaik (bobot sama, hold 1 bulan) + filter S&amp;P500 &gt; MA200. Backtest 1991–2026: ±33%/th, DD −43%, 11 dari 35 tahun &lt;10%. <b>Bias survivorship:</b> tanpa 14 saham pemenang hindsight turun ke ±16%/th. Bukan jaminan stabil per tahun.</div>` : `<div style="font-size:.7rem;color:#8b96a8;margin-top:8px">Ambang ${bb.bench}: skor ≥ ${bb.min} · dekat high 52 minggu (≥94% puncak) · volume ≥1,5× · tren ≥20/28 · relatif ≥8/12 · rejim sehat · tanpa flag merah.</div>`;
   const bbHTMLscore = bb.ok
     ? `<div class="bbbox ok"><div class="bbt">⭐ BEST BUY — semua syarat terpenuhi</div><ul>${bb.good.map(g=>`<li>✓ ${g}</li>`).join("")}${bb.warns.map(w=>`<li style="color:#946200">⚠ ${w}</li>`).join("")}</ul>${bbFoot}</div>`
     : bb.ready
