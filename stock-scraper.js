@@ -559,6 +559,20 @@ function finalizeScores(list, ctx) {
           const ret = n => refCloses.length > n ? (px / refCloses[refCloses.length - n] - 1) * 100 : null;
           const name = e.market === "CRYPTO" ? (CRYPTO_NAMES[e.ticker] || (q.shortName || e.ticker).replace(/\s*USD$/, "")) : (q.shortName || q.longName || e.ticker);
 
+          // --- bahan sinyal backtest (dipakai penuh hanya untuk IDX, lihat run8.js) ---
+          // puncak close 252 bar SEBELUM hari ini → dasar uji breakout 52 minggu (tanpa look-ahead)
+          const hi252 = refCloses.length >= 63 ? Math.max.apply(null, refCloses.slice(-252)) : null;
+          let atr14 = null;
+          if (indC.length >= 15) {
+            let acc = 0;
+            for (let i = indC.length - 14; i < indC.length; i++) {
+              const pc = indC[i - 1];
+              const tr = Math.max(indH[i] - indL[i], pc != null ? Math.abs(indH[i] - pc) : 0, pc != null ? Math.abs(indL[i] - pc) : 0);
+              acc += tr;
+            }
+            atr14 = acc / 14;
+          }
+
           const s = {
             ticker: e.ticker, symbol: e.symbol, market: e.market, cur: q.currency || (e.market === "IDX" ? "IDR" : "USD"),
             name,
@@ -571,7 +585,7 @@ function finalizeScores(list, ctx) {
             rsi: rsi(indC, 14), mfi: mfi(indH, indL, indC, indV, 14), obv: obvSlope(indC, indV),
             accum: accumulation(indC, indV, 20), volSpike: volMA20 ? volToday / volMA20 : null,
             ret1d: ret(1), ret5d: ret(5), ret1m: ret(21), ret3m: ret(63), ret6m: ret(126), hi20, lo20,
-            offHigh: hi20 ? (px / hi20 - 1) * 100 : null, volToday,
+            offHigh: hi20 ? (px / hi20 - 1) * 100 : null, volToday, hi252, atr14,
           };
           // aksi korporasi struktural (dari riwayat dividen/split Yahoo)
           const nowMs = Date.now();
