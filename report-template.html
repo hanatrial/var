@@ -926,20 +926,27 @@ function btEntryHTML(s,bt){
   const tp=px*(1+BT.tp/100);
   const batal=px*(1+BT.gapMax/100);
   const gagal=bt.checks.filter(x=>!x.ok).map(x=>(x.neg||x.k).replace(/&amp;/g,"&").replace(/&gt;/g,">").replace(/&lt;/g,"<"));
-  const jangan="buka &gt; <b>"+CUR(s,batal)+"</b> (gap &gt; +"+BT.gapMax+"%)"+(gagal.length?" atau "+gagal.join(" · "):"");
   const ma50t = bt.ma50!=null ? CUR(s,bt.ma50) : "—";
+  const status = bt.ok
+    ? `<div class="bbbox ok"><div class="bbt">✅ Lolos 7 syarat — boleh dibeli</div><div>Ikuti langkah di bawah. Kalau slot (maks ${BT.N} saham) sudah penuh, tunggu sampai ada posisi yang keluar.</div></div>`
+    : `<div class="bbbox no"><div class="bbt">⛔ Belum boleh dibeli — ini hanya gambaran rencana</div><div>Yang belum lolos: ${gagal.join(" · ")}.</div></div>`;
   return `<div class="sec">
     <h3><span class="ico">🎯</span> Rencana Masuk &amp; Keluar — aturan uji (IDX)</h3>
-    <div class="lvl">
-      <div class="b en"><div class="k">ENTRY — harga beli</div><div class="v">${CUR(s,px)} – ${CUR(s,batal)}</div><div class="s">open ${fmtTgl(tEntry)} · 09:00 WIB = 10:00 WITA</div></div>
-      <div class="b sl"><div class="k">STOP LOSS</div><div class="v">≤ ${CUR(s,sl)}</div><div class="s">−${BT.hardStop}% dari harga beli · pasang order, intraday</div></div>
-      <div class="b tp"><div class="k">TAKE PROFIT</div><div class="v">≥ ${CUR(s,tp)}</div><div class="s">+${BT.tp}% dari harga beli · intraday (jarang tercapai, tapi penyumbang laba terbesar)</div></div>
+    ${status}
+    <div class="lvl" style="margin-top:10px">
+      <div class="b en"><div class="k">BELI DI SINI</div><div class="v">${CUR(s,px)} – ${CUR(s,batal)}</div><div class="s">harga open besok pagi</div></div>
+      <div class="b sl"><div class="k">JUAL RUGI (STOP LOSS)</div><div class="v">≤ ${CUR(s,sl)}</div><div class="s">turun ${BT.hardStop}% dari harga belimu</div></div>
+      <div class="b tp"><div class="k">JUAL UNTUNG (TAKE PROFIT)</div><div class="v">≥ ${CUR(s,tp)}</div><div class="s">naik ${BT.tp}% (2×) dari harga belimu</div></div>
     </div>
-    <p class="plan">Angka dihitung dari <b>close terakhir ${CUR(s,px)}</b> (${fmtTgl(t0)}, tutup 15:50 WIB) — SL &amp; TP final mengikuti harga beli besok pagi.</p>
-    <p class="plan">📉 <b>Keluar tren:</b> close &lt; <b>MA${BT.exitMA}</b> (sekarang ${ma50t}) → jual di open berikutnya. Ini pemicu keluar yang paling sering.</p>
-    <p class="plan">⏳ <b>Time stop:</b> setelah ${BT.timeDays} hari bursa (cek tutup ${fmtTgl(tTime)}), bila belum ≥ +${BT.timeMin}% dari harga beli → jual di open berikutnya.</p>
-    <p class="plan">🔢 <b>Ukuran posisi:</b> maks <b>${BT.N} saham</b>, masing-masing 1/${BT.N} modal (${100/BT.N}%). Bila kandidat &gt; slot kosong, pilih <b>momentum 120 hari tertinggi</b>. Saham yang baru dijual: tunggu ${BT.cool} hari bursa sebelum dibeli lagi.</p>
-    <p class="plan">🚫 <b>Jangan masuk kalau:</b> ${jangan}</p>
+    <p class="plan">Angka di atas dihitung dari close terakhir <b>${CUR(s,px)}</b> (${fmtTgl(t0)}). Angka pasti ikut harga beli sebenarnya besok pagi.</p>
+    <h3 style="margin-top:12px"><span class="ico">📋</span> Langkah-langkahnya</h3>
+    <p class="plan">1️⃣ <b>Beli</b> — <b>${fmtTgl(tEntry)}</b>, saat bursa buka jam <b>09.00 WIB (10.00 WITA)</b>, di harga open. Hanya kalau harga open <b>tidak lebih dari ${CUR(s,batal)}</b> (naik maks +${BT.gapMax}%). Kalau lebih tinggi, jangan dikejar — lewati.</p>
+    <p class="plan">2️⃣ <b>Langsung pasang 2 order jual</b> setelah beli: stop loss di <b>${CUR(s,sl)}</b> dan take profit di <b>${CUR(s,tp)}</b>. Setelah itu tidak perlu dipantau.</p>
+    <p class="plan">3️⃣ <b>Setiap sore setelah market tutup</b> (±15.50 WIB), cek 2 hal. Kalau salah satu terjadi, <b>jual di open besok pagi</b>:</p>
+    <p class="plan" style="padding-left:18px">• <b>Close hari ini di bawah MA${BT.exitMA}.</b> MA${BT.exitMA} = rata-rata close ${BT.exitMA} hari terakhir, nilainya <b>bergeser tiap hari</b> (hari ini ${ma50t}). Ini penyebab keluar yang paling sering.<br>• <b>Sudah ${BT.timeDays} hari bursa</b> (cek <b>${fmtTgl(tTime)}</b>) tapi untungnya belum mencapai <b>+${BT.timeMin}%</b>.</p>
+    <p class="plan">4️⃣ <b>Selain itu, tahan saja.</b> Tidak ada batas hari kalau posisi masih untung &gt; +${BT.timeMin}% dan di atas MA${BT.exitMA}.</p>
+    <h3 style="margin-top:12px"><span class="ico">💰</span> Berapa yang dibeli</h3>
+    <p class="plan">Maksimal <b>${BT.N} saham</b> sekaligus, masing-masing <b>${100/BT.N}% dari modal</b> (1/${BT.N}). Kalau ada lebih banyak kandidat daripada slot kosong, pilih yang <b>kenaikan 120 harinya paling besar</b>. Saham yang baru kamu jual jangan dibeli lagi selama ${BT.cool} hari bursa.</p>
   </div>`;
 }
 
