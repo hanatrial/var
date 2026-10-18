@@ -676,7 +676,7 @@ function btIdx(s){
   const ready = !pass && vs!=null && !volOK && checks.filter(x=>x.ok).length===checks.length-1;   // semua lolos kecuali volume
   return {checks, ok:pass, ready, volOK, atr:(s.atr14!=null?s.atr14:null),
           slPx:s.px*(1-BT.hardStop/100),
-          trailPx:(s.atr14!=null&&s.atr14>0)?Math.max(s.px*0.5, s.px-BT.atrK*s.atr14):null};
+          trailPx:(s.atr14!=null&&s.atr14>0)?(s.px-BT.atrK*s.atr14):null};
 }
 /* label kandidat: IDX pakai aturan uji, pasar lain tetap pakai skor */
 function labelOf(s){ return s.market==="IDX" ? btIdx(s) : bestBuy(s); }
@@ -877,31 +877,69 @@ function entryAdviceHTML(s){
   </div>`;
 }
 
-/* ---------- saran masuk IDX murni dari aturan backtest ---------- */
+/* ---------- kalender bursa (Sen–Jum; libur nasional belum dipotong) ---------- */
+const NMB=["Jan","Feb","Mar","Apr","Mei","Jun","Jul","Agu","Sep","Okt","Nov","Des"];
+const NMRH=["Minggu","Senin","Selasa","Rabu","Kamis","Jumat","Sabtu"];
+const LIBUR_FIX=["01-01","05-01","08-17","12-25"];   // libur nasional bertanggal tetap
+function isBursa(d){const w=d.getUTCDay();if(w===0||w===6)return false;
+  return !LIBUR_FIX.includes(String(d.getUTCMonth()+1).padStart(2,"0")+"-"+String(d.getUTCDate()).padStart(2,"0"));}
+function fmtTgl(iso){if(!iso)return "—";const d=new Date(iso+"T00:00:00Z");
+  return NMRH[d.getUTCDay()]+", "+d.getUTCDate()+" "+NMB[d.getUTCMonth()]+" "+d.getUTCFullYear();}
+function bursaKe(iso,n){const d=new Date(iso+"T00:00:00Z");let k=0;
+  while(k<n){d.setUTCDate(d.getUTCDate()+1);if(isBursa(d))k++;}return d.toISOString().slice(0,10);}
+function tglClose(s){const se=(s.seriesAll&&s.seriesAll.length)?s.seriesAll:(s.series||[]);
+  const iso=se.length?se[se.length-1].d:((REGIME&&REGIME.generatedAt)?String(REGIME.generatedAt).slice(0,10):null);
+  if(!iso)return null;
+  const d=new Date(iso+"T00:00:00Z");
+  while(!isBursa(d)){d.setUTCDate(d.getUTCDate()-1);}   // mundur ke hari bursa terakhir
+  return d.toISOString().slice(0,10);}
+
+/* ---------- rencana masuk/keluar IDX — angka & tanggal konkret (aturan uji backtest) ---------- */
 function btEntryHTML(s,bt){
-  const v = bt.ok ? {cls:"ok", icon:"⚡", t:"MASUK — open besok (sinyal dari close hari ini)"}
-        : bt.ready ? {cls:"no", icon:"🔊", t:"BELUM MASUK — semua syarat tren lolos, tinggal volume ≥1,5×"}
-        : {cls:"no", icon:"🕒", t:"BELUM MASUK — syarat belum lengkap (lihat daftar di atas)"};
+  const t0=tglClose(s);
+  const tEntry=t0?bursaKe(t0,1):null;
+  const tMin=t0?bursaKe(t0,6):null;
+  const tMed=t0?bursaKe(t0,17):null;
+  const tMax=t0?bursaKe(t0,21):null;
+  const px=s.px;
+  const sl=px*(1-BT.hardStop/100);           // dihitung dari harga beli (open besok), bukan dari close
+  const batal=px*(1+BT.gapMax/100);
+  const tpA=px*1.222, tpB=px*1.313;          // rata-rata pemenang & p90 pemenang di uji 2015–2026
+  const trail=bt.trailPx!=null?bt.trailPx:null;
+  const trailNote = trail==null ? "ATR belum tersedia → andalkan SL & batas waktu"
+    : (trail<=sl ? "nilainya di bawah SL → yang kena lebih dulu tetap SL −10%" : "naik terus mengikuti harga tertinggi sejak masuk");
+  const v = bt.ok ? {cls:"ok", icon:"⚡", t:"MASUK — beli di open hari bursa berikutnya"}
+        : bt.ready ? {cls:"no", icon:"🔊", t:"BELUM MASUK — semua syarat lolos kecuali volume ≥1,5×"}
+        : {cls:"no", icon:"🕒", t:"BELUM MASUK — ada syarat yang belum lolos (lihat daftar di atas)"};
+  const R=[
+    ["<b>Sinyal</b> dibaca dari", "close terakhir <b>"+CUR(s,px)+"</b>", "<b>"+fmtTgl(t0)+"</b> · sesi tutup 15:50 WIB"],
+    ["<b>MASUK</b> kalau sinyal ⭐", "beli di harga <b>open</b>", "<b>"+fmtTgl(tEntry)+"</b> · 09:00 WIB = 10:00 WITA"],
+    ["<b>BATAL</b> masuk", "open &gt; <b>"+CUR(s,batal)+"</b> (gap &gt; +4%)", fmtTgl(tEntry)+" · sebelum 09:00 WIB"],
+    ["<b>STOP LOSS (SL)</b> — jual", "≤ <b>"+CUR(s,sl)+"</b> (−10% dari harga beli)", "tiap hari bursa 09:00–15:50 WIB"],
+    ["<b>TARGET</b> rata-rata menang", "<b>"+CUR(s,tpA)+"</b> (+22,2%)", "sebelum "+fmtTgl(tMax)+" · boleh jual sebagian"],
+    ["<b>TARGET</b> kalau kuat (p90)", "<b>"+CUR(s,tpB)+"</b> (+31,3%)", "sebelum "+fmtTgl(tMax)+" · boleh jual sebagian"],
+    ["<b>TRAILING</b> mulai hari ke-5", trail!=null?("≤ <b>"+CUR(s,trail)+"</b> = harga tertinggi − 2,5×ATR "+(bt.atr!=null?CUR(s,bt.atr):"—")):"harga tertinggi − 2,5×ATR(14)", "mulai "+fmtTgl(tMin)+" · "+trailNote],
+    ["<b>BERHENTI</b> maksimum", "20 hari bursa", "<b>"+fmtTgl(tMax)+"</b> · jual di close 15:50 WIB"],
+    ["Biasanya sudah keluar", "median 16 hari bursa", "± "+fmtTgl(tMed)+" (uji: 965 transaksi)"],
+  ];
+  const rows=R.map(r=>`<tr style="border-top:1px solid var(--line)"><td style="padding:6px 8px 6px 0;width:36%">${r[0]}</td><td style="padding:6px 8px;width:32%">${r[1]}</td><td style="padding:6px 0;color:var(--muted)">${r[2]}</td></tr>`).join("");
   return `<div class="sec">
-    <h3><span class="ico">🎯</span> Rencana Masuk &amp; Keluar — aturan uji backtest (IDX)</h3>
+    <h3><span class="ico">🎯</span> Rencana Masuk &amp; Keluar — aturan uji (IDX)</h3>
     <div class="bbbox ${v.cls}" style="margin-top:6px"><div class="bbt">${v.icon} ${v.t}</div></div>
+    <table style="width:100%;border-collapse:collapse;font-size:.76rem;margin-top:8px">
+      <tr style="text-align:left;color:var(--muted);font-size:.68rem"><th style="padding:0 8px 4px 0">AKSI</th><th style="padding:0 8px 4px">ANGKA</th><th style="padding:0 0 4px">TANGGAL &amp; JAM (WIB)</th></tr>
+      ${rows}
+    </table>
     <div class="rbar" style="margin-top:8px">
-      <span class="rchip sm">Masuk: <b>open besok</b></span>
-      <span class="rchip sm warn">Batal bila gap buka &gt; +4%</span>
       <span class="rchip sm">Bobot <b>1/10 modal</b></span>
-      <span class="rchip sm bear">Stop −10% → <b>${CUR(s,bt.slPx)}</b></span>
-      ${bt.trailPx!=null
-        ? `<span class="rchip sm warn">Trailing: puncak − 2,5×ATR${bt.atr!=null?` (ATR ${CUR(s,bt.atr)})`:""} → ≈ <b>${CUR(s,bt.trailPx)}</b></span>`
-        : `<span class="rchip sm">Trailing ATR 2,5× (ATR belum tersedia)</span>`}
-      <span class="rchip sm">Time stop <b>20 hari bursa</b></span>
-      <span class="rchip sm bear">stop bisa tembus saat gap/suspend (uji: terburuk −35,7%)</span>
+      <span class="rchip sm">N=10 slot · sama rata</span>
+      <span class="rchip sm bear">SL bisa tembus saat gap/suspend (uji: terburuk −35,7%)</span>
     </div>
     <ul>
-      <li><b>Masuk kapan:</b> sinyal dihitung dari <b>close hari ini</b> → beli di <b>open hari berikutnya</b>. Kalau buka &gt; +4% dari close, <b>lewati</b> (aturan uji).</li>
-      <li><b>Keluar kapan</b> (mana pun lebih dulu): (1) harga ≤ <b>−10%</b> dari entry; (2) setelah 5 hari bursa, close &lt; puncak − <b>2,5×ATR(14)</b>; (3) <b>20 hari bursa</b> (±4 minggu) habis.</li>
-      <li><b>Target:</b> aturan uji <b>tidak memakai TP tetap</b> — profit dibiarkan jalan lalu dipotong trailing. Hasil uji 2015–2026 (965 transaksi): rata-rata <b>+4,3%</b>/transaksi · menang <b>+22,2%</b> (45%) · kalah <b>−10,2%</b> · p50 <b>−2,2%</b> · p90 <b>+31,3%</b>. Target realistis = <b>ekor kanan</b>, bukan TP.</li>
-      <li><b>Hold berapa lama:</b> median <b>16 hari bursa</b> (±3 minggu), maksimum 20 hari. Di uji, keluar karena batas waktu 374× · trailing 285× · stop 306×.</li>
-      <li><b>Sifatnya rotasi:</b> harus ada ±10 posisi jalan bersamaan; modal untung datang dari segelintir pemenang besar yang menutup banyak kerugian kecil.</li>
+      <li><b>Tanggal</b> dihitung dari close terakhir (${fmtTgl(t0)}) pakai kalender Sen–Jum — <b>libur bursa belum dipotong</b>, tambah 1 hari per hari libur. Kalau sinyalnya muncul di hari lain, semua tanggal bergeser sama.</li>
+      <li><b>SL &amp; target dihitung dari harga beli</b> (open hari masuk). Kalau open besok beda dari harga sekarang, hitung ulang: <b>SL = harga beli × 0,90</b>.</li>
+      <li><b>Keluar = mana yang lebih dulu:</b> SL −10%, atau setelah 5 hari bursa close &lt; puncak − 2,5×ATR, atau tanggal batas di atas. Di uji: batas waktu 374× · trailing 285× · SL 306×.</li>
+      <li><b>Angka +22,2% dan +31,3%</b> = rata-rata dan p90 dari <b>965 transaksi</b> yang menang di uji (2015–2026). Aturan ujinya <b>tidak pakai TP tetap</b> — profit dibiarkan jalan lalu dipotong trailing, jadi ini patokan realistis, bukan perintah jual otomatis.</li>
     </ul>
   </div>`;
 }
@@ -1102,7 +1140,7 @@ function openModal(i){
       ${newsHTML(s)}
     </div>
 
-    <div class="sec">
+    ${bt?"":`<div class="sec">
       <h3><span class="ico">🧭</span> Level, Entry &amp; Exit</h3>
       <div class="lvl">
         <div class="b en"><div class="k">Entry acuan</div><div class="v">${CUR(s,a.exit.entry2)}</div></div>
@@ -1140,11 +1178,11 @@ function openModal(i){
         <span class="rchip sm"><i>💧</i>≥ Rp1 M/hari</span>
         ${s.fdvMcap!=null?`<span class="rchip sm ${s.fdvMcap>1.5?"warn":""}"><i>💧</i>FDV/mcap ${s.fdvMcap.toFixed(2)}×</span>`:""}
       </div>
-    </div>
+    </div>`}
 
     <div class="sec">
       <h3><span class="ico">⚠️</span> Risiko</h3>
-      <ul>${a.RISK.map(r=>`<li>${r}</li>`).join("")}</ul>
+      <ul>${(bt?a.RISK.filter(r=>!/stop-loss/i.test(r)):a.RISK).map(r=>`<li>${r}</li>`).join("")}</ul>
     </div>
 
     <div class="sec">
