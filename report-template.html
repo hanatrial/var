@@ -926,7 +926,7 @@ function btEntryHTML(s,bt){
   const sl=px*(1-BT.hardStop/100);           // dihitung dari harga beli (open besok), bukan dari close
   const tp=px*(1+BT.tp/100);
   const batal=px*(1+BT.gapMax/100);
-  const plus3=px*(1+BT.timeMin/100);
+  const plus3=tickCeil(px*(1+BT.timeMin/100));
   const gagal=bt.checks.filter(x=>!x.ok).map(x=>(x.neg||x.k).replace(/&amp;/g,"&").replace(/&gt;/g,">").replace(/&lt;/g,"<"));
   const ma50t = bt.ma50!=null ? CUR(s,bt.ma50) : "—";
   const status = bt.ok
@@ -983,7 +983,7 @@ function posHTML(s){
   if(px<=sl){ st="no"; why=`JUAL — stop loss kena (harga ${CUR(s,px)} ≤ ${CUR(s,sl)})`; }
   else if(px>=tp){ st="ok"; why=`JUAL — target +${BT.tp}% tercapai (harga ${CUR(s,px)} ≥ ${CUR(s,tp)})`; }
   else if(ma!=null && px<ma){ st="no"; why=`JUAL di open ${fmtTgl(besok)} — close ${CUR(s,px)} di bawah MA${BT.exitMA} (${CUR(s,ma)})`; }
-  else if(held>=BT.timeDays && px<p3){ st="no"; why=`JUAL di open ${fmtTgl(besok)} — sudah ${held} hari bursa, untung belum +${BT.timeMin}% (${CUR(s,p3)})`; }
+  else if(held>=BT.timeDays && px<p3){ st="no"; why=`JUAL di open ${fmtTgl(besok)} — sudah ${held} hari bursa, untung belum +${BT.timeMin}% (${CUR(s,tickCeil(p3))})`; }
   else { st="ok"; why=`TAHAN — di atas MA${BT.exitMA}, belum kena stop/target${held>=BT.timeDays?`, untung sudah &gt; +${BT.timeMin}%`:""}`; }
   const box=(cls,k,v,sub)=>`<div class="b ${cls}"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${sub}</div></div>`;
   return `<div class="sec">${form}
@@ -994,9 +994,9 @@ function posHTML(s){
       ${box(pl>=0?"tp":"sl","UNTUNG / RUGI",(pl>=0?"+":"")+pl.toFixed(1)+"%","sekarang "+CUR(s,px))}
       ${box("sl","STOP LOSS","≤ "+CUR(s,sl),"−"+BT.hardStop+"% dari harga beli")}
       ${box("tp","TAKE PROFIT","≥ "+CUR(s,tp),"+"+BT.tp+"% dari harga beli")}
-      ${box("en","BATAS +"+BT.timeMin+"%",CUR(s,p3),"untuk cek waktu")}
+      ${box("en","BATAS +"+BT.timeMin+"%",CUR(s,tickCeil(p3)),"untuk cek waktu")}
       ${box(ma!=null&&px<ma?"sl":"tp","MA"+BT.exitMA+" HARI INI",CUR(s,ma),px<ma?"close di bawah → jual":"close di atas → aman")}
-      ${box("en","CEK WAKTU",fmtTgl(tCek),"close &lt; "+CUR(s,p3)+" → jual open "+fmtTgl(tJual))}
+      ${box("en","CEK WAKTU",fmtTgl(tCek),"close &lt; "+CUR(s,tickCeil(p3))+" → jual open "+fmtTgl(tJual))}
     </div>
   </div>`;
 }
@@ -1037,8 +1037,16 @@ function waMsgs(s){
     : `Kirim hanya kalau close sore ini &lt; MA${BT.exitMA} (<b>${s.ma50!=null?CUR(s,s.ma50):"—"}</b>). Isi Posisi saya supaya batas +${BT.timeMin}% ikut dihitung.`;
   return {m1,m2,m3,info3};
 }
+function sellSignal(s){
+  const pos=posLoad()[s.ticker];
+  if(!pos) return {sig:false,why:"Isi Posisi saya dulu. Pesan jual muncul otomatis kalau ada sinyal jual."};
+  const e=+pos.p, p3=e*(1+BT.timeMin/100), t0=tglClose(s), held=bursaSelisih(pos.d,t0), px=s.px, ma=s.ma50;
+  if(ma!=null && px<ma) return {sig:true,why:`close ${CUR(s,px)} di bawah MA${BT.exitMA} ${CUR(s,ma)}`};
+  if(held>=BT.timeDays && px<p3) return {sig:true,why:`hari ke-${held}, close ${CUR(s,px)} di bawah ${CUR(s,tickCeil(p3))} (+${BT.timeMin}%)`};
+  return {sig:false,why:`Close ${CUR(s,px)} di atas MA${BT.exitMA} ${ma!=null?CUR(s,ma):"—"}`+(held>=BT.timeDays?` dan di atas ${CUR(s,tickCeil(p3))} (+${BT.timeMin}%)`:` (hari ke-${held} dari ${BT.timeDays})`)+". Tahan, tidak perlu kirim apa pun."};
+}
 function waHTML(s){
-  const pf=waPrefs(), M=waMsgs(s);
+  const pf=waPrefs(), M=waMsgs(s), SELL=sellSignal(s);
   const inp="background:var(--card2);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:.85rem;width:100%";
   const ta="width:100%;min-height:96px;background:var(--card2);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:.78rem;line-height:1.45;font-family:inherit;resize:vertical";
   const blk=(n,title,sub,txt)=>`<div style="margin-top:12px"><div style="font-weight:800;font-size:.82rem">${title}</div><div style="font-size:.7rem;color:var(--muted);margin:2px 0 6px">${sub}</div>
@@ -1051,7 +1059,7 @@ function waHTML(s){
     </div>
     ${blk(1,"1️⃣ Pesan 1 — malam sebelum, titip order beli","Kirim malam ini untuk beli di open besok. Batas maksimal = close × 1,05 (dibulatkan ke tick).",M.m1)}
     ${blk(2,"2️⃣ Pesan 2 — setelah order terisi, pasang TP &amp; SL","Perlu Posisi saya terisi (harga beli, tanggal, lot). TP dan SL dihitung dari harga beli sebenarnya.",M.m2)}
-    ${blk(3,"3️⃣ Pesan jual — kalau MA50 / garis +3% tertembus","Angka diperbarui dari data terbaru. "+M.info3,M.m3)}
+    ${SELL.sig ? blk(3,"3️⃣ Pesan jual — ADA SINYAL JUAL","<b>"+SELL.why+"</b>. Kirim untuk besok pagi. Angka diperbarui dari data terbaru.",M.m3) : `<div class="bbbox ok" style="margin-top:12px"><div class="bbt">✅ Belum ada sinyal jual</div><div>${SELL.why}</div></div>`}
   </div>`;
 }
 function waWire(s,redraw){
