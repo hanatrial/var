@@ -1305,7 +1305,7 @@ function openModal(i){
 
     <div class="verdict">${a.verdict}</div>
     ${bbHTML}
-    ${bt?"":entryAdviceHTML(s)}
+    ${(bt||s.market==="US")?"":entryAdviceHTML(s)}
 
     <div class="sec">
       <h3><span class="ico">🎯</span> Ringkasan Skor</h3>
@@ -1360,7 +1360,7 @@ function openModal(i){
       ${newsHTML(s)}
     </div>
 
-    ${bt?"":`<div class="sec">
+    ${(bt||s.market==="US")?"":`<div class="sec">
       <h3><span class="ico">🧭</span> Level, Entry &amp; Exit</h3>
       <div class="lvl">
         <div class="b en"><div class="k">Entry acuan</div><div class="v">${CUR(s,a.exit.entry2)}</div></div>
