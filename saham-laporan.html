@@ -37,6 +37,21 @@
   .guide th,.guide td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:right;color:var(--text)}
   .guide th:first-child,.guide td:first-child{text-align:left}
   .guide th{color:var(--muted);font-weight:600}
+
+  .cc{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px 16px;margin-bottom:12px}
+  .cc .h{display:flex;justify-content:space-between;align-items:center;gap:10px}
+  .cc .tk{font-size:1.05rem;font-weight:700}
+  .cc .tk small{font-size:.7rem;color:var(--muted);font-weight:500;margin-left:6px}
+  .cc .st{font-size:.72rem;font-weight:800;padding:5px 11px;border-radius:8px;white-space:nowrap}
+  .cc .st.in{background:var(--lime);color:#0a1410}
+  .cc .st.out{border:1px solid var(--red);color:var(--red)}
+  .cc .g{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
+  .cc .k{font-size:.66rem;color:var(--muted)}
+  .cc .v{font-size:.85rem;font-weight:600}
+  .cc .pl{font-size:.74rem;color:var(--muted);line-height:1.6;margin-top:10px}
+  .cc .pl b{color:var(--text)}
+  .csum{background:rgba(205,241,92,.08);border:1px solid rgba(205,241,92,.28);border-radius:14px;padding:11px 14px;font-size:.78rem;margin-bottom:12px;line-height:1.5}
+  .cnote{font-size:.7rem;color:var(--muted);line-height:1.6;margin:4px 2px 12px}
   .hint{text-align:center;font-size:.76rem;color:var(--muted);margin-bottom:14px}
   .hint b{color:var(--lime)}
   .mkt-tabs{display:flex;gap:5px;background:rgba(255,255,255,.04);border:1px solid var(--line);padding:5px;border-radius:14px;margin-bottom:14px}
@@ -1083,9 +1098,49 @@ const bbToggleEl=document.getElementById("bbToggle");
 let curMkt="IDX", query="", bbOnly=false;
 const norm = x => String(x||"").toLowerCase();
 const matches = (s,t) => norm(s.ticker).includes(t) || norm(s.name).includes(t) || norm(s.sector).includes(t) || norm(s.symbol).includes(t);
+
+/* tab Crypto: hanya BTC, ETH, BNB + plan (aturan MA50, hasil backtest 2018-2026) */
+const CR3=[{s:"BTC",n:"Bitcoin"},{s:"ETH",n:"Ethereum"},{s:"BNB",n:"BNB"}];
+let cr3Cache=null;
+async function renderCrypto3(){
+  list.innerHTML='<div class="nores">Memuat data BTC, ETH, BNB dari Binance...</div>';
+  try{
+    if(!cr3Cache||Date.now()-cr3Cache.t>60000){
+      const res=await Promise.all(CR3.map(async c=>{
+        const r=await fetch("https://data-api.binance.vision/api/v3/klines?symbol="+c.s+"USDT&interval=1d&limit=200");
+        if(!r.ok)throw new Error(c.s+" "+r.status);
+        const cl=(await r.json()).map(k=>+k[4]);const n=cl.length,L=50;
+        const ma=i=>{let s=0;for(let k=i-L+1;k<=i;k++)s+=cl[k];return s/L;};
+        const px=cl[n-1],m=ma(n-1),above=px>m;let days=0;
+        for(let i=n-1;i>=L-1;i--){if((cl[i]>ma(i))===above)days++;else break;}
+        return {c,px,m,above,days,gap:(px/m-1)*100};
+      }));
+      cr3Cache={t:Date.now(),res};
+    }
+    if(curMkt!=="CRYPTO")return;
+    const res=cr3Cache.res,on=res.filter(x=>x.above);
+    const fx=x=>x>=1000?x.toLocaleString("en-US",{maximumFractionDigits:0}):x.toLocaleString("en-US",{maximumFractionDigits:2});
+    list.innerHTML=`<div class="csum">${on.length?`<b>${on.length} dari 3 koin boleh dipegang</b> (${on.map(x=>x.c.s).join(", ")}) → ${on.length*33}% modal masuk, sisanya cash.`:"<b>Ketiganya di bawah MA50</b> → 100% cash."}</div>`+
+    res.map(({c,px,m,above,days,gap})=>`<div class="cc">
+      <div class="h"><div class="tk">${c.s}<small>${c.n}</small></div><div class="st ${above?"in":"out"}">${above?(days<=1?"BARU MASUK":"BOLEH MASUK"):(days<=1?"BARU KELUAR":"BELUM, TUNGGU")}</div></div>
+      <div class="g"><div><div class="k">Harga</div><div class="v">${fx(px)}</div></div><div><div class="k">MA50 (level sinyal)</div><div class="v">${fx(m)}</div></div><div><div class="k">Jarak ke MA50</div><div class="v" style="color:${above?"var(--lime)":"var(--red)"}">${gap>=0?"+":""}${gap.toFixed(1)}%</div></div></div>
+      <div class="pl">🎯 <b>Plan:</b> ${above
+        ?`pegang ${c.s} 33% modal. Tahan selama harga tetap di atas <b>${fx(m)}</b> (sudah ${days} hari di atas). <b>Jual semua</b> kalau harga turun di bawah level itu.`
+        :`<b>Belum masuk.</b> Beli 33% modal begitu harga di atas <b>${fx(m)}</b> (perlu +${(-gap/(1+gap/100)*1).toFixed(1)}% dari sekarang). Kalau masih pegang, jual: sudah ${days} hari di bawah MA50.`}</div>
+    </div>`).join("")+
+    `<div class="cnote"><b>Aturan:</b> tiap koin dipegang 33% modal selama harga di atas MA50 (rata-rata 50 hari); turun di bawah MA50 → jual; ketiganya di bawah → 100% cash. Cek satu kali sehari di jam yang sama (boleh jam berapa pun; backtest 24 jam berbeda hasilnya mirip). Backtest BTC+ETH+BNB 2019 sampai Okt 2026: CAGR median sekitar 83% (2023 sampai sekarang sekitar 33%), drawdown −32% sampai −53%. Hasil historis, universe koin yang selamat, bukan saran investasi.</div>`;
+  }catch(e){
+    if(curMkt==="CRYPTO")list.innerHTML='<div class="nores">Gagal memuat data Binance ('+e.message+'). Muat ulang halaman.</div>';
+  }
+}
 function renderList(m){
   if(m) curMkt=m;
   list.innerHTML="";
+  const _bb=document.querySelector(".bbbar"),_hint=document.querySelector(".hint");
+  const _c3=curMkt==="CRYPTO"&&!norm(query.trim());
+  if(_bb)_bb.style.display=curMkt==="CRYPTO"?"none":"";
+  if(_hint)_hint.style.display=_c3?"none":"";
+  if(_c3){cntEl.innerHTML="";renderCrypto3();return;}
   const MYPOS=posLoad();
   const t=norm(query.trim());
   const isCand=x=>x.market==="IDX" ? !!labelOf(x).ok : (labelOf(x).ok||labelOf(x).ready);   // IDX: hanya BEST BUY penuh (punya plan)
