@@ -61,4 +61,8 @@ export GH_TOKEN
 OUT2=$(node publish-gh.js quotes-live.json 2>&1); RC=$?
 if [ $RC -ne 0 ]; then log "GAGAL terbit: $(echo "$OUT2" | tail -1)"; exit $RC; fi
 echo "$OUT" | while IFS= read -r l; do log "$l"; done
+
+# Firebase multibagger (kalau token sudah ada) — pakai halaman & harga yang sama.
+# Diam saja kalau token belum diset; kegagalan Firebase tidak boleh menggagalkan gh-pages.
+"$DIR/deploy-firebase.sh" || log "deploy Firebase gagal (gh-pages tetap terbit)"
 exit 0

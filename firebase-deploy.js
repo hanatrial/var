@@ -16,10 +16,38 @@ const crypto = require("crypto");
 const PROJECT = "multibagger-screener";
 const SITE = "multibagger-screener";
 const WEB = path.join(__dirname, "web");
-const TOKEN = process.argv[2] || process.env.FB_TOKEN;
+let TOKEN = process.argv[2] || process.env.FB_TOKEN;
 
 const H = { Authorization: `Bearer ${TOKEN}`, "Content-Type": "application/json" };
 const API = `https://firebasehosting.googleapis.com/v1beta1/sites/${SITE}`;
+
+// Token dari `firebase login:ci` adalah REFRESH token, bukan access token.
+// Tukar dulu di endpoint OAuth Google memakai client firebase-tools (pasangan ini publik,
+// tertanam di paket firebase-tools — bukan rahasia).
+const FB_CLIENT_ID = "563584335869-fgrhgmd47bqnekij5i8b5pr03ho849e6.apps.googleusercontent.com";
+const FB_CLIENT_SECRET = "j9iVZfS8kkCEFUPaAeJV0sAi";
+
+async function accessToken(t) {
+  // access token Google berumur ~1 jam dan bentuknya "ya29...." → pakai langsung
+  if (/^ya29\./.test(t)) return t;
+  // refresh token (biasanya mulai "1//") → tukar
+  const r = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      client_id: FB_CLIENT_ID,
+      client_secret: FB_CLIENT_SECRET,
+      refresh_token: t,
+      grant_type: "refresh_token",
+    }),
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok || !j.access_token) {
+    throw new Error("token ditolak saat ditukar (" + r.status + "): " +
+      (j.error_description || j.error || "periksa apakah token dari `firebase login:ci`"));
+  }
+  return j.access_token;
+}
 
 const MIME = {
   ".html": "text/html; charset=utf-8", ".js": "application/javascript; charset=utf-8",
@@ -49,7 +77,11 @@ function daftarBerkas() {
 }
 
 (async () => {
-  if (!TOKEN) throw new Error("token kosong — pakai: node firebase-deploy.js <access-token>");
+  if (!TOKEN) throw new Error("token kosong — pakai: node firebase-deploy.js <token>");
+  TOKEN = await accessToken(TOKEN);
+  H.Authorization = `Bearer ${TOKEN}`;
+  console.log("token Firebase: OK");
+
   const files = daftarBerkas();
   if (!files.length) throw new Error("folder web/ kosong");
   console.log(`berkas: ${files.length} di ${WEB}`);

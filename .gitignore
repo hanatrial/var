@@ -3,3 +3,6 @@ cron.log
 live.log
 *.tmp
 .DS_Store
+
+# Kredensial Firebase (jangan pernah di-commit)
+.firebase-token
