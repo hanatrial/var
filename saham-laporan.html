@@ -1257,7 +1257,7 @@ function renderList(m){
     const bb=labelOf(s);
     c.className="card"+(s.excluded?" excluded":"")+(bb.ok?" isbb":(bb.ready&&s.market!=="IDX")?" isbb2":"");
     c.dataset.i=gi;
-    const chUp=(s.chg1d||0)>=0;
+    const chUp=(shChg(s)||0)>=0;
     const mini = s.pe!=null
       ? `PER ${s.pe.toFixed(1)} · PBV ${s.pb!=null?s.pb.toFixed(2):"—"} · RSI ${s.rsi!=null?s.rsi.toFixed(0):"—"}`
       : `RSI ${s.rsi!=null?s.rsi.toFixed(0):"—"} · MFI ${s.mfi!=null?s.mfi.toFixed(0):"—"} · Akum ${s.accum!=null?(s.accum*100).toFixed(0)+"%":"—"}`;
@@ -1269,9 +1269,9 @@ function renderList(m){
         <div class="sc">${s.score.total}${s.excluded?" ⛔":""}</div>
       </div>
       <div class="row2">
-        <div class="px">${CUR(s,s.px)}</div>
-        <div class="chg ${chUp?"up":"down"}">${PCT(s.chg1d)}</div>
-        <div class="mini">${mini}</div>
+        <div class="px">${CUR(s,shPx(s))}</div>
+        <div class="chg ${chUp?"up":"down"}">${PCT(shChg(s))}</div>
+        <div class="mini">${mini}${shSesiTag(s)}</div>
       </div>
       <div class="tags">${(s.market==="IDX"&&MYPOS[s.ticker])?posTag(s,MYPOS[s.ticker]):""}${bb.ok?`<span class="tag bb">⭐ BEST BUY${s.market==="IDX"?" (uji)":""}</span>`:(bb.ready&&s.market!=="IDX")?'<span class="tag bb2">★ SIAP · tunggu volume</span>':""}${commodityGroup(s)?`<span class="tag commod">🌾 ${commodityGroup(s)}</span>`:""}${tags(s).map(([a,b])=>`<span class="tag ${b}">${a}</span>`).join("")}</div>
       <div class="chev">›</div>`;
@@ -1338,9 +1338,9 @@ function openModal(i){
   const bbHTML = bbHTMLscore;
   document.getElementById("mTk").textContent=s.ticker;
   document.getElementById("mNm").textContent=(s.name||"")+" · "+(s.sector||(s.market==="CRYPTO"?"Kripto":s.market==="US"?"US":"IDX"));
-  document.getElementById("mPx").textContent=CUR(s,s.px);
-  const chUp=(s.chg1d||0)>=0;
-  document.getElementById("mChg").innerHTML=`<span class="${chUp?"up":"down"}">${chUp?"▲":"▼"} ${PCT(s.chg1d)} hari ini</span>`;
+  document.getElementById("mPx").textContent=CUR(s,shPx(s));
+  const chUp=(shChg(s)||0)>=0;
+  document.getElementById("mChg").innerHTML=`<span class="${chUp?"up":"down"}">${chUp?"▲":"▼"} ${PCT(shChg(s))} hari ini${shSesiTag(s)}</span>`;
   // rencana IDX = popup di samping harga (toggle PLAN); US/CRYPTO tetap blok "Level, Entry & Exit" di body
   const planBtn=document.getElementById("planBtn"), planPop=document.getElementById("planPop");
   planBtn.hidden=!bt;
@@ -1605,6 +1605,94 @@ const _renderListBase=renderList;
 renderList=function(m){ _renderListBase(m); liveBadge(); if(curMkt==="CRYPTO" && (!LIVE_AT || Date.now()-LIVE_AT>20000)) liveFetch(); };
 setInterval(()=>{ if(curMkt==="CRYPTO" && !document.hidden) liveFetch(); }, LIVE_EVERY);
 document.addEventListener("visibilitychange",()=>{ if(!document.hidden && curMkt==="CRYPTO" && (!LIVE_AT || Date.now()-LIVE_AT>LIVE_EVERY)) liveFetch(); });
+
+/* ---------- HARGA LIVE SAHAM IDX & US (quotes-live.json) ----------
+   Yahoo tidak mengirim header CORS, jadi browser TIDAK BISA memanggilnya langsung.
+   quotes-live.js mengunduhnya di Termux (cron tiap 5 menit saat bursa buka) → file kecil
+   yang dibaca di sini. Jujur soal waktu: yang ditampilkan waktu Yahoo, bukan waktu unduh.
+   Kalau harga sudah basi (>15 menit) atau bursa tutup, badge menyatakan apa adanya. */
+const LIVE_SHARES_EVERY=120000;
+let SH_AT=null, SH_ERR=false, SH_DATA=null;
+const SH_SRC={IDX:"IDX", US:"AS"};
+function umur(ts){ return ts? (Date.now()/1000-ts) : null; }   // detik sejak waktu Yahoo
+function shFresh(w){ return w!=null && w<=900; }                 // <=15 menit dianggap segar
+// Harga & %perubahan yang DITAMPILKAN. s.px tetap = penutupan resmi (dipakai indikator,
+// rencana entry/exit, dan skor). Saat pra/pasca-bursa AS, tampilan pakai harga sesi itu
+// supaya tidak menampilkan harga kemarin seolah harga sekarang — dan diberi label.
+function shPx(s){
+  if(s&&s.liveSesi&&s.liveSesi!=="regular"&&s.pxLive!=null&&shFresh(umur(s.liveTs))) return s.pxLive;
+  return s?s.px:null;
+}
+function shChg(s){
+  if(s&&s.liveSesi&&s.liveSesi!=="regular"&&s.chgLive!=null&&shFresh(umur(s.liveTs))) return s.chgLive;
+  return s?s.chg1d:null;
+}
+function shSesiTag(s){
+  if(!s||!s.liveSesi||s.liveSesi==="regular") return "";
+  const nm=s.liveSesi==="pre"?"pra-bursa":"pasca-bursa";
+  const w=umur(s.liveTs);
+  if(!shFresh(w)||w<0) return "";
+  // harga pra/pasca-bursa sudah tampil besar di kartu — cukup sebut sesinya
+  return ` <span style="color:var(--muted)">· ${nm}</span>`;
+}
+function shBadge(){
+  const el=document.getElementById("liveBadge"); if(!el) return;
+  if(curMkt==="CRYPTO"){ /* badge crypto diurus liveBadge() */ return; }
+  el.hidden=false;
+  if(SH_ERR){ el.className="rchip sm warn"; el.innerHTML="<i>⚠</i>harga live tidak tersedia — pakai data harian"; return; }
+  if(!SH_DATA){ el.className="rchip sm"; el.innerHTML="<i>⏳</i>memuat harga live…"; return; }
+  const pasar=SH_SRC[curMkt]||curMkt;
+  const arr=Object.entries(SH_DATA.q||{}).filter(([k])=>curMkt==="IDX"?k.endsWith(".JK"):!k.endsWith(".JK"));
+  if(!arr.length){ el.className="rchip sm"; el.hidden=true; return; }
+  // umur median dari waktu Yahoo (bukan waktu unduh) → apa adanya
+  const ages=arr.map(([,v])=>{ const ts=(v[4]&&v[4][2])||v[2]; return umur(ts); }).filter(x=>x!=null).sort((a,b)=>a-b);
+  const med=ages.length?ages[Math.floor(ages.length/2)]:null;
+  const segar=shFresh(med);
+  const menit=med!=null?Math.round(med/60):null;
+  el.className="rchip sm "+(segar?"ok":"warn");
+  el.innerHTML=segar
+    ? `<i>🟢</i>LIVE ${pasar} · ${menit<1?"<1":menit} menit lalu · Yahoo`
+    : `<i>🕒</i>${pasar} terakhir ${menit!=null?menit+" menit lalu":"—"} · bursa tutup`;
+}
+async function liveShares(force){
+  if(SH_DATA && !force && Date.now()-(SH_AT||0)<LIVE_SHARES_EVERY) return;
+  try{
+    const r=await fetch("./quotes-live.json?t="+Date.now(),{cache:"no-store"});
+    if(!r.ok) throw new Error("HTTP "+r.status);
+    SH_DATA=await r.json();
+    if(!SH_DATA||!SH_DATA.q) throw new Error("isi kosong");
+    // tempel ke DATA: hanya px & chg1d, indikator/skor tetap dari data harian workflow
+    const kat=SH_DATA.generatedAt?new Date(SH_DATA.generatedAt):null;
+    DATA.forEach(s=>{
+      if(s.market==="CRYPTO"||!s.symbol) return;
+      const v=SH_DATA.q[s.symbol]; if(!v) return;
+      const ext=v[4];   // [px, chg, ts, "pre"|"post"] harga pra/pasca-bursa (hanya US)
+      let px=v[0], chg=v[1], ts=v[2], sesi="regular";
+      if(ext&&ext[2]&&(!ts||ext[2]>ts)){
+        // pakai harga pra/pasca-bursa hanya kalau memang lebih baru DAN masih wajar
+        // (Yahoo kadang menyisakan preMarketPrice dari sesi lama)
+        if(umur(ext[2])<=900){ px=ext[0]; chg=ext[1]; ts=ext[2]; sesi=ext[3]; }
+      }
+      if(px==null||!(px>0)) return;
+      s.pxLive=px; s.chgLive=chg!=null?chg:null; s.liveTs=ts||null; s.liveSesi=sesi; s.liveAt=ts?ts*1000:null;
+      if(sesi==="regular"){ s.px=px; if(chg!=null) s.chg1d=chg; }
+      s.liveSrc=SH_SRC[s.market];
+    });
+    SH_AT=Date.now(); SH_ERR=false;
+    return true;
+  }catch(e){ SH_ERR=true; return false; }
+  finally{ shBadge(); }
+}
+const _renderListBase2=renderList;
+renderList=function(m){
+  _renderListBase2(m);
+  if(curMkt!=="CRYPTO"){
+    if(!SH_DATA) liveShares().then(ok=>{ if(ok) _renderListBase2(undefined); });
+    else shBadge();
+  }else shBadge();
+};
+setInterval(()=>{ if(!document.hidden && curMkt!=="CRYPTO") liveShares(true); }, LIVE_SHARES_EVERY);
+document.addEventListener("visibilitychange",()=>{ if(!document.hidden && curMkt!=="CRYPTO") liveShares(true); });
 renderList("IDX");
 </script>
 <script>if("serviceWorker" in navigator){navigator.serviceWorker.register("./sw.js").catch(function(){});}</script>
