@@ -12,7 +12,8 @@ const IDX = [
   "ASII","UNTR","HRUM","PTBA","ADRO","ITMG","BUMI","BYAN","MEDC","PGAS","AKRA","ADMR","AMMN","NCKL","MBMA","BRMS","ANTM","INCO","TINS","MDKA","PSAB","INDY","GGRM","HEAL",
   "ICBP","INDF","MYOR","UNVR","KLBF","SIDO","TSPC","HMSP","MIKA","HEAL","SILO","PRDA","EMTK",
   "INTP","SMGR","ARNA","SMRA","BSDE","CTRA","PWON","LPKR","DILD","GOTO","BUKA","TPIA","BRPT","DSNG","PANI","AVIA","BRIS",
-  "CPIN","JPFA","MAIN","AALI","LSIP","SSMS","ACES","MAPI","MAPA","ERAA","SCMA","MNCN","PGEO","JSMR","POWR","CUAN","GJTL","AUTO","INKP","TKIM","LPPF","SRTG","MPMX","AGII","ASSA","SMSM","BEEF","PBRX","RAJA","SMDR","ZBRA","LAJU","TAPG","AKSI","BUDI","KONI","LION","POLY","PTSP","SRAJ","UCID","VINS","WIIM","INTD","KARW","HRTA","MBSS","MSIN","NICK","SAPX","TALF","TRIS","UANG","WIFI","WMPP","UNSP",
+  "CPIN","JPFA","MAIN","AALI","LSIP","SSMS","ACES","MAPI","MAPA","ERAA","SCMA","MNCN","PGEO","JSMR","POWR","CUAN","GJTL","AUTO","INKP","TKIM","LPPF","SRTG","MPMX","AGII","ASSA","SMSM","BEEF","PBRX","RAJA","SMDR","ZBRA","LAJU","TAPG","AKSI","BUDI","KONI","LION","POLY","PTSP","SRAJ","UCID","VINS","WIIM","INTD","KARW","HRTA","MBSS","MSIN","NICK","SAPX","TALF","TRIS","UANG","WIFI","WMPP","UNSP"
+,
   // tambahan: saham aktif & likuid dari daftar 912 (nilai transaksi 20 hari >= Rp2 M, harga >= Rp200, listing > 1 tahun; dipilih 18 Okt 2026)
   "AADI","AGAR","ALKA","AMRT","ARCI","ARKO","ASGR","ASLI","ASPI","AYAM","BAIK","BIKE","BINA","BREN",
   "BSML","BSSR","BULL","BUVA","CARE","CBDK","CBRE","CCSI","CDIA","CLEO","CMNT","CMRY","COIN","CSMI",
@@ -30,13 +31,22 @@ const US = [
 ];
 const CRYPTO = [
   "BTC-USD","ETH-USD","SOL-USD","BNB-USD","XRP-USD","ADA-USD","DOGE-USD","AVAX-USD","DOT-USD","LINK-USD","LTC-USD","TRX-USD",
-  "BCH-USD","XLM-USD","TON-USD","NEAR-USD","APT-USD","UNI-USD","AAVE-USD","HBAR-USD","SUI-USD","ARB-USD","OP-USD","INJ-USD"
+  "BCH-USD","XLM-USD","TON-USD","NEAR-USD","AAVE-USD","HBAR-USD","ARB-USD","OP-USD","INJ-USD",
+  // Tiga koin ini TIDAK punya simbol "-USD" polos di Yahoo (404 "delisted"); bentuknya pakai
+  // nomor id CoinPaprika/CoinGecko. Ditulis lengkap supaya jelas asalnya.
+  "APT21794-USD","UNI7083-USD","SUI20947-USD"
 ];
+// Ticker yang dipakai di laporan: "APT21794-USD" → "APT", "BTC-USD" → "BTC"
+const cryptoTicker = s => s.replace(/USD$/, "").replace(/-$/, "").replace(/\d+$/, "");
+
+// Crypto opsional: halaman sudah punya harga live (Coinpaprika), jadi screener tidak perlu
+// menarik kripto. Set SKIP_CRYPTO=1 untuk melewati pasar kripto.
+const SKIP_CRYPTO = process.env.SKIP_CRYPTO === "1";
 
 const UNIVERSE = [
   ...[...new Set(IDX)].map(t => ({ symbol: t + ".JK", market: "IDX", ticker: t })),
   ...[...new Set(US)].map(t => ({ symbol: t, market: "US", ticker: t })),
-  ...[...new Set(CRYPTO)].map(t => ({ symbol: t, market: "CRYPTO", ticker: t.replace("-USD", "") })),
+  ...(SKIP_CRYPTO ? [] : [...new Set(CRYPTO)].map(t => ({ symbol: t, market: "CRYPTO", ticker: cryptoTicker(t) }))),
 ];
 
 const CRYPTO_NAMES = { BTC:"Bitcoin", ETH:"Ethereum", SOL:"Solana", BNB:"BNB", XRP:"XRP", ADA:"Cardano", DOGE:"Dogecoin", AVAX:"Avalanche", DOT:"Polkadot", LINK:"Chainlink", LTC:"Litecoin", TRX:"TRON" };
@@ -535,178 +545,206 @@ function finalizeScores(list, ctx) {
   const idx = { i: 0 };
   let done = 0;
   const CONC = 8;
+  const gagal = [];   // simbol yang tidak menghasilkan baris (Yahoo menolak/timeout)
+
+  // Olah SATU simbol → dorong ke results. Return true bila berhasil.
+  // Dipisah dari worker() supaya simbol yang gagal bisa dicoba ulang apa adanya.
+  async function proses(e) {
+    const q = qmap[e.symbol];
+    try {
+      const full = await chartFull(e.symbol, "20y");
+      const rows = full ? full.rows : null;
+      if (q && rows && rows.length > 60) {
+        const closes = rows.map(r => r.c), highs = rows.map(r => r.h), lows = rows.map(r => r.l), vols = rows.map(r => r.v);
+        const last = rows[rows.length - 1];
+        // pakai harga live dari kutipan bila ada (seri harian Yahoo sering tertinggal 1 hari)
+        const px = (q.regularMarketPrice != null && q.regularMarketPrice > 0) ? q.regularMarketPrice : closes[closes.length - 1];
+        const todayISO = new Date().toISOString().slice(0, 10);
+        const lastBarDay = new Date(last.t * 1000).toISOString().slice(0, 10);
+        // Bila bar terakhir = hari ini, keluarkan; lalu harga live dijadikan bar "hari ini" yg seragam.
+        // Semua indikator (MA/RSI/MFI/OBV) jadi konsisten antar-unduhan, tak lagi bergantung pada
+        // apakah Yahoo sudah memuat bar hari berjalan atau belum (penyebab hasil berubah-ubah).
+        const useToday = lastBarDay === todayISO && closes.length > 1;
+        const refCloses = useToday ? closes.slice(0, -1) : closes;
+        const refHighs = useToday ? highs.slice(0, -1) : highs;
+        const refLows = useToday ? lows.slice(0, -1) : lows;
+        const refVols = useToday ? vols.slice(0, -1) : vols;
+        const volToday = q.regularMarketVolume ?? last.v ?? 0;
+        const indC = refCloses.concat(px);
+        const indH = refHighs.concat(Math.max(px, refHighs[refHighs.length - 1] ?? px));
+        const indL = refLows.concat(Math.min(px, refLows[refLows.length - 1] ?? px));
+        const indV = refVols.concat(volToday);
+        const volMA20 = sma(refVols, 20);
+        const hi20 = Math.max(...refHighs.slice(-20)), lo20 = Math.min(...refLows.slice(-20));
+        const ret = n => refCloses.length > n ? (px / refCloses[refCloses.length - n] - 1) * 100 : null;
+        const name = e.market === "CRYPTO" ? (CRYPTO_NAMES[e.ticker] || (q.shortName || e.ticker).replace(/\s*USD$/, "")) : (q.shortName || q.longName || e.ticker);
+
+        // --- bahan sinyal backtest (dipakai penuh hanya untuk IDX, lihat run8.js) ---
+        // puncak close 252 bar SEBELUM hari ini → dasar uji breakout 52 minggu (tanpa look-ahead)
+        const hi55 = refHighs.length >= 55 ? Math.max.apply(null, refHighs.slice(-55)) : null;   // high tertinggi 55 bar SEBELUM hari ini (breakout 55 hari)
+        const ma200Prev = indC.length >= 221 ? sma(indC.slice(0, -20), 200) : null;                   // MA200 dua puluh bar lalu (cek MA200 naik)
+        const hi252 = refCloses.length >= 63 ? Math.max.apply(null, refCloses.slice(-252)) : null;
+        let atr14 = null;
+        if (indC.length >= 15) {
+          let acc = 0;
+          for (let i = indC.length - 14; i < indC.length; i++) {
+            const pc = indC[i - 1];
+            const tr = Math.max(indH[i] - indL[i], pc != null ? Math.abs(indH[i] - pc) : 0, pc != null ? Math.abs(indL[i] - pc) : 0);
+            acc += tr;
+            }
+          atr14 = acc / 14;
+          }
+
+        const s = {
+          ticker: e.ticker, symbol: e.symbol, market: e.market, cur: q.currency || (e.market === "IDX" ? "IDR" : "USD"),
+          name,
+          px, chg1d: q.regularMarketChangePercent ?? null,
+          pe: q.trailingPE ?? null, fwdPe: q.forwardPE ?? null, pb: q.priceToBook ?? null,
+          mcap: q.marketCap ?? null, divYield: q.trailingAnnualDividendYield ?? null,
+          high52: q.fiftyTwoWeekHigh ?? null, low52: q.fiftyTwoWeekLow ?? null,
+          avgVol: q.averageDailyVolume3Month ?? volMA20,
+          ma20: sma(indC, 20), ma50: sma(indC, 50), ma100: sma(indC, 100), ma200: sma(indC, 200), ma200Prev, hi55,
+          rsi: rsi(indC, 14), mfi: mfi(indH, indL, indC, indV, 14), obv: obvSlope(indC, indV),
+          accum: accumulation(indC, indV, 20), volSpike: volMA20 ? volToday / volMA20 : null,
+          ret1d: ret(1), ret5d: ret(5), ret1m: ret(21), ret3m: ret(63), ret6m: ret(126), ret120: ret(120), hi20, lo20,
+          offHigh: hi20 ? (px / hi20 - 1) * 100 : null, volToday, hi252, atr14,
+          };
+        // aksi korporasi struktural (dari riwayat dividen/split Yahoo)
+        const nowMs = Date.now();
+        const daysAgo = d => (nowMs - new Date(d).getTime()) / 86400000;
+        const lastDiv = full.dividends[full.dividends.length - 1] || null;
+        s.lastDiv = lastDiv ? lastDiv.date : null;
+        s.exDivDays = lastDiv ? Math.round(daysAgo(lastDiv.date)) : null;
+        s.divYears = new Set(full.dividends.map(d => d.date.slice(0, 4))).size;
+        const splitRecent = full.splits.filter(x => daysAgo(x.date) <= 550);
+        s.reverseSplit = splitRecent.some(x => x.num < x.den);
+        s.stockSplit = splitRecent.some(x => x.num > x.den);
+        s.ipoBaru = full.firstTrade ? daysAgo(full.firstTrade) < 365 : false;
+        // batas ARA/ARB + deteksi ARB beruntun
+        const rule = arbRule(px);
+        const prevCloseLive = (s.chg1d != null && px) ? px / (1 + s.chg1d / 100) : (refCloses[refCloses.length - 1] || null);
+        const isArbToday = s.chg1d != null && hitArb(prevCloseLive, px);
+        let arbStreak = 0;
+        for (let i = refCloses.length - 1; i > 0; i--) { if (hitArb(refCloses[i - 1], refCloses[i])) arbStreak++; else break; }
+        const arbStreakNow = arbStreak + (isArbToday ? 1 : 0);
+        s.arb = {
+          limitPct: rule ? rule.arbPct : null, limitRp: rule ? rule.arbRp : null,
+          araPct: rule ? rule.araPct : null, araRp: rule ? rule.araRp : null,
+          isArb: isArbToday, streak: arbStreakNow, excludeArb: arbStreakNow >= 2,
+          };
+
+        // nilai transaksi harian (mata uang lokal) sebagai proxy likuiditas
+        s.turnover = s.avgVol ? px * s.avgVol : null;
+        // data_sanity: lonjakan >25% tapi volume tidak naik → curiga data salah/bug dividen
+        s.suspect = Math.abs(s.chg1d ?? 0) > 25 && !((s.volSpike ?? 0) > 1.2);
+        // kutipan harian vs seri harian tidak konsisten → tandai
+        s.mislead = s.chg1d != null && s.ret1d != null && Math.abs(s.chg1d - s.ret1d) > 8;
+
+        const sm = await summary(e.symbol);
+        if (sm) {
+          s.sector = sm.assetProfile?.sector || null;
+          s.industry = sm.assetProfile?.industry || null;
+          s.roe = clamp(num(sm.financialData, "returnOnEquity"), -1, 0.6);
+          s.margin = num(sm.financialData, "profitMargins");
+          s.revGrowth = clamp(num(sm.financialData, "revenueGrowth"), -1, 2);
+          s.earnGrowth = clamp(num(sm.financialData, "earningsGrowth"), -1, 2);
+          s.debtToEquity = num(sm.financialData, "debtToEquity");
+          s.currentRatio = num(sm.financialData, "currentRatio");
+          s.eps = num(sm.defaultKeyStatistics, "trailingEps");
+          s.bvps = num(sm.defaultKeyStatistics, "bookValue");
+          s.floatShares = num(sm.defaultKeyStatistics, "floatShares");
+          s.sharesOut = num(sm.defaultKeyStatistics, "sharesOutstanding");
+          s.floatPct = (s.floatShares && s.sharesOut) ? s.floatShares / s.sharesOut : null;
+          s.exDiv = sm.summaryDetail?.exDividendDate && sm.summaryDetail.exDividendDate.raw ? new Date(sm.summaryDetail.exDividendDate.raw * 1000).toISOString().slice(0, 10) : null;
+          // short interest (pengganti sebagian "short interest % float" & days to cover)
+          s.shortPct = num(sm.defaultKeyStatistics, "shortPercentOfFloat");
+          s.daysToCover = num(sm.defaultKeyStatistics, "shortRatio");
+          // --- PERBAIKAN MATA UANG LAPORAN ---
+          // Beberapa emiten IDX (PGAS/ADRO/BYAN/ITMG/BUMI dkk) melaporkan laporan keuangan dalam USD.
+          // Yahoo membagi harga (IDR) dgn bvps (USD) → PBV 10.000×+ palsu & valuasi jadi 0.
+          // Catatan: trailingEps dari Yahoo SUDAH dalam mata uang kutipan, jadi jangan dikonversi —
+          // yang perlu dikonversi hanya bookValue (bvps).
+          const finCur = sm.financialData?.financialCurrency || sm.defaultKeyStatistics?.financialCurrency || null;
+          s.finCur = finCur;
+          if (finCur && s.cur && finCur !== s.cur) {
+            const rate = await fxRate(finCur, s.cur);
+            if (rate != null) {
+              s.fxConverted = true;
+              if (s.bvps != null) s.bvps = s.bvps * rate;
+              }
+            }
+          // PBV & PER dihitung ulang dari px/bvps & px/eps (konsisten mata uang) bila tersedia
+          if (s.bvps != null && s.bvps > 0) s.pb = px / s.bvps;
+          if (s.eps != null && s.eps > 0) s.pe = px / s.eps;
+          // data sanity: bila masih tak masuk akal → buang, jangan dipakai skor
+          if (s.pb != null && (s.pb < 0.01 || s.pb > 100)) { s.pb = null; s.pbSuspect = true; }
+          if (s.pe != null && (s.pe < 0.5 || s.pe > 500)) { s.pe = null; s.peSuspect = true; }
+          }
+        // tanggal earnings dari kutipan (khusus AS: risiko gap; jangan beli ≤3 hari sebelumnya)
+        const earnTs = q.earningsTimestamp;
+        s.earnDate = earnTs ? new Date(earnTs * 1000).toISOString().slice(0, 10) : null;
+        s.earnInDays = earnTs ? Math.round((earnTs * 1000 - Date.now()) / 86400000) : null;
+        s.ret12m = ret(252);
+        s.mom121 = (s.ret12m != null && s.ret1m != null) ? ((1 + s.ret12m / 100) / (1 + s.ret1m / 100) - 1) * 100 : null;
+        s.score = techScore(s);
+
+        // grafik: pakai ~1 tahun terakhir saja (walau data mentah 5 tahun)
+        const dispRows = rows.slice(-251);
+        const step = Math.max(1, Math.ceil(dispRows.length / 64));
+        s.series = [];
+        for (let k = 0; k < dispRows.length; k += step) s.series.push({ d: new Date(dispRows[k].t * 1000).toISOString().slice(0, 10), c: Math.round(dispRows[k].c * 10000) / 10000, v: dispRows[k].v });
+        const lastP = s.series[s.series.length - 1];
+        if (!lastP || lastP.c !== Math.round(px * 10000) / 10000) s.series.push({ d: todayISO, c: Math.round(px * 10000) / 10000, v: volToday });
+        // seri sepanjang riwayat (bulanan) untuk grafik "Semua" + penanda stock split
+        const stepA = Math.max(1, Math.ceil(rows.length / 150));
+        s.seriesAll = [];
+        for (let k = 0; k < rows.length; k += stepA) s.seriesAll.push({ d: new Date(rows[k].t * 1000).toISOString().slice(0, 10), c: Math.round(rows[k].c * 10000) / 10000 });
+        const lastA = s.seriesAll[s.seriesAll.length - 1];
+        if (!lastA || lastA.c !== Math.round(px * 10000) / 10000) s.seriesAll.push({ d: todayISO, c: Math.round(px * 10000) / 10000 });
+        s.splits = (full.splits || []).slice(-12).map(x => ({ d: x.date, ratio: x.num + ":" + x.den }));
+        s.ipo = full.firstTrade || null;
+        try { s.fundHist = await fundHistory(e.symbol); } catch (e2) {}
+        // volatilitas tahunan dari 252 hari terakhir (untuk ukuran posisi)
+        { const rr = refCloses.slice(-253); let sq = 0, n = 0;
+          for (let i = 1; i < rr.length; i++) { const d = Math.log(rr[i] / rr[i - 1]); if (isFinite(d)) { sq += d * d; n++; } }
+          s.volAnn = n > 20 ? Math.sqrt(sq / n * 252) * 100 : null; }
+
+        results.push(s);
+        return true;
+      }
+      return false;
+    } catch (err) { return false; }
+  }
 
   async function worker() {
     while (idx.i < UNIVERSE.length) {
       const e = UNIVERSE[idx.i++];
-      const q = qmap[e.symbol];
-      try {
-        const full = await chartFull(e.symbol, "20y");
-        const rows = full ? full.rows : null;
-        if (q && rows && rows.length > 60) {
-          const closes = rows.map(r => r.c), highs = rows.map(r => r.h), lows = rows.map(r => r.l), vols = rows.map(r => r.v);
-          const last = rows[rows.length - 1];
-          // pakai harga live dari kutipan bila ada (seri harian Yahoo sering tertinggal 1 hari)
-          const px = (q.regularMarketPrice != null && q.regularMarketPrice > 0) ? q.regularMarketPrice : closes[closes.length - 1];
-          const todayISO = new Date().toISOString().slice(0, 10);
-          const lastBarDay = new Date(last.t * 1000).toISOString().slice(0, 10);
-          // Bila bar terakhir = hari ini, keluarkan; lalu harga live dijadikan bar "hari ini" yg seragam.
-          // Semua indikator (MA/RSI/MFI/OBV) jadi konsisten antar-unduhan, tak lagi bergantung pada
-          // apakah Yahoo sudah memuat bar hari berjalan atau belum (penyebab hasil berubah-ubah).
-          const useToday = lastBarDay === todayISO && closes.length > 1;
-          const refCloses = useToday ? closes.slice(0, -1) : closes;
-          const refHighs = useToday ? highs.slice(0, -1) : highs;
-          const refLows = useToday ? lows.slice(0, -1) : lows;
-          const refVols = useToday ? vols.slice(0, -1) : vols;
-          const volToday = q.regularMarketVolume ?? last.v ?? 0;
-          const indC = refCloses.concat(px);
-          const indH = refHighs.concat(Math.max(px, refHighs[refHighs.length - 1] ?? px));
-          const indL = refLows.concat(Math.min(px, refLows[refLows.length - 1] ?? px));
-          const indV = refVols.concat(volToday);
-          const volMA20 = sma(refVols, 20);
-          const hi20 = Math.max(...refHighs.slice(-20)), lo20 = Math.min(...refLows.slice(-20));
-          const ret = n => refCloses.length > n ? (px / refCloses[refCloses.length - n] - 1) * 100 : null;
-          const name = e.market === "CRYPTO" ? (CRYPTO_NAMES[e.ticker] || (q.shortName || e.ticker).replace(/\s*USD$/, "")) : (q.shortName || q.longName || e.ticker);
-
-          // --- bahan sinyal backtest (dipakai penuh hanya untuk IDX, lihat run8.js) ---
-          // puncak close 252 bar SEBELUM hari ini → dasar uji breakout 52 minggu (tanpa look-ahead)
-          const hi55 = refHighs.length >= 55 ? Math.max.apply(null, refHighs.slice(-55)) : null;   // high tertinggi 55 bar SEBELUM hari ini (breakout 55 hari)
-          const ma200Prev = indC.length >= 221 ? sma(indC.slice(0, -20), 200) : null;                   // MA200 dua puluh bar lalu (cek MA200 naik)
-          const hi252 = refCloses.length >= 63 ? Math.max.apply(null, refCloses.slice(-252)) : null;
-          let atr14 = null;
-          if (indC.length >= 15) {
-            let acc = 0;
-            for (let i = indC.length - 14; i < indC.length; i++) {
-              const pc = indC[i - 1];
-              const tr = Math.max(indH[i] - indL[i], pc != null ? Math.abs(indH[i] - pc) : 0, pc != null ? Math.abs(indL[i] - pc) : 0);
-              acc += tr;
-            }
-            atr14 = acc / 14;
-          }
-
-          const s = {
-            ticker: e.ticker, symbol: e.symbol, market: e.market, cur: q.currency || (e.market === "IDX" ? "IDR" : "USD"),
-            name,
-            px, chg1d: q.regularMarketChangePercent ?? null,
-            pe: q.trailingPE ?? null, fwdPe: q.forwardPE ?? null, pb: q.priceToBook ?? null,
-            mcap: q.marketCap ?? null, divYield: q.trailingAnnualDividendYield ?? null,
-            high52: q.fiftyTwoWeekHigh ?? null, low52: q.fiftyTwoWeekLow ?? null,
-            avgVol: q.averageDailyVolume3Month ?? volMA20,
-            ma20: sma(indC, 20), ma50: sma(indC, 50), ma100: sma(indC, 100), ma200: sma(indC, 200), ma200Prev, hi55,
-            rsi: rsi(indC, 14), mfi: mfi(indH, indL, indC, indV, 14), obv: obvSlope(indC, indV),
-            accum: accumulation(indC, indV, 20), volSpike: volMA20 ? volToday / volMA20 : null,
-            ret1d: ret(1), ret5d: ret(5), ret1m: ret(21), ret3m: ret(63), ret6m: ret(126), ret120: ret(120), hi20, lo20,
-            offHigh: hi20 ? (px / hi20 - 1) * 100 : null, volToday, hi252, atr14,
-          };
-          // aksi korporasi struktural (dari riwayat dividen/split Yahoo)
-          const nowMs = Date.now();
-          const daysAgo = d => (nowMs - new Date(d).getTime()) / 86400000;
-          const lastDiv = full.dividends[full.dividends.length - 1] || null;
-          s.lastDiv = lastDiv ? lastDiv.date : null;
-          s.exDivDays = lastDiv ? Math.round(daysAgo(lastDiv.date)) : null;
-          s.divYears = new Set(full.dividends.map(d => d.date.slice(0, 4))).size;
-          const splitRecent = full.splits.filter(x => daysAgo(x.date) <= 550);
-          s.reverseSplit = splitRecent.some(x => x.num < x.den);
-          s.stockSplit = splitRecent.some(x => x.num > x.den);
-          s.ipoBaru = full.firstTrade ? daysAgo(full.firstTrade) < 365 : false;
-          // batas ARA/ARB + deteksi ARB beruntun
-          const rule = arbRule(px);
-          const prevCloseLive = (s.chg1d != null && px) ? px / (1 + s.chg1d / 100) : (refCloses[refCloses.length - 1] || null);
-          const isArbToday = s.chg1d != null && hitArb(prevCloseLive, px);
-          let arbStreak = 0;
-          for (let i = refCloses.length - 1; i > 0; i--) { if (hitArb(refCloses[i - 1], refCloses[i])) arbStreak++; else break; }
-          const arbStreakNow = arbStreak + (isArbToday ? 1 : 0);
-          s.arb = {
-            limitPct: rule ? rule.arbPct : null, limitRp: rule ? rule.arbRp : null,
-            araPct: rule ? rule.araPct : null, araRp: rule ? rule.araRp : null,
-            isArb: isArbToday, streak: arbStreakNow, excludeArb: arbStreakNow >= 2,
-          };
-
-          // nilai transaksi harian (mata uang lokal) sebagai proxy likuiditas
-          s.turnover = s.avgVol ? px * s.avgVol : null;
-          // data_sanity: lonjakan >25% tapi volume tidak naik → curiga data salah/bug dividen
-          s.suspect = Math.abs(s.chg1d ?? 0) > 25 && !((s.volSpike ?? 0) > 1.2);
-          // kutipan harian vs seri harian tidak konsisten → tandai
-          s.mislead = s.chg1d != null && s.ret1d != null && Math.abs(s.chg1d - s.ret1d) > 8;
-
-          const sm = await summary(e.symbol);
-          if (sm) {
-            s.sector = sm.assetProfile?.sector || null;
-            s.industry = sm.assetProfile?.industry || null;
-            s.roe = clamp(num(sm.financialData, "returnOnEquity"), -1, 0.6);
-            s.margin = num(sm.financialData, "profitMargins");
-            s.revGrowth = clamp(num(sm.financialData, "revenueGrowth"), -1, 2);
-            s.earnGrowth = clamp(num(sm.financialData, "earningsGrowth"), -1, 2);
-            s.debtToEquity = num(sm.financialData, "debtToEquity");
-            s.currentRatio = num(sm.financialData, "currentRatio");
-            s.eps = num(sm.defaultKeyStatistics, "trailingEps");
-            s.bvps = num(sm.defaultKeyStatistics, "bookValue");
-            s.floatShares = num(sm.defaultKeyStatistics, "floatShares");
-            s.sharesOut = num(sm.defaultKeyStatistics, "sharesOutstanding");
-            s.floatPct = (s.floatShares && s.sharesOut) ? s.floatShares / s.sharesOut : null;
-            s.exDiv = sm.summaryDetail?.exDividendDate && sm.summaryDetail.exDividendDate.raw ? new Date(sm.summaryDetail.exDividendDate.raw * 1000).toISOString().slice(0, 10) : null;
-            // short interest (pengganti sebagian "short interest % float" & days to cover)
-            s.shortPct = num(sm.defaultKeyStatistics, "shortPercentOfFloat");
-            s.daysToCover = num(sm.defaultKeyStatistics, "shortRatio");
-            // --- PERBAIKAN MATA UANG LAPORAN ---
-            // Beberapa emiten IDX (PGAS/ADRO/BYAN/ITMG/BUMI dkk) melaporkan laporan keuangan dalam USD.
-            // Yahoo membagi harga (IDR) dgn bvps (USD) → PBV 10.000×+ palsu & valuasi jadi 0.
-            // Catatan: trailingEps dari Yahoo SUDAH dalam mata uang kutipan, jadi jangan dikonversi —
-            // yang perlu dikonversi hanya bookValue (bvps).
-            const finCur = sm.financialData?.financialCurrency || sm.defaultKeyStatistics?.financialCurrency || null;
-            s.finCur = finCur;
-            if (finCur && s.cur && finCur !== s.cur) {
-              const rate = await fxRate(finCur, s.cur);
-              if (rate != null) {
-                s.fxConverted = true;
-                if (s.bvps != null) s.bvps = s.bvps * rate;
-              }
-            }
-            // PBV & PER dihitung ulang dari px/bvps & px/eps (konsisten mata uang) bila tersedia
-            if (s.bvps != null && s.bvps > 0) s.pb = px / s.bvps;
-            if (s.eps != null && s.eps > 0) s.pe = px / s.eps;
-            // data sanity: bila masih tak masuk akal → buang, jangan dipakai skor
-            if (s.pb != null && (s.pb < 0.01 || s.pb > 100)) { s.pb = null; s.pbSuspect = true; }
-            if (s.pe != null && (s.pe < 0.5 || s.pe > 500)) { s.pe = null; s.peSuspect = true; }
-          }
-          // tanggal earnings dari kutipan (khusus AS: risiko gap; jangan beli ≤3 hari sebelumnya)
-          const earnTs = q.earningsTimestamp;
-          s.earnDate = earnTs ? new Date(earnTs * 1000).toISOString().slice(0, 10) : null;
-          s.earnInDays = earnTs ? Math.round((earnTs * 1000 - Date.now()) / 86400000) : null;
-          s.ret12m = ret(252);
-          s.mom121 = (s.ret12m != null && s.ret1m != null) ? ((1 + s.ret12m / 100) / (1 + s.ret1m / 100) - 1) * 100 : null;
-          s.score = techScore(s);
-
-          // grafik: pakai ~1 tahun terakhir saja (walau data mentah 5 tahun)
-          const dispRows = rows.slice(-251);
-          const step = Math.max(1, Math.ceil(dispRows.length / 64));
-          s.series = [];
-          for (let k = 0; k < dispRows.length; k += step) s.series.push({ d: new Date(dispRows[k].t * 1000).toISOString().slice(0, 10), c: Math.round(dispRows[k].c * 10000) / 10000, v: dispRows[k].v });
-          const lastP = s.series[s.series.length - 1];
-          if (!lastP || lastP.c !== Math.round(px * 10000) / 10000) s.series.push({ d: todayISO, c: Math.round(px * 10000) / 10000, v: volToday });
-          // seri sepanjang riwayat (bulanan) untuk grafik "Semua" + penanda stock split
-          const stepA = Math.max(1, Math.ceil(rows.length / 150));
-          s.seriesAll = [];
-          for (let k = 0; k < rows.length; k += stepA) s.seriesAll.push({ d: new Date(rows[k].t * 1000).toISOString().slice(0, 10), c: Math.round(rows[k].c * 10000) / 10000 });
-          const lastA = s.seriesAll[s.seriesAll.length - 1];
-          if (!lastA || lastA.c !== Math.round(px * 10000) / 10000) s.seriesAll.push({ d: todayISO, c: Math.round(px * 10000) / 10000 });
-          s.splits = (full.splits || []).slice(-12).map(x => ({ d: x.date, ratio: x.num + ":" + x.den }));
-          s.ipo = full.firstTrade || null;
-          try { s.fundHist = await fundHistory(e.symbol); } catch (e2) {}
-          // volatilitas tahunan dari 252 hari terakhir (untuk ukuran posisi)
-          { const rr = refCloses.slice(-253); let sq = 0, n = 0;
-            for (let i = 1; i < rr.length; i++) { const d = Math.log(rr[i] / rr[i - 1]); if (isFinite(d)) { sq += d * d; n++; } }
-            s.volAnn = n > 20 ? Math.sqrt(sq / n * 252) * 100 : null; }
-
-          results.push(s);
-        }
-      } catch (e) {}
+      if (!(await proses(e))) gagal.push(e.symbol);
       done++;
       if (done % 20 === 0) console.log(`   …${done}/${UNIVERSE.length}`);
       await sleep(90);
     }
   }
   await Promise.all(Array.from({ length: CONC }, worker));
+
+  // Putaran kedua: simbol yang gagal (khususnya kripto -USD sering ditolak acak oleh Yahoo).
+  // Tanpa ini kripto bisa hilang total dari laporan padahal halaman tetap diterbitkan.
+  if (gagal.length) {
+    const ulang = [...new Set(gagal)];
+    console.log(`→ Ulangi ${ulang.length} simbol yang gagal…`);
+    for (const sym of ulang) {
+      const e = UNIVERSE.find(u => u.symbol === sym);
+      if (!e) continue;
+      let ok = false;
+      for (let coba = 1; coba <= 2 && !ok; coba++) {
+        if (coba > 1) await sleep(1200 * coba);
+        ok = await proses(e);
+      }
+      if (!ok) console.log(`   ✗ ${sym} tetap gagal`);
+    }
+    const tetap = [...new Set(gagal)].filter(sym => !results.some(r => r.symbol === sym));
+    if (tetap.length) console.log(`   tetap gagal: ${tetap.join(", ")}`);
+  }
 
   // Regime pasar: IHSG vs MA200 (market_regime)
   console.log("→ Cek regime pasar (IHSG)…");
@@ -916,13 +954,15 @@ function finalizeScores(list, ctx) {
         ma200: regime.us && regime.us.ma200 != null ? regime.us.ma200 : null,
         bearish: !!(regime.us && regime.us.bearish),
       },
-      CRYPTO: {
-        label: "BTC",
-        px: btcBaru && btcBaru.px != null ? btcBaru.px : null,
-        chg1d: btcBaru && btcBaru.chg1d != null ? btcBaru.chg1d : null,
-        ma200: btcBaru && btcBaru.ma200 != null ? btcBaru.ma200 : null,
-        bearish: !!(btcBaru && btcBaru.ma200 != null && btcBaru.px != null && btcBaru.px < btcBaru.ma200),
-      },
+      ...(SKIP_CRYPTO ? {} : {
+        CRYPTO: {
+          label: "BTC",
+          px: btcBaru && btcBaru.px != null ? btcBaru.px : null,
+          chg1d: btcBaru && btcBaru.chg1d != null ? btcBaru.chg1d : null,
+          ma200: btcBaru && btcBaru.ma200 != null ? btcBaru.ma200 : null,
+          bearish: !!(btcBaru && btcBaru.ma200 != null && btcBaru.px != null && btcBaru.px < btcBaru.ma200),
+        },
+      }),
     };
     console.log("  pembanding:", Object.entries(regime.bench)
       .map(([k, v]) => `${k}→${v.label}${v.chg1d != null ? " " + v.chg1d.toFixed(1) + "%" : ""}${v.bearish ? " (bearish)" : ""}`).join(" · "));
@@ -960,8 +1000,15 @@ function finalizeScores(list, ctx) {
     if (s.market === "IDX" && s.arb && s.arb.excludeArb) { s.excluded = true; s.ca.notes.push("ARB 2 hari berturut-turut → dikecualikan selama 5 hari (pola lazim berlanjut)."); }
   });
 
-  // Urutkan per pasar (yang dikecualikan selalu di bawah)
-  const MKT = ["IDX", "US", "CRYPTO"];
+  // Pasar yang BENAR-BENAR ada datanya. Dulu daftar ini ditentukan hanya dari SKIP_CRYPTO,
+  // padahal Yahoo sering menolak simbol -USD secara acak → hasil: 0 instrumen CRYPTO tapi
+  // bagian crypto tetap diterbitkan apa adanya (harga live tidak punya baris untuk di-update).
+  const MKT = ["IDX", "US", "CRYPTO"].filter(m => results.some(r => r.market === m));
+  if (!SKIP_CRYPTO) {
+    const ada = new Set(results.filter(r => r.market === "CRYPTO").map(r => r.ticker));
+    const hilang = [...new Set(CRYPTO)].map(t => cryptoTicker(t)).filter(t => !ada.has(t));
+    console.log(`  crypto: ${ada.size}/${CRYPTO.length} koin berhasil` + (hilang.length ? ` — gagal: ${hilang.join(",")}` : ""));
+  }
   MKT.forEach(m => {
     const arr = results.filter(r => r.market === m)
       .sort((a, b) => (a.excluded ? 1 : 0) - (b.excluded ? 1 : 0) || b.score.total - a.score.total);

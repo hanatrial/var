@@ -1,0 +1,5 @@
+# Log & berkas hasil jalan lokal (jangan di-commit)
+cron.log
+live.log
+*.tmp
+.DS_Store

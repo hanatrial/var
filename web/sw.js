@@ -1,6 +1,10 @@
 // sw.js — service worker minimal: agar PWA bisa dipasang & tahan offline (network-first untuk halaman)
-const CACHE = "screener-v1";
+const CACHE = "screener-v2";
 const ASSETS = ["./saham-laporan.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png"];
+
+// Berkas yang HARUS selalu dari jaringan: harganya berubah tiap 5 menit.
+// Dulu berkas ini ikut cache-first → harga live terkunci di nilai pertama kali dibuka.
+const SELALU_SEGAR = [/quotes-live\.json$/, /saham-laporan\.html$/, /sw\.js$/];
 
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).catch(() => {}).then(() => self.skipWaiting()));
@@ -19,14 +23,18 @@ self.addEventListener("fetch", e => {
   try { url = new URL(req.url); } catch (_) { return; }
   if (url.origin !== location.origin) return;                    // biarkan sumber luar apa adanya
 
-  if (req.mode === "navigate" || /saham-laporan\.html$/.test(url.pathname)) {
-    // halaman: coba jaringan dulu (biar selalu ter-update), fallback ke cache saat offline
+  const segar = SELALU_SEGAR.some(re => re.test(url.pathname));
+
+  if (req.mode === "navigate" || segar) {
+    // halaman & data harga: coba jaringan dulu (biar selalu ter-update), fallback ke cache saat offline
     e.respondWith(
       fetch(req).then(r => {
-        const cp = r.clone();
-        caches.open(CACHE).then(c => c.put(req, cp)).catch(() => {});
+        if (segar && !/quotes-live\.json$/.test(url.pathname)) {
+          const cp = r.clone();
+          caches.open(CACHE).then(c => c.put(req, cp)).catch(() => {});
+        }
         return r;
-      }).catch(() => caches.match(req).then(m => m || caches.match("./saham-laporan.html")))
+      }).catch(() => caches.match(req).then(m => m || (req.mode === "navigate" ? caches.match("./saham-laporan.html") : undefined)))
     );
     return;
   }
