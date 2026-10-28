@@ -1,4 +1,4 @@
-// stock-scraper.js — screener multi-pasar (IDX / US / Crypto) via Yahoo Finance
+// stock-scraper.js — screener multi-pasar (IDX / Crypto) via Yahoo Finance
 // Menghitung: valuasi, teknikal (MA/RSI/MFI/breakout), heuristik "bandar" (akumulasi/OBV/volume), dan berita (Google News).
 // Output: saham-screener.json + saham-screener.csv
 const fs = require("fs");
@@ -24,11 +24,6 @@ const IDX = [
   "RSCH","SEMA","SGER","SIMP","SINI","SMAR","SMIL","SMLE","SMMT","SNLK","SOCI","SSIA","STAA","TCPI",
   "TEBE","TOBA","TOTL","TUGU","UDNG","ULTJ","VERN","VICI","VISI","VKTR"
 ];
-const US = [
-  "AAPL","MSFT","NVDA","AMZN","GOOGL","META","TSLA","AMD","NFLX","INTC","JPM","BAC","XOM","PFE","DIS",
-  "BA","KO","PEP","WMT","VZ","PLTR","UBER","SHOP","COIN","SOFI","MCD","NKE","SBUX",
-  "AVGO","CRM","ORCL","ADBE","QCOM","TXN","CSCO","AMAT","MU","ABNB","PYPL","GS","MS","CAT","GE","HON","UNH","JNJ","PG","CVX","NEE"
-];
 const CRYPTO = [
   "BTC-USD","ETH-USD","SOL-USD","BNB-USD","XRP-USD","ADA-USD","DOGE-USD","AVAX-USD","DOT-USD","LINK-USD","LTC-USD","TRX-USD",
   "BCH-USD","XLM-USD","TON-USD","NEAR-USD","AAVE-USD","HBAR-USD","ARB-USD","OP-USD","INJ-USD",
@@ -45,7 +40,6 @@ const SKIP_CRYPTO = process.env.SKIP_CRYPTO === "1";
 
 const UNIVERSE = [
   ...[...new Set(IDX)].map(t => ({ symbol: t + ".JK", market: "IDX", ticker: t })),
-  ...[...new Set(US)].map(t => ({ symbol: t, market: "US", ticker: t })),
   ...(SKIP_CRYPTO ? [] : [...new Set(CRYPTO)].map(t => ({ symbol: t, market: "CRYPTO", ticker: cryptoTicker(t) }))),
 ];
 
@@ -254,25 +248,7 @@ function caHit(all, keys) {
   return keys.some(k => { try { return new RegExp("\\b" + k.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b", "i").test(all); } catch (e) { return all.indexOf(k) >= 0; } });
 }
 
-// ---------- Kamus kata kunci AS & crypto ----------
-// AS: padanan "KI" versi SEC EDGAR + Earnings + corporate actions (lihat panduan di laporan)
-const US_KEYS = {
-  offering: ["secondary offering", "follow-on offering", "follow on offering", "public offering", "prices offering", "priced offering", "offering of common stock"],
-  atm: ["at-the-market", "atm program", "atm offering", "424b5", "sales agreement"],
-  convertible: ["convertible notes", "convertible senior notes", "convertible bonds"],
-  lockup: ["lock-up expir", "lockup expir", "lock up expir"],
-  spac: ["spac merger", "de-spac", "despac", "blank-check"],
-  buyback: ["buyback", "buy back", "share repurchase", "repurchase program", "repurchase authorization"],
-  divraise: ["raises dividend", "raise its dividend", "dividend increase", "dividend aristocrat", "hikes dividend"],
-  split: ["stock split"],
-  insiderBuy: ["insider buy", "insider buying", "cluster buy", "ceo buys", "cfo buys", "director buys", "form 4"],
-  sp500: ["join s&p 500", "joins s&p 500", "added to s&p", "addition to s&p", "s&p 500 inclusion"],
-  activist: ["activist investor", "activist stake", "takes stake", "13d filing", "schedule 13d"],
-  target: ["to be acquired", "buyout", "takeover bid", "acquisition target", "take-private"],
-  acquirer: ["to acquire", "agrees to acquire", "acquisition of", "to buy "],
-  bahaya: ["chapter 11", "bankruptcy", "going concern", "restatement", "auditor resign", "delisting warning", "bid price deficiency", "non-compliant", "noncompliant", "otc market", "pink sheets", "pink sheet"],
-};
-const US_SUB1 = ["under $1", "below $1", "under a dollar", "below one dollar"];
+// ---------- Kamus kata kunci crypto ----------
 // Crypto: padanan "aksi korporasi" (tokenomics, listing, keamanan)
 const CR_KEYS = {
   unlock: ["token unlock", "tokens unlock", "unlock event", "vesting unlock", "cliff unlock"],
@@ -288,7 +264,7 @@ const CR_KEYS = {
 };
 
 function classifyCA(s) {
-  // US/crypto: hanya berita yg menyebut ticker/nama perusahaan (Google News sering mengembalikan judul sampah)
+  // crypto: hanya berita yg menyebut ticker/nama perusahaan (Google News sering mengembalikan judul sampah)
   let newsList = s.news || [];
   if (s.market !== "IDX") {
     const stop = new Set(["inc", "corp", "corporation", "company", "companies", "group", "holdings", "holding", "technology", "technologies", "limited", "plc", "sa", "ltd", "nv", "ag", "co", "intl", "international", "global", "digital", "capital", "financial", "systems", "network", "networks", "labs", "energy", "therapeutics", "pharma", "bio", "platforms", "communication", "consumer", "services"]);
@@ -333,42 +309,6 @@ function classifyCA(s) {
   }
   if (hit("rups")) notes.push("Ada agenda RUPS — pantau agenda RI/PMTHMETD/split (±3 minggu sebelum rapat).");
 
-  // ---------- Pasar AS (kamus English: EDGAR/earnings/corporate actions) ----------
-  if (s.market === "US") {
-    // gabung sinyal EDGAR faktual (filing resmi, bukan sekadar berita)
-    if (s.edgar) {
-      score += s.edgar.score || 0;
-      (s.edgar.notes || []).forEach(n => notes.push(n));
-      (s.edgar.flags || []).forEach(f => { if (!flags.includes(f)) flags.push(f); });
-      if (s.edgar.exclude) exclude = true;
-    }
-    const uhit = k => caHit(all, US_KEYS[k]);
-    if (uhit("bahaya") || caHit(all, US_SUB1)) { exclude = true; notes.push("Sinyal bahaya AS (Chapter 11/going concern/restatement/auditor mundur/peringatan delisting/OTC/harga <$1) → dikecualikan."); }
-    if (s.px != null && s.px < 1) { exclude = true; notes.push("Harga di bawah $1 → risiko surat peringatan delisting Nasdaq/NYSE (aturan $1, 30 hari)."); flags.push("subdollar"); }
-    if (uhit("offering")) { score -= 8; notes.push("Secondary/follow-on offering (−8) → dilusi; harga biasanya turun 5–15% saat pricing."); flags.push("dilusi_potensial"); }
-    if (uhit("atm")) { score -= 10; notes.push("Program ATM/shelf (−10) → saham baru menetes ke pasar berbulan-bulan, menekan harga."); flags.push("dilusi_potensial"); }
-    if (uhit("convertible")) { score -= 5; notes.push("Convertible notes (−5) → dilusi masa depan + potensi short hedging pembeli obligasi."); flags.push("dilusi_potensial"); }
-    if (uhit("lockup")) { score -= 5; notes.push("Lock-up expiry (−5) → insider boleh menjual (90–180 hari pasca IPO), tekanan menjelang tanggalnya."); }
-    if (uhit("spac")) { spekulatif = true; flags.push("spekulatif"); notes.push("SPAC/de-SPAC → rekam jejak buruk, flag spekulatif."); }
-    if (uhit("buyback")) { score += 8; notes.push("Buyback AS (+8) — cek pengurangan saham beredar >2%/tahun = positif."); flags.push("buyback"); }
-    if (uhit("divraise")) { score += 5; notes.push("Kenaikan dividen (+5) — dividend aristocrat (10–25 thn naik) cenderung stabil."); }
-    if (uhit("split")) notes.push("Stock split — netral secara nilai, tapi sering ada pop ritel di sekitar pengumuman.");
-    if (uhit("insiderBuy")) { score += 8; notes.push("Indikasi insider membeli (+8) — cluster buy sinyal kuat; penjualan insider (10b5-1) bobotnya lemah."); flags.push("insider_beli"); }
-    if (uhit("sp500")) { score += 8; notes.push("Masuk S&P 500 (+8) — harga biasanya naik antara pengumuman & tanggal efektif."); }
-    if (uhit("activist")) { score += 5; notes.push("Investor aktivis masuk (+5) — sering positif jangka pendek (13D)."); }
-    if (uhit("target")) { score += 10; notes.push("Target akuisisi (+10) — harga mendekati harga penawaran."); flags.push("tender"); }
-    if (uhit("acquirer")) { score -= 5; notes.push("Saham pengakuisisi (−5) — pembeli sering turun pasca pengumuman."); }
-    // risiko earnings gap (3 hari sebelum laporan)
-    if (s.earnInDays != null && s.earnInDays >= 0 && s.earnInDays <= 3) {
-      flags.push("earnings_dekat");
-      notes.push("Laporan laba " + (s.earnInDays === 0 ? "hari ini" : s.earnInDays + " hari lagi") + " (" + s.earnDate + ") — jangan buka posisi baru: risiko gap semalam besar, saham AS bisa ±50%.");
-    }
-    // short interest: >20% = squeeze bila ada katalis, bahaya bila tidak
-    const sp = s.shortPct != null ? (s.shortPct > 1 ? s.shortPct : s.shortPct * 100) : null;
-    if (sp != null && sp > 20) { flags.push("short_tinggi"); notes.push("Short interest " + sp.toFixed(0) + "% dari float — di atas 20%: peluang short squeeze bila ada katalis positif, tapi artinya pasar melihat masalah bila tidak ada katalis."); }
-    if (s.daysToCover != null && s.daysToCover > 5) notes.push("Days to cover " + s.daysToCover.toFixed(1) + " hari (>5 = tinggi).");
-  }
-
   // ---------- Crypto (tokenomics, listing, keamanan) ----------
   if (s.market === "CRYPTO") {
     const chit = k => caHit(all, CR_KEYS[k]);
@@ -384,8 +324,8 @@ function classifyCA(s) {
 
   // struktural (dari data harga Yahoo)
   if (s.reverseSplit) {
-    const extra = (s.market === "US" && s.mcap != null && s.mcap < 2e9) ? -15 : -10;
-    score += extra; notes.push("Reverse stock split (" + extra + ")" + (extra === -15 ? " — di saham kecil AS hampir selalu sinyal buruk." : " — umumnya sinyal merah.")); flags.push("reverse_split");
+    const extra = -10;
+    score += extra; notes.push("Reverse stock split (" + extra + ")" + (extra === -15 ? " — umumnya sinyal merah." : " — umumnya sinyal merah.")); flags.push("reverse_split");
   }
   if (s.stockSplit) { notes.push("Baru stock split — harga historis wajib di-adjust; harga tampak 'murah' semu."); flags.push("stock_split"); }
   if (s.ipoBaru) { notes.push("IPO < 12 bulan → skor teknikal belum valid (riwayat harga terlalu pendek)."); flags.push("ipo_baru"); }
@@ -525,7 +465,6 @@ function finalizeScores(list, ctx) {
     if (sc.flags.illiquid) total = Math.round(total * 0.7);
     if (sc.flags.arbToday) { total = Math.max(0, total - 15); s.caNotesExtra = "Menyentuh ARB hari ini → tidak bisa dijual dengan wajar; diskon −15 & jangan dibuka posisi baru."; }
     if (ctx.bearish && s.market === "IDX") { total = Math.round(total * 0.85); sc.flags.bearishRegime = true; }
-    if (ctx.usRiskOff && s.market !== "IDX") { total = Math.round(total * 0.9); sc.flags.usRiskOff = true; }
     sc.total = Math.max(0, total);
   });
 }
@@ -536,7 +475,7 @@ function finalizeScores(list, ctx) {
   console.log("  crumb:", cache.crumb ? "ok" : "TIDAK");
 
   const symbols = UNIVERSE.map(u => u.symbol);
-  console.log(`→ Snapshot ${symbols.length} instrumen (IDX ${IDX.length} · US ${US.length} · Crypto ${CRYPTO.length})…`);
+  console.log(`→ Snapshot ${symbols.length} instrumen (IDX ${IDX.length} · Crypto ${CRYPTO.length})…`);
   const quotes = await batchQuote(symbols);
   const qmap = Object.fromEntries(quotes.map(q => [q.symbol, q]));
   console.log("  dapat", quotes.length, "quote");
@@ -680,7 +619,7 @@ function finalizeScores(list, ctx) {
           if (s.pb != null && (s.pb < 0.01 || s.pb > 100)) { s.pb = null; s.pbSuspect = true; }
           if (s.pe != null && (s.pe < 0.5 || s.pe > 500)) { s.pe = null; s.peSuspect = true; }
           }
-        // tanggal earnings dari kutipan (khusus AS: risiko gap; jangan beli ≤3 hari sebelumnya)
+        // tanggal earnings dari kutipan 
         const earnTs = q.earningsTimestamp;
         s.earnDate = earnTs ? new Date(earnTs * 1000).toISOString().slice(0, 10) : null;
         s.earnInDays = earnTs ? Math.round((earnTs * 1000 - Date.now()) / 86400000) : null;
@@ -794,94 +733,6 @@ function finalizeScores(list, ctx) {
     }
   }
 
-  // Regime AS: S&P 500 vs MA200 + VIX + yield 10 thn + DXY (risk-on/off global)
-  console.log("→ Cek regime AS…");
-  {
-    try {
-      const rq = await batchQuote(["^GSPC", "^VIX", "^TNX", "DX-Y.NYB"]);
-      const qm = Object.fromEntries(rq.map(q => [q.symbol, q]));
-      const gf = await chartFull("^GSPC", "1y");
-      const grows = gf ? gf.rows : null;
-      if (grows && grows.length > 200 && qm["^GSPC"]) {
-        const gc = grows.map(r => r.c);
-        const spx = (qm["^GSPC"].regularMarketPrice > 0) ? qm["^GSPC"].regularMarketPrice : gc[gc.length - 1];
-        const closes = gc.concat(spx);
-        const ma200 = sma(closes, 200);
-        const vix = qm["^VIX"] ? qm["^VIX"].regularMarketPrice : null;
-        regime.us = {
-          spx, ma200, vix,
-          chg1d: qm["^GSPC"].regularMarketChangePercent != null ? qm["^GSPC"].regularMarketChangePercent : null,
-          tnx: qm["^TNX"] ? qm["^TNX"].regularMarketPrice : null,
-          dxy: qm["DX-Y.NYB"] ? qm["DX-Y.NYB"].regularMarketPrice : null,
-          ret1m: closes.length > 22 ? (spx / closes[closes.length - 22] - 1) * 100 : null,
-          ret6m: closes.length > 127 ? (spx / closes[closes.length - 127] - 1) * 100 : null,
-          bearish: ma200 != null && spx < ma200,
-          riskOff: (ma200 != null && spx < ma200) || (vix != null && vix > 30),
-          riskOn: (ma200 != null && spx > ma200) && (vix != null && vix < 20),
-        };
-        console.log("  S&P", spx.toFixed(0), "| MA200", ma200?.toFixed(0), "| VIX", vix?.toFixed(1), "→", regime.us.riskOff ? "RISK-OFF" : regime.us.riskOn ? "RISK-ON" : "netral");
-      }
-    } catch (e) { console.log("  regime AS gagal:", e.message); }
-  }
-
-  // SEC EDGAR: "KI" versi AS — filing 60 hari terakhir per emiten (JSON gratis)
-  console.log("→ SEC EDGAR…");
-  {
-    const SEC_UA = "saham-screener/1.0 (contact: screener@example.com)";
-    let cikMap = {};
-    try {
-      const tj = await (await fetch("https://www.sec.gov/files/company_tickers.json", { headers: { "User-Agent": SEC_UA } })).json();
-      Object.values(tj).forEach(v => { cikMap[String(v.ticker).toUpperCase()] = String(v.cik_str).padStart(10, "0"); });
-    } catch (e) { console.log("  peta CIK gagal"); }
-    async function edgarFor(ticker) {
-      const out = { score: 0, notes: [], flags: [], exclude: false };
-      const cik = cikMap[ticker.toUpperCase()];
-      if (!cik) return out;
-      try {
-        const r = await fetch(`https://data.sec.gov/submissions/CIK${cik}.json`, { headers: { "User-Agent": SEC_UA, "Accept": "application/json" } });
-        if (!r.ok) return out;
-        const j = await r.json();
-        const f = j.filings && j.filings.recent;
-        if (!f) return out;
-        const now = Date.now(), inDays = d => (now - new Date(d + "T00:00:00Z").getTime()) / 86400000;
-        const docs60 = [], docs14 = [];
-        for (let i = 0; i < f.form.length; i++) {
-          const age = inDays(f.filingDate[i]);
-          const e = { form: f.form[i], desc: f.primaryDocDescription[i] || "" };
-          if (age <= 60) docs60.push(e);
-          if (age <= 14) docs14.push(e);
-        }
-        const forms60 = docs60.map(d => d.form);
-        const has = p => forms60.some(x => x.indexOf(p) === 0);
-        const b424 = docs60.filter(d => /^424B/.test(d.form) && !/pricing supplement/i.test(d.desc));
-        if (b424.length) { out.score -= 5; out.notes.push("EDGAR: ada filing " + b424[0].form + " ≤60 hari (−5) → cek prospektus: bisa ATM/follow-on (dilusi) atau surat utang."); out.flags.push("dilusi_potensial"); }
-        else if (has("S-3")) { out.score -= 5; out.notes.push("EDGAR: shelf S-3 aktif (−5) → perusahaan siap menjual saham baru sewaktu-waktu."); out.flags.push("dilusi_potensial"); }
-        if (has("S-1")) { out.notes.push("EDGAR: ada S-1 → emiten baru melantai / IPO susulan."); out.flags.push("ipo_baru"); }
-        if (forms60.some(x => /^SC TO/.test(x))) { out.score += 10; out.notes.push("EDGAR: tender offer SC TO (+10)."); out.flags.push("tender"); }
-        if (forms60.some(x => /13D/.test(x))) { out.score += 5; out.notes.push("EDGAR: Schedule 13D → investor aktivis masuk (+5, biasanya positif jangka pendek)."); }
-        if (has("DEF 14A")) out.notes.push("EDGAR: proxy DEF 14A → ada agenda RUPS/pemungutan suara.");
-        const k8 = docs14.filter(x => x.form === "8-K").length;
-        if (k8) out.notes.push("EDGAR: " + k8 + "× Form 8-K dalam 14 hari → ada kejadian material, baca isinya (akuisisi/CEO/kontrak).");
-        const f4 = forms60.filter(x => x === "4").length, f144 = forms60.filter(x => x === "144").length;
-        if (f4 >= 3) out.notes.push("EDGAR: " + f4 + "× Form 4 ≤60 hari → insider aktif; arahnya (beli/jual) harus dicek per filing.");
-        if (f144 >= 2) out.notes.push("EDGAR: " + f144 + "× Form 144 → rencana penjualan insider, potensi tekanan.");
-      } catch (e) {}
-      out.score = Math.max(-15, Math.min(15, out.score));
-      return out;
-    }
-    const usList = results.filter(s => s.market === "US");
-    const ei = { i: 0 };
-    async function eworker() {
-      while (ei.i < usList.length) {
-        const s = usList[ei.i++];
-        s.edgar = await edgarFor(s.ticker);
-        await sleep(200);
-      }
-    }
-    await Promise.all(Array.from({ length: 4 }, eworker));
-    console.log("  EDGAR selesai:", usList.filter(s => s.edgar && (s.edgar.notes.length || s.edgar.score)).length, "emiten ada sinyal");
-  }
-
   // Konteks crypto: Fear & Greed + dominasi BTC + fase siklus halving
   console.log("→ Konteks crypto…");
   {
@@ -925,34 +776,25 @@ function finalizeScores(list, ctx) {
   // FINALISASI SKOR (tahap 2): valuasi relatif sektor, kualitas, kekuatan relatif vs indeks, pengali rezim
   console.log("→ Finalisasi skor (valuasi relatif + kualitas + relatif vs indeks)…");
   {
-    // benchmark 1 bulan per pasar: IHSG, S&P500, BTC
+    // benchmark 1 bulan per pasar: IHSG, BTC
     const btc = results.find(s => s.ticker === "BTC");
     const benchRet1m = {
       IDX: regime && regime.ret1m != null ? regime.ret1m : null,
-      US: regime && regime.us && regime.us.ret1m != null ? regime.us.ret1m : null,
       CRYPTO: btc && btc.ret1m != null ? btc.ret1m : null,
     };
     const ctx = {
       benchRet1m,
       bearish: !!(regime && regime.bearish && !regime.suspectIndex),
-      usRiskOff: !!(regime && regime.us && regime.us.riskOff),
     };
     finalizeScores(results, ctx);
     // Pembanding per pasar untuk tampilan laporan — sebelumnya semua pasar dibandingkan IHSG.
-    // IDX → IHSG, US → S&P 500, CRYPTO → BTC (proxy pasar kripto).
+    // IDX → IHSG, CRYPTO → BTC (proxy pasar kripto).
     const btcBaru = results.find(s => s.ticker === "BTC");
     regime.bench = {
       IDX: {
         label: "IHSG", px: regime.px != null ? regime.px : null, chg1d: regime.chg1d != null ? regime.chg1d : null,
         ma200: regime.ma200 != null ? regime.ma200 : null,
         bearish: !!(regime.bearish && !regime.suspectIndex),
-      },
-      US: {
-        label: "S&P 500",
-        px: regime.us && regime.us.spx != null ? regime.us.spx : null,
-        chg1d: regime.us && regime.us.chg1d != null ? regime.us.chg1d : null,
-        ma200: regime.us && regime.us.ma200 != null ? regime.us.ma200 : null,
-        bearish: !!(regime.us && regime.us.bearish),
       },
       ...(SKIP_CRYPTO ? {} : {
         CRYPTO: {
@@ -979,7 +821,7 @@ function finalizeScores(list, ctx) {
     async function nworker() {
       while (ni.i < results.length) {
         const s = results[ni.i++];
-        const q = s.market === "IDX" ? `${s.ticker} saham` : s.market === "US" ? `${s.ticker} ${s.name} stock` : s.name;
+        const q = s.market === "IDX" ? `${s.ticker} saham` : s.name;
         s.news = await fetchNews(q);
         if (ni.i % 20 === 0) console.log(`   …berita ${ni.i}/${results.length}`);
         await sleep(220);
@@ -1003,7 +845,7 @@ function finalizeScores(list, ctx) {
   // Pasar yang BENAR-BENAR ada datanya. Dulu daftar ini ditentukan hanya dari SKIP_CRYPTO,
   // padahal Yahoo sering menolak simbol -USD secara acak → hasil: 0 instrumen CRYPTO tapi
   // bagian crypto tetap diterbitkan apa adanya (harga live tidak punya baris untuk di-update).
-  const MKT = ["IDX", "US", "CRYPTO"].filter(m => results.some(r => r.market === m));
+  const MKT = ["IDX", "CRYPTO"].filter(m => results.some(r => r.market === m));
   if (!SKIP_CRYPTO) {
     const ada = new Set(results.filter(r => r.market === "CRYPTO").map(r => r.ticker));
     const hilang = [...new Set(CRYPTO)].map(t => cryptoTicker(t)).filter(t => !ada.has(t));

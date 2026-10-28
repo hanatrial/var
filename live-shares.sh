@@ -1,12 +1,10 @@
 #!/data/data/com.termux/files/usr/bin/bash
-# live-shares.sh — perbarui quotes-live.json (harga live IDX & US) lalu terbitkan.
+# live-shares.sh — perbarui quotes-live.json (harga live saham IDX) lalu terbitkan.
 # Dipanggil cron tiap 5 menit. TIDAK memanggil Yahoo kalau tidak ada bursa yang buka,
 # supaya kuota & baterai tidak habis. Zona waktu dikunci eksplisit — jangan bergantung TZ cron.
 #
 # Jam bursa (WIB, Sen–Jum):
 #   IDX : 09:00–16:00
-#   AS  : 15:00–07:00 (pra-bursa 04:00 ET s/d pasca-bursa 20:00 ET; ET = WIB−11 saat EDT,
-#         WIB−12 saat EST → 15:00 WIB sudah aman untuk keduanya)
 set -u
 DIR="/data/data/com.termux/files/home/var"
 cd "$DIR" || exit 1
@@ -25,8 +23,6 @@ case "$DOW" in 6|7) exit 0 ;; esac
 BUKA=0
 # IDX: 09:00–16:00 WIB
 [ "$HH" -ge 9 ] && [ "$HH" -lt 16 ] && BUKA=1
-# AS: 15:00–24:00 dan 00:00–07:00 WIB
-if [ "$HH" -ge 15 ] || [ "$HH" -lt 7 ]; then BUKA=1; fi
 [ "$BUKA" -eq 0 ] && exit 0
 
 # Jangan menumpuk: kalau proses sebelumnya masih jalan, lewati

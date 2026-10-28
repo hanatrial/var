@@ -36,7 +36,6 @@ function svg(curves, w = 640, h = 190, pad = 26) {
 
 const MK = [
   { k: "IDX", b: "IDX", flag: "🇮🇩", title: "Saham Indonesia", note: "Universe 80 emiten likuid (perluasan dari 83 → termasuk nama lapis-2; 13 simbol tak valid dibuang)." },
-  { k: "US", b: "US", flag: "🇺🇸", title: "Saham AS", note: "Universe 28 emiten big-cap." },
   { k: "CRYPTO", b: "CRYPTO", flag: "₿", title: "Crypto", note: "Universe 12 koin besar." },
 ];
 

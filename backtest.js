@@ -1,4 +1,4 @@
-// backtest.js — backtest walk-forward skor teknikal screener (IDX / US / Crypto)
+// backtest.js — backtest walk-forward skor teknikal screener (IDX / Crypto)
 // Desain (tanpa look-ahead):
 //  * Indikator dihitung sekali per bar dari data historis (adj close → dividen & split sudah masuk).
 //  * Rebalance tiap 5 hari bursa, sinyal dari data s/d hari itu; hold 20 hari bursa (4 minggu).
@@ -11,11 +11,9 @@ const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 const IDX = ["BBCA","BBRI","BMRI","BBNI","BRIS","BBTN","ARTO","BJTM","BJBR","BNGA","BDMN","NISP","MEGA","PNBN","TLKM","ISAT","EXCL","TOWR","TBIG","MTEL","ASII","UNTR","HRUM","PTBA","ADRO","ITMG","BUMI","BYAN","MEDC","PGAS","AKRA","ADMR","ANTM","INCO","TINS","MDKA","PSAB","NCKL","MBMA","BRMS","ICBP","INDF","MYOR","UNVR","KLBF","SIDO","TSPC","HMSP","GGRM","INTP","SMGR","ARNA","SMRA","BSDE","CTRA","PWON","LPKR","DILD","GOTO","BUKA","EMTK","TPIA","BRPT","DSNG","CPIN","JPFA","MAIN","AALI","LSIP","SSMS","ACES","MAPI","MAPA","ERAA","SCMA","MNCN","MIKA","HEAL","SILO","PRDA","PGEO","JSMR","POWR"];
-const US = ["AAPL","MSFT","NVDA","AMZN","GOOGL","META","TSLA","AMD","NFLX","INTC","JPM","BAC","XOM","PFE","DIS","BA","KO","PEP","WMT","VZ","PLTR","UBER","SHOP","COIN","SOFI","MCD","NKE","SBUX"];
 const CRYPTO = ["BTC-USD","ETH-USD","SOL-USD","BNB-USD","XRP-USD","ADA-USD","DOGE-USD","AVAX-USD","DOT-USD","LINK-USD","LTC-USD","TRX-USD"];
 const MARKETS = [
   { name: "IDX", syms: IDX.map(t => t + ".JK"), bench: "^JKSE", benchName: "IHSG" },
-  { name: "US", syms: US, bench: "^GSPC", benchName: "S&P 500" },
   { name: "CRYPTO", syms: CRYPTO, bench: "BTC-USD", benchName: "Bitcoin" },
 ];
 
@@ -281,7 +279,7 @@ function simulate(U, dates, N, p) {
     const uni = Object.keys(U).length;
     console.log("  simbol layak:", uni);
 
-    // risk-off benchmark (IHSG/S&P/BTC < MA200) utk variant filter regime
+    // risk-off benchmark (IHSG/BTC < MA200) utk variant filter regime
     const bMA = new Array(N).fill(null);
     let sum = 0;
     for (let i = 0; i < N; i++) { sum += bAc[i]; if (i >= 200) sum -= bAc[i - 200]; if (i >= 199) bMA[i] = sum / 200; }

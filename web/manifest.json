@@ -1,7 +1,7 @@
 {
-  "name": "Screener Saham — Indo / US / Crypto",
+  "name": "Screener Saham — Indo / Crypto",
   "short_name": "Screener",
-  "description": "Screener & analisa saham IDX, US, dan crypto: skor, BEST BUY, target fundamental.",
+  "description": "Screener & analisa saham IDX dan crypto: skor, BEST BUY, target fundamental.",
   "start_url": "./saham-laporan.html",
   "scope": "./",
   "display": "standalone",

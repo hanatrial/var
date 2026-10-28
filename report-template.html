@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
-<title>Screener &amp; Analisa — Saham Indo · US · Crypto</title>
+<title>Screener &amp; Analisa — Saham Indo · Crypto</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0a1410">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -315,7 +315,6 @@
   <div id="regimeBar"></div>
   <div class="mkts" id="mktTabs">
     <button data-m="IDX" class="active">🇮🇩 Saham Indo</button>
-    <button data-m="US">🇺🇸 Saham US</button>
     <button data-m="CRYPTO">₿ Crypto</button>
   </div>
   <div class="bbbar">
@@ -375,7 +374,7 @@ const SL_BAND_MIN = 4, SL_BAND_MAX = 12;
 const SL_MIN_LBL = SL_BAND_MIN, SL_MAX_LBL = SL_BAND_MAX;
 /* Batas konsentrasi 1 nama (% modal) — dipakai bersama oleh rumus sizing DAN teks panduan. */
 const POS_CAP = 0.20;
-/* pembanding yang BENAR per pasar: IDX→IHSG, US→S&P 500, CRYPTO→BTC
+/* pembanding yang BENAR per pasar: IDX→IHSG, CRYPTO→BTC
    (sebelumnya semua pasar salah dibandingkan dengan IHSG) */
 const BENCH = (mkt) => {
   const b = (REGIME && REGIME.bench && REGIME.bench[mkt]) || null;
@@ -539,10 +538,8 @@ function analyze(s){
   if(RB && RB.bearish){
     const lvl = (RB.ma200!=null && RB.px!=null && RB.ma200>0)
       ? ` (${RB.label} di bawah MA200)` : "";
-    RISK.push(`<b>Rezim ${s.market==="IDX"?"pasar bearish":s.market==="US"?"pasar AS bearish":"crypto bearish"}</b>${lvl} — peluang tiap sinyal lebih kecil; kurangi ukuran posisi.`);
+    RISK.push(`<b>Rezim ${s.market==="IDX"?"pasar bearish":"crypto bearish"}</b>${lvl} — peluang tiap sinyal lebih kecil; kurangi ukuran posisi.`);
   }
-  if(s.market!=="IDX" && REGIME && REGIME.us && REGIME.us.riskOff)
-    RISK.push("<b>Risk-off global</b> (S&amp;P 500 di bawah MA200 / VIX &gt;30) — aset berisiko tertekan; skor sudah otomatis dikali 0,90.");
   if(s.rsi!=null && s.rsi>70) RISK.push("RSI overbought — rawan koreksi jangka pendek.");
   if(s.earnGrowth!=null && s.earnGrowth<0) RISK.push("Laba sedang menurun (earnings growth negatif) — waspadai <i>value trap</i>.");
   if(s.revGrowth!=null && s.revGrowth<0) RISK.push("Pendapatan turun — permintaan melemah.");
@@ -611,10 +608,6 @@ function caHTML(s){
     chips+=ch("🚦", a.limitPct!=null?("ARB ±"+a.limitPct+"% · ARA ±"+a.araPct+"%"):("batas Rp"+a.limitRp));
     if(a.isArb) chips+=ch("⛔","sentuh ARB","bear");
     if(a.streak>1) chips+=ch("🔁","ARB "+a.streak+" hari","warn");
-  } else if(s.market==="US"){
-    if(s.earnInDays!=null && s.earnInDays>=0) chips+=ch(s.earnInDays<=3?"⚠️":"📅","earnings "+s.earnInDays+" hari", s.earnInDays<=3?"bear":"");
-    if(s.shortPct!=null) chips+=ch("📉","short "+((s.shortPct>1?s.shortPct:s.shortPct*100).toFixed(1))+"%");
-    if(s.mom121!=null) chips+=ch(s.mom121>=0?"📈":"📉","mom 12-1 "+(s.mom121>=0?"+":"")+s.mom121.toFixed(1)+"%");
   } else {
     if(s.cycle) chips+=ch("🔻","fase "+s.cycle.phase);
     if(s.fng) chips+=ch("😨","F&G "+s.fng.v+" ("+s.fng.label+")");
@@ -644,7 +637,6 @@ function tags(s){
     if(g.includes("spekulatif")) t.push(["Spekulatif","warn"]);
     if(g.includes("earnings_dekat")) t.push(["Earnings dekat","warn"]);
     if(g.includes("short_tinggi")) t.push(["Short tinggi","warn"]);
-    if(g.includes("subdollar")) t.push(["Di bawah $1","warn"]);
     if(g.includes("waspada_bursa")) t.push(["Waspada bursa","warn"]);
     if(g.includes("arbToday")) t.push(["ARB hari ini","bad"]);
     if(g.includes("valueTrap")) t.push(["Value trap","bad"]);
@@ -676,36 +668,8 @@ function tags(s){
 }
 
 /* ---------- BEST BUY ---------- */
-const BB_MIN={IDX:80,US:90,CRYPTO:85};
-/* ---------- BEST BUY US: momentum 12-1 Top-3 + filter rejim S&P ----------
-   Aturan (backtest harian 1991–2026, 75 saham AS, tanpa look-ahead, biaya 0,1%/sisi):
-   akhir bulan ambil 3 saham dengan momentum 12-1 terbaik, bobot sama; hold 1 bulan; cash bila S&P500 < MA200.
-   Hasil: ±33%/th, DD −43%, 11 dari 35 tahun < 10%, 5 tahun negatif. CATATAN: sebagian besar hasil berasal dari saham
-   yang kini sudah jadi pemenang (survivorship bias) — tanpa 14 saham pemenang hindsight hasilnya turun ke ±16%/th. */
-let US_RANK=null, US_N=0;
-function usRankOf(s){
-  if(!US_RANK){
-    const c=DATA.filter(x=>x.market==="US" && !x.excluded && !x.ipoBaru && x.mom121!=null).sort((a,b)=>b.mom121-a.mom121);
-    US_RANK=new Map(c.map((x,i)=>[x.ticker,i+1])); US_N=c.length;
-  }
-  return {r:US_RANK.get(s.ticker)||null,n:US_N};
-}
-function usMomBB(s){
-  const BM=BENCH(s.market), good=[], blocks=[], warns=[];
-  const bear = !!(BM&&BM.bearish);
-  if(bear) blocks.push(`${BM.label} di bawah MA200 (rejim bearish) — aturan ini pegang cash`); else good.push(`${BM.label} di atas MA200 (rejim sehat)`);
-  const rk=usRankOf(s);
-  if(s.excluded) blocks.push("Dikecualikan screener");
-  else if(s.ipoBaru) blocks.push("IPO < 1 tahun (momentum 12 bulan belum valid)");
-  else if(s.mom121==null) blocks.push("Data momentum 12-1 tidak tersedia");
-  else if(rk.r!=null && rk.r<=3) good.push(`Momentum 12-1 ${s.mom121>=0?"+":""}${s.mom121.toFixed(1)}% — peringkat #${rk.r} dari ${rk.n} saham AS (masuk Top-3)`);
-  else blocks.push(`Momentum 12-1 ${s.mom121>=0?"+":""}${s.mom121.toFixed(1)}% — peringkat #${rk.r} dari ${rk.n} (butuh Top-3)`);
-  const ok=blocks.length===0;
-  if(ok) warns.push("Pegang sampai keluar dari Top-3 atau S&P500 < MA200; cek ulang tiap akhir bulan. Tanpa TP; backtest tidak memakai SL.");
-  return {ok, ready:false, volOK:true, good, blocks, warns, min:null, bench:BM?BM.label:s.market, usMom:true};
-}
+const BB_MIN={IDX:80,CRYPTO:85};
 function bestBuy(s){
-  if(s.market==="US") return usMomBB(s);
   const min=BB_MIN[s.market]!=null?BB_MIN[s.market]:80;
   const f=(s.score&&s.score.flags)||{}, cf=(s.ca&&s.ca.flags)||[];
   const BM=BENCH(s.market);
@@ -962,7 +926,6 @@ function entryAdviceHTML(s){
   const boxCls = e.cls==="ok"?"ok":(e.cls==="bear"?"no":"no");
   let mk="";
   if(s.market==="IDX") mk=`<span class="rchip sm warn"><i>🇮🇩</i>ARA/ARB: jangan kejar saat mendekati ARA; ARB tak bisa dijual</span>`;
-  else if(s.market==="US") mk=`<span class="rchip sm"><i>🇺🇸</i>tanpa ARA/ARB · hindari ≤3 hari earnings · pajak dividen 30%</span>`;
   else mk=`<span class="rchip sm"><i>₿</i>24/7 tanpa ARA/ARB · likuiditas akhir pekan tipis</span>`;
   return `<div class="sec">
     <h3><span class="ico">🎯</span> Saran Masuk (per saham)</h3>
@@ -1228,7 +1191,7 @@ function renderList(m){
   const hits = t ? DATA.map((s,gi)=>({s,gi})).filter(x=>matches(x.s,t)) : [];
   const inMkt = hits.filter(x=>x.s.market===curMkt).length;
   const other = hits.filter(x=>x.s.market!==curMkt);
-  const tabNames={IDX:"Indo",US:"US",CRYPTO:"Crypto"};
+  const tabNames={IDX:"Indo",CRYPTO:"Crypto"};
   if(t){
     cntEl.innerHTML = hits.length
       ? `${hits.length} hasil${inMkt&&other.length?` · ${inMkt} di tab ini, ${other.length} lainnya`:``}`
@@ -1325,7 +1288,7 @@ function openModal(i){
   const BM=BENCH(s.market);
   const bb=bestBuy(s);
   const bt=(s.market==="IDX")?btIdx(s):null;
-  const bbFoot = bb.usMom ? `<div style="font-size:.7rem;color:#8b96a8;margin-top:8px">Aturan US: 3 saham momentum 12-1 terbaik (bobot sama, hold 1 bulan) + filter S&amp;P500 &gt; MA200. Backtest 1991–2026: ±33%/th, DD −43%, 11 dari 35 tahun &lt;10%. <b>Bias survivorship:</b> tanpa 14 saham pemenang hindsight turun ke ±16%/th. Bukan jaminan stabil per tahun.</div>` : `<div style="font-size:.7rem;color:#8b96a8;margin-top:8px">Ambang ${bb.bench}: skor ≥ ${bb.min} · dekat high 52 minggu (≥94% puncak) · volume ≥1,5× · tren ≥20/28 · relatif ≥8/12 · rejim sehat · tanpa flag merah.</div>`;
+  const bbFoot = `<div style="font-size:.7rem;color:#8b96a8;margin-top:8px">Ambang ${bb.bench}: skor ≥ ${bb.min} · dekat high 52 minggu (≥94% puncak) · volume ≥1,5× · tren ≥20/28 · relatif ≥8/12 · rejim sehat · tanpa flag merah.</div>`;
   const bbHTMLscore = bb.ok
     ? `<div class="bbbox ok"><div class="bbt">⭐ BEST BUY — semua syarat terpenuhi</div><ul>${bb.good.map(g=>`<li>✓ ${g}</li>`).join("")}${bb.warns.map(w=>`<li style="color:#946200">⚠ ${w}</li>`).join("")}</ul>${bbFoot}</div>`
     : bb.ready
@@ -1337,11 +1300,11 @@ function openModal(i){
     : `<div class="bbbox no"><div class="bbt">Tidak masuk (aturan uji backtest)</div><ul>${bt.checks.filter(x=>!x.ok).map(x=>`<li class="blk">✕ ${x.k} — ${x.v}</li>`).join("")}${bt.checks.filter(x=>x.ok).map(x=>`<li style="color:#8ba487">✓ ${x.k}</li>`).join("")}</ul>${btFoot}</div>`);
   const bbHTML = bbHTMLscore;
   document.getElementById("mTk").textContent=s.ticker;
-  document.getElementById("mNm").textContent=(s.name||"")+" · "+(s.sector||(s.market==="CRYPTO"?"Kripto":s.market==="US"?"US":"IDX"));
+  document.getElementById("mNm").textContent=(s.name||"")+" · "+(s.sector||(s.market==="CRYPTO"?"Kripto":"IDX"));
   document.getElementById("mPx").textContent=CUR(s,shPx(s));
   const chUp=(shChg(s)||0)>=0;
   document.getElementById("mChg").innerHTML=`<span class="${chUp?"up":"down"}">${chUp?"▲":"▼"} ${PCT(shChg(s))} hari ini${shSesiTag(s)}</span>`;
-  // rencana IDX = popup di samping harga (toggle PLAN); US/CRYPTO tetap blok "Level, Entry & Exit" di body
+  // rencana IDX = popup di samping harga (toggle PLAN); CRYPTO tetap blok "Level, Entry & Exit" di body
   const planBtn=document.getElementById("planBtn"), planPop=document.getElementById("planPop");
   planBtn.hidden=!bt;
   planPop.hidden=true;
@@ -1359,7 +1322,7 @@ function openModal(i){
 
     <div class="verdict">${a.verdict}</div>
     ${bbHTML}
-    ${(bt||s.market==="US")?"":entryAdviceHTML(s)}
+    ${bt?"":entryAdviceHTML(s)}
 
     <div class="sec">
       <h3><span class="ico">🎯</span> Ringkasan Skor</h3>
@@ -1414,7 +1377,7 @@ function openModal(i){
       ${newsHTML(s)}
     </div>
 
-    ${(bt||s.market==="US")?"":`<div class="sec">
+    ${bt?"":`<div class="sec">
       <h3><span class="ico">🧭</span> Level, Entry &amp; Exit</h3>
       <div class="lvl">
         <div class="b en"><div class="k">Entry acuan</div><div class="v">${CUR(s,a.exit.entry2)}</div></div>
@@ -1521,19 +1484,13 @@ document.getElementById("planX").addEventListener("click",()=>{document.getEleme
   el.innerHTML="<i>📅</i>data per <b>"+tgl+" WITA</b>"+umurTxt;
 })();
 const cnt = m => DATA.filter(x=>x.market===m).length;
-document.getElementById("foot").textContent=`IDX ${cnt("IDX")} · US ${cnt("US")} · Crypto ${cnt("CRYPTO")} — ${DATA.length} instrumen${DATA.filter(x=>x.excluded).length?` · ⛔ ${DATA.filter(x=>x.excluded).length} dikecualikan`:""}`;
+document.getElementById("foot").textContent=`IDX ${cnt("IDX")} · Crypto ${cnt("CRYPTO")} — ${DATA.length} instrumen${DATA.filter(x=>x.excluded).length?` · ⛔ ${DATA.filter(x=>x.excluded).length} dikecualikan`:""}`;
 
 (function(){
   const b=document.getElementById("regimeBar");
   if(!REGIME){ b.innerHTML=""; return; }
   b.className="regime "+(REGIME.bearish?"bear":"bull");
   const d = REGIME.chg1d!=null ? ` · hari ini <b>${PCT(REGIME.chg1d)}</b>` : "";
-  let us="";
-  if(REGIME.us){
-    const u=REGIME.us;
-    const lab=u.riskOff?"🔴 RISK-OFF":u.riskOn?"🟢 RISK-ON":"⚪ netral";
-    us=`<br><b>${lab} (AS)</b> — S&amp;P ${u.spx!=null?Math.round(u.spx):"—"}${u.ma200?` vs MA200 ${Math.round(u.ma200)}`:""}${u.vix!=null?` · VIX ${u.vix.toFixed(1)}`:""}${u.tnx!=null?` · US10Y ${u.tnx.toFixed(2)}%`:""}${u.dxy!=null?` · DXY ${u.dxy.toFixed(1)}`:""}.${u.riskOff?"<br>Risk-off global menekan semua pasar (termasuk IHSG &amp; crypto) — kurangi eksposur / naikkan syarat skor.":""}`;
-  }
   let sanity="";
   if(REGIME.suspectIndex) sanity=`<br>⚠️ <b>Cek kesehatan data:</b> pergerakan IHSG hari ini TIDAK didukung oleh mayoritas saham (median ${(REGIME.breadth&&REGIME.breadth.medianChg!=null)?REGIME.breadth.medianChg.toFixed(1)+"%":"—"}). Kemungkinan gangguan data — verifikasi dulu sebelum mengambil keputusan.`;
   else if(REGIME.crashConfirmed) sanity=`<br>✅ Koreksi hari ini <b>terkonfirmasi breadth</b> (median saham ${(REGIME.breadth&&REGIME.breadth.medianChg!=null)?REGIME.breadth.medianChg.toFixed(1)+"%":"—"}, ${REGIME.breadth&&REGIME.breadth.shareNearArb!=null?Math.round(REGIME.breadth.shareNearArb*100):0}% mendekati ARB) → koreksi nyata, bukan glitch data.`;
@@ -1542,8 +1499,8 @@ document.getElementById("foot").textContent=`IDX ${cnt("IDX")} · US ${cnt("US")
     const c=REGIME.bench.CRYPTO;
     cr=`<br><b>${c.bearish?"🐻 Crypto bearish":"🐂 Crypto netral/bullish"}</b> — BTC ${c.px!=null?Math.round(c.px).toLocaleString("en-US"):"—"}${c.chg1d!=null?` · hari ini ${PCT(c.chg1d)}`:""}${c.ma200?` vs MA200 ${Math.round(c.ma200).toLocaleString("en-US")} (di ${c.px<c.ma200?"bawah":"atas"})`:""}.`;
   }
-  b.innerHTML=`<b>${REGIME.bearish?"🐻 Pasar BEARISH":"🐂 Pasar netral/bullish"}</b> — IHSG ${ID(REGIME.px)}${d}${REGIME.ma200?` · ${REGIME.px<REGIME.ma200?"di bawah":"di atas"} MA200 (${ID(REGIME.ma200)})`:""}${REGIME.ret6m!=null?` · 6 bln ${PCT(REGIME.ret6m)}`:""}.${REGIME.bearish?"<br>Saat IHSG di bawah MA200, sinyal beli individual lebih rawan gagal — perketat disiplin & kecilkan ukuran posisi (skor sudah otomatis dikali 0,85).":""}${sanity}${us}${cr}
-  <br><span style="font-size:.78em;color:#8b96a8">Pembanding tiap pasar: <b>IDX → IHSG</b> · <b>US → S&amp;P 500</b> · <b>Crypto → BTC</b> (dipakai otomatis di kartu &amp; modal masing-masing).</span>`;
+  b.innerHTML=`<b>${REGIME.bearish?"🐻 Pasar BEARISH":"🐂 Pasar netral/bullish"}</b> — IHSG ${ID(REGIME.px)}${d}${REGIME.ma200?` · ${REGIME.px<REGIME.ma200?"di bawah":"di atas"} MA200 (${ID(REGIME.ma200)})`:""}${REGIME.ret6m!=null?` · 6 bln ${PCT(REGIME.ret6m)}`:""}.${REGIME.bearish?"<br>Saat IHSG di bawah MA200, sinyal beli individual lebih rawan gagal — perketat disiplin & kecilkan ukuran posisi (skor sudah otomatis dikali 0,85).":""}${sanity}${cr}
+  <br><span style="font-size:.78em;color:#8b96a8">Pembanding tiap pasar: <b>IDX → IHSG</b> · <b>Crypto → BTC</b> (dipakai otomatis di kartu &amp; modal masing-masing).</span>`;
 })();
 (function(){
   var b=document.getElementById("regimeBar"); if(!b||!REGIME) return;
@@ -1551,7 +1508,6 @@ document.getElementById("foot").textContent=`IDX ${cnt("IDX")} · US ${cnt("US")
   var ar=function(px,ma){ if(px==null||ma==null) return ""; var up=px>=ma; return '<span class="rr '+(up?"up":"dn")+'">'+(up?"▲":"▼")+' MA200</span>'; };
   var h="";
   h+='<span class="rchip '+(REGIME.bearish?"bear":"ok")+'"><i>'+(REGIME.bearish?"🐻":"🐂")+'</i>IHSG <b>'+ID(REGIME.px)+'</b>'+(REGIME.chg1d!=null?' <span class="rr '+(REGIME.chg1d>=0?"up":"dn")+'">'+pv(REGIME.chg1d)+'</span>':"")+' '+ar(REGIME.px,REGIME.ma200)+'</span>';
-  if(REGIME.us){ var u=REGIME.us; h+='<span class="rchip '+(u.riskOff?"bear":"ok")+'"><i>'+(u.riskOff?"🔴":"🟢")+'</i>S&amp;P <b>'+Math.round(u.spx)+'</b> '+ar(u.spx,u.ma200)+(u.vix!=null?' <span class="rr">VIX '+u.vix.toFixed(0)+'</span>':"")+'</span>'; }
   var c=REGIME.bench&&REGIME.bench.CRYPTO;
   if(c){ h+='<span class="rchip '+(c.bearish?"bear":"ok")+'"><i>₿</i>BTC <b>'+ID(c.px)+'</b>'+(c.chg1d!=null?' <span class="rr '+(c.chg1d>=0?"up":"dn")+'">'+pv(c.chg1d)+'</span>':"")+' '+ar(c.px,c.ma200)+'</span>'; }
   if(REGIME.breadth&&REGIME.breadth.medianChg!=null){ var m=REGIME.breadth.medianChg; h+='<span class="rchip '+(m<0?"bear":"ok")+'"><i>📊</i>breadth <b>'+m.toFixed(1)+'%</b>'+(REGIME.breadth.shareNearArb!=null?' <span class="rr">'+Math.round(REGIME.breadth.shareNearArb*100)+'% ARB</span>':"")+'</span>'; }
@@ -1606,35 +1562,20 @@ renderList=function(m){ _renderListBase(m); liveBadge(); if(curMkt==="CRYPTO" &&
 setInterval(()=>{ if(curMkt==="CRYPTO" && !document.hidden) liveFetch(); }, LIVE_EVERY);
 document.addEventListener("visibilitychange",()=>{ if(!document.hidden && curMkt==="CRYPTO" && (!LIVE_AT || Date.now()-LIVE_AT>LIVE_EVERY)) liveFetch(); });
 
-/* ---------- HARGA LIVE SAHAM IDX & US (quotes-live.json) ----------
+/* ---------- HARGA LIVE SAHAM IDX (quotes-live.json) ----------
    Yahoo tidak mengirim header CORS, jadi browser TIDAK BISA memanggilnya langsung.
    quotes-live.js mengunduhnya di Termux (cron tiap 5 menit saat bursa buka) → file kecil
    yang dibaca di sini. Jujur soal waktu: yang ditampilkan waktu Yahoo, bukan waktu unduh.
    Kalau harga sudah basi (>15 menit) atau bursa tutup, badge menyatakan apa adanya. */
 const LIVE_SHARES_EVERY=120000;
 let SH_AT=null, SH_ERR=false, SH_DATA=null;
-const SH_SRC={IDX:"IDX", US:"AS"};
+const SH_SRC={IDX:"IDX"};
 function umur(ts){ return ts? (Date.now()/1000-ts) : null; }   // detik sejak waktu Yahoo
 function shFresh(w){ return w!=null && w<=900; }                 // <=15 menit dianggap segar
-// Harga & %perubahan yang DITAMPILKAN. s.px tetap = penutupan resmi (dipakai indikator,
-// rencana entry/exit, dan skor). Saat pra/pasca-bursa AS, tampilan pakai harga sesi itu
-// supaya tidak menampilkan harga kemarin seolah harga sekarang — dan diberi label.
-function shPx(s){
-  if(s&&s.liveSesi&&s.liveSesi!=="regular"&&s.pxLive!=null&&shFresh(umur(s.liveTs))) return s.pxLive;
-  return s?s.px:null;
-}
-function shChg(s){
-  if(s&&s.liveSesi&&s.liveSesi!=="regular"&&s.chgLive!=null&&shFresh(umur(s.liveTs))) return s.chgLive;
-  return s?s.chg1d:null;
-}
-function shSesiTag(s){
-  if(!s||!s.liveSesi||s.liveSesi==="regular") return "";
-  const nm=s.liveSesi==="pre"?"pra-bursa":"pasca-bursa";
-  const w=umur(s.liveTs);
-  if(!shFresh(w)||w<0) return "";
-  // harga pra/pasca-bursa sudah tampil besar di kartu — cukup sebut sesinya
-  return ` <span style="color:var(--muted)">· ${nm}</span>`;
-}
+// Harga & %perubahan yang DITAMPILKAN = penutupan/harga terbaru (s.px, s.chg1d).
+function shPx(s){ return s?s.px:null; }
+function shChg(s){ return s?s.chg1d:null; }
+function shSesiTag(s){ return ""; }
 function shBadge(){
   const el=document.getElementById("liveBadge"); if(!el) return;
   if(curMkt==="CRYPTO"){ /* badge crypto diurus liveBadge() */ return; }
@@ -1666,13 +1607,7 @@ async function liveShares(force){
     DATA.forEach(s=>{
       if(s.market==="CRYPTO"||!s.symbol) return;
       const v=SH_DATA.q[s.symbol]; if(!v) return;
-      const ext=v[4];   // [px, chg, ts, "pre"|"post"] harga pra/pasca-bursa (hanya US)
       let px=v[0], chg=v[1], ts=v[2], sesi="regular";
-      if(ext&&ext[2]&&(!ts||ext[2]>ts)){
-        // pakai harga pra/pasca-bursa hanya kalau memang lebih baru DAN masih wajar
-        // (Yahoo kadang menyisakan preMarketPrice dari sesi lama)
-        if(umur(ext[2])<=900){ px=ext[0]; chg=ext[1]; ts=ext[2]; sesi=ext[3]; }
-      }
       if(px==null||!(px>0)) return;
       s.pxLive=px; s.chgLive=chg!=null?chg:null; s.liveTs=ts||null; s.liveSesi=sesi; s.liveAt=ts?ts*1000:null;
       if(sesi==="regular"){ s.px=px; if(chg!=null) s.chg1d=chg; }

@@ -1,4 +1,4 @@
-// quotes-live.js — pengambil harga live IDX + US → quotes-live.json (diterbitkan ke gh-pages)
+// quotes-live.js — pengambil harga live saham IDX → quotes-live.json (diterbitkan ke gh-pages)
 // Kenapa lewat cron, bukan fetch dari browser: endpoint Yahoo TIDAK mengirim header CORS
 // (tanpa access-control-allow-origin), jadi fetch langsung dari halaman selalu gagal.
 // Satu-satunya cara tanpa API key: unduh di sini (Node, tanpa batasan CORS), simpan ke file
@@ -47,7 +47,7 @@ function daftarSimbol() {
   const out = [];
   const seen = new Set();
   for (const s of stocks) {
-    if (s.market === "CRYPTO") continue;           // kripto sudah live lewat Coinpaprika
+    if (s.market !== "IDX") continue;               // hanya IDX; kripto sudah live lewat Coinpaprika
     if (!s.symbol || seen.has(s.symbol)) continue;
     seen.add(s.symbol);
     out.push(s.symbol);
@@ -75,19 +75,14 @@ function daftarSimbol() {
     process.exit(1);
   }
 
-  // Bentuk ringkas: simbol → [harga, %perubahan, waktu Yahoo (detik), state, pra/pasca]
+  // Bentuk ringkas: simbol → [harga, %perubahan, waktu Yahoo (detik), state]
   const q = {};
   for (const r of hasil) {
     if (!r.symbol) continue;
     let px = r.regularMarketPrice;
     let chg = r.regularMarketChangePercent;
     let ts = r.regularMarketTime;
-    // pra-pasar AS: harga & perubahan pra-pasar kalau ada (lebih baru daripada penutupan)
-    const pre = r.preMarketPrice != null && r.preMarketTime ? { px: r.preMarketPrice, chg: r.preMarketChangePercent, ts: r.preMarketTime } : null;
-    const post = r.postMarketPrice != null && r.postMarketTime ? { px: r.postMarketPrice, chg: r.postMarketChangePercent, ts: r.postMarketTime } : null;
-    const ext = [pre, post].filter(Boolean).sort((a, b) => (b.ts || 0) - (a.ts || 0))[0] || null;
-    q[r.symbol] = [px != null ? +px.toFixed(6) : null, chg != null ? +chg.toFixed(4) : null, ts || null, r.marketState || null,
-      ext ? [+ext.px.toFixed(6), ext.chg != null ? +ext.chg.toFixed(4) : null, ext.ts || null, pre ? "pre" : "post"] : null];
+    q[r.symbol] = [px != null ? +px.toFixed(6) : null, chg != null ? +chg.toFixed(4) : null, ts || null, r.marketState || null];
   }
 
   const sekarang = new Date();

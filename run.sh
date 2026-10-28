@@ -1,5 +1,5 @@
 #!/data/data/com.termux/files/usr/bin/bash
-# var — screener saham (IDX + US + Crypto) → terbit ke GitHub Pages (branch gh-pages).
+# var — screener saham (IDX + Crypto) → terbit ke GitHub Pages (branch gh-pages).
 # Dijalankan cron Termux setiap 18.00 WITA (= 17.00 WIB), sekali sehari.
 # Crypto ikut: baris CRYPTO dipakai tab Crypto untuk menempel harga live Coinpaprika.
 # Kalau gagal (mis. Yahoo menolak), diulang otomatis sampai 3 kali.
