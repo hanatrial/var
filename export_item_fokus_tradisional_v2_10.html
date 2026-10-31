@@ -1163,23 +1163,19 @@ async function processImportRows(rows, statusEl){
   let minDate = null;
   let maxDate = null;
 
-  const ym = r => { const b = BULAN_MAP[(r['Bulan']||'').toString().trim().toUpperCase()], t = +r['Tahun']; return b && t ? t*12+b : 0; };
-  const latestYM = rows.reduce((m, r) => Math.max(m, ym(r)), 0); // Tradisional hanya bulan terbaru di file
-
   rows.forEach(r=>{
     const cabangRaw = (r['CustomerSISiteGroupDesc']||'').toString().trim();
     const toko = (r['CustomerSODesc']||'').toString().trim();
     if (!cabangRaw || !toko) return;
     const cabang = CABANG_NORMALIZE_MAP[cabangRaw] || cabangRaw;
     const key = cabang + '||' + toko;
-    if (!storeMap[key]) storeMap[key] = { cabang, toko, sales: r['namasalesman']||'', itemsSet: new Set(), itemsSetAgustus: new Set() };
+    if (!storeMap[key]) storeMap[key] = { cabang, toko, sales: r['namasalesman']||'', itemsSet: new Set() };
     const bn = BULAN_MAP[(r['Bulan']||'').toString().trim().toUpperCase()];
     const ket = r['KeteranganInvoice'];
     if (ket !== 'RETUR'){
       const item = r['ItemGroup'];
       if (item){
         storeMap[key].itemsSet.add(item);
-        if (latestYM && ym(r) === latestYM) storeMap[key].itemsSetAgustus.add(item);
       }
     }
     const th = r['Tahun'];
@@ -1191,14 +1187,14 @@ async function processImportRows(rows, statusEl){
     }
   });
 
-  const allStores = Object.values(storeMap).map(s=>({ cabang:s.cabang, toko:s.toko, sales:s.sales, items:Array.from(s.itemsSet), itemsAgustus:Array.from(s.itemsSetAgustus) }));
+  const allStores = Object.values(storeMap).map(s=>({ cabang:s.cabang, toko:s.toko, sales:s.sales, items:Array.from(s.itemsSet) }));
 
-  // Rebuild STORE_DATA (Tradisional, per-cabang item list) — hanya bulan terbaru di file, apapun isinya
+  // Rebuild STORE_DATA (Tradisional, per-cabang item list) — semua baris di file
   const newStoreData = [];
   allStores.forEach(s=>{
     const fokusItems = CABANG_ITEM_FOKUS[s.cabang];
     if (!fokusItems) return;
-    const matched = s.itemsAgustus.filter(it => fokusItems.includes(it));
+    const matched = s.items.filter(it => fokusItems.includes(it));
     if (!matched.length) return;
     newStoreData.push({ cabang:s.cabang, toko:s.toko, sales:s.sales, items:matched });
   });
