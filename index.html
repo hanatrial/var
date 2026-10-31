@@ -735,6 +735,7 @@ function generateCabangPdf(selectedSalesNames, groups, cabang, start, end){
       const missingSorted = [...fst.missing].sort((a,b)=> rank(a) - rank(b));
       const missingHtml = missingSorted.map(i=>{
         const label = FOCUS_ABBR[i]||i;
+        if (i.includes('MILKY MANGO')) return `<span style="background:#e8631c;color:#fff;font-weight:700;padding:1px 5px;border-radius:3px;-webkit-print-color-adjust:exact;print-color-adjust:exact;">${label}</span>`;
         return i.includes('TEA') ? `<span style="color:#1a7a1a;">${label}</span>` : label;
       }).join(' / ');
       return `<tr><td>${s.toko}</td><td>${fst.count}/${threshold}</td><td>${missingHtml}</td></tr>`;
