@@ -131,16 +131,16 @@
   .modal .close{position:absolute;top:16px;right:18px;width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.08);border:none;color:var(--text);font-size:1.1rem;display:grid;place-items:center;cursor:pointer}
   .modal .body{padding:4px 18px 30px;overflow-y:auto;-webkit-overflow-scrolling:touch}
   .modal svg.mchart{width:100%;height:130px;display:block;margin:6px 0 4px}
-  .mcw{position:relative;margin:6px 0 4px;touch-action:pan-y;-webkit-user-select:none;user-select:none}
+  .mcw{position:relative;margin:6px 0 4px;padding-left:52px;touch-action:pan-y;-webkit-user-select:none;user-select:none}
   .mcw svg.mchart{margin:0}
-  .mcw .yl{position:absolute;left:4px;font-size:.62rem;font-weight:600;color:var(--muted);background:rgba(255,255,255,.78);padding:0 4px;border-radius:4px;transform:translateY(-50%);pointer-events:none;line-height:1.35}
-  .mcw .yl.last{left:auto;right:4px;color:#fff;background:#1aa35f;font-weight:700}
+  .mcw .yl{position:absolute;left:0;width:48px;text-align:right;font-size:.62rem;font-weight:600;color:var(--muted);transform:translateY(-50%);pointer-events:none;line-height:1.2;white-space:nowrap}
+  .mcw .yl.last{left:auto;width:auto;right:4px;padding:0 5px;border-radius:4px;color:#fff;background:#1aa35f;font-weight:700}
   .mcw .yl.last.dn{background:#e5484d}
   .mcw .xh{position:absolute;top:0;bottom:0;width:1px;background:#6f8f80;opacity:.7;pointer-events:none;display:none}
   .mcw .xd{position:absolute;width:9px;height:9px;margin:-4.5px 0 0 -4.5px;border-radius:50%;background:#fff;border:2px solid #1aa35f;pointer-events:none;display:none}
   .mcw .xt{position:absolute;top:2px;background:#0f3d2a;color:#fff;font-size:.66rem;line-height:1.3;padding:3px 8px;border-radius:7px;white-space:nowrap;pointer-events:none;display:none;transform:translateX(-50%)}
   .mcw .xt b{display:block;font-size:.74rem}
-  .mrange{display:flex;justify-content:space-between;font-size:.66rem;color:var(--muted);margin-bottom:14px}
+  .mrange{padding-left:52px;display:flex;justify-content:space-between;font-size:.66rem;color:var(--muted);margin-bottom:14px}
   .sec{margin-top:16px}
   .sec h3{font-size:.86rem;display:flex;align-items:center;gap:8px;margin-bottom:8px;letter-spacing:.2px}
   .sec h3 .ico{width:22px;height:22px;border-radius:7px;display:grid;place-items:center;font-size:.72rem;background:rgba(255,255,255,.06)}
@@ -417,9 +417,11 @@ function drawChart(svg, series, color="#1aa35f", splits){
     g+=`<line x1="${x}" y1="${pad-3}" x2="${x}" y2="${h-pad}" stroke="#b7791f" stroke-width="1" stroke-dasharray="3 3"/>`;
     g+=`<text x="${x}" y="${pad-5}" fill="#b7791f" font-size="7.5" text-anchor="middle">split ${sp.ratio||""}</text>`;
   });
-  [max,(max+min)/2,min].forEach(v=>{ const y=Y(v).toFixed(1); g=`<line x1="${pad}" y1="${y}" x2="${w-pad}" y2="${y}" stroke="#6f8f80" stroke-opacity=".22" stroke-width="1" stroke-dasharray="2 4"/>`+g; });
+  const nice=(x)=>{ const e=Math.pow(10,Math.floor(Math.log10(x))), f=x/e; return (f<1.5?1:f<3?2:f<7?5:10)*e; };
+  const step=nice(span/4), ticks=[]; for(let t=Math.ceil(min/step)*step; t<=max+step*1e-6; t+=step) ticks.push(+t.toPrecision(12));
+  ticks.forEach(v=>{ const y=Y(v).toFixed(1); g=`<line x1="${pad}" y1="${y}" x2="${w-pad}" y2="${y}" stroke="#6f8f80" stroke-opacity=".22" stroke-width="1" stroke-dasharray="2 4"/>`+g; });
   svg.innerHTML=g;
-  return {min,max,span,pad,h,w};
+  return {min,max,span,pad,h,w,ticks};
 }
 
 /* label harga + crosshair sentuh/geser pada grafik modal */
@@ -427,7 +429,7 @@ function chartOverlay(wrap, svg, s, series, m){
   wrap.querySelectorAll(".yl,.xh,.xd,.xt").forEach(e=>e.remove());
   const vals=series.map(p=>p.c), pct=v=>(((m.h-m.pad)-((v-m.min)/m.span)*(m.h-m.pad*2))/m.h*100);
   const mk=(cls,txt,top)=>{ const e=document.createElement("span"); e.className=cls; e.textContent=txt; if(top!=null) e.style.top=top+"%"; wrap.appendChild(e); return e; };
-  mk("yl",CUR(s,m.max),pct(m.max)); mk("yl",CUR(s,m.min),pct(m.min));
+  (m.ticks||[]).forEach(v=>mk("yl",CUR(s,v),pct(v)));
   const last=vals[vals.length-1]; mk("yl last"+(last<vals[0]?" dn":""),CUR(s,last),pct(last));
   const xh=mk("xh"), xd=mk("xd"), xt=mk("xt");
   const show=ev=>{
