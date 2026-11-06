@@ -131,7 +131,16 @@
   .modal .close{position:absolute;top:16px;right:18px;width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.08);border:none;color:var(--text);font-size:1.1rem;display:grid;place-items:center;cursor:pointer}
   .modal .body{padding:4px 18px 30px;overflow-y:auto;-webkit-overflow-scrolling:touch}
   .modal svg.mchart{width:100%;height:130px;display:block;margin:6px 0 4px}
-  .mrange{display:flex;justify-content:space-between;font-size:.66rem;color:var(--muted);margin-bottom:14px}
+  .mcw{position:relative;margin:6px 0 4px;padding-left:52px;touch-action:pan-y;-webkit-user-select:none;user-select:none}
+  .mcw svg.mchart{margin:0}
+  .mcw .yl{position:absolute;left:0;width:48px;text-align:right;font-size:.62rem;font-weight:600;color:var(--muted);transform:translateY(-50%);pointer-events:none;line-height:1.2;white-space:nowrap}
+  .mcw .yl.last{left:auto;width:auto;right:4px;padding:0 5px;border-radius:4px;color:#fff;background:#1aa35f;font-weight:700}
+  .mcw .yl.last.dn{background:#e5484d}
+  .mcw .xh{position:absolute;top:0;bottom:0;width:1px;background:#6f8f80;opacity:.7;pointer-events:none;display:none}
+  .mcw .xd{position:absolute;width:9px;height:9px;margin:-4.5px 0 0 -4.5px;border-radius:50%;background:#fff;border:2px solid #1aa35f;pointer-events:none;display:none}
+  .mcw .xt{position:absolute;top:2px;background:#0f3d2a;color:#fff;font-size:.66rem;line-height:1.3;padding:3px 8px;border-radius:7px;white-space:nowrap;pointer-events:none;display:none;transform:translateX(-50%)}
+  .mcw .xt b{display:block;font-size:.74rem}
+  .mrange{padding-left:52px;display:flex;justify-content:space-between;font-size:.66rem;color:var(--muted);margin-bottom:14px}
   .sec{margin-top:16px}
   .sec h3{font-size:.86rem;display:flex;align-items:center;gap:8px;margin-bottom:8px;letter-spacing:.2px}
   .sec h3 .ico{width:22px;height:22px;border-radius:7px;display:grid;place-items:center;font-size:.72rem;background:rgba(255,255,255,.06)}
@@ -321,7 +330,7 @@
     <button id="bbToggle" class="bbbtn" aria-pressed="false">⭐ BEST BUY / SIAP</button>
     <span id="bbCnt" class="bbcnt"></span>
   </div>
-  <div class="search"><span>🔍</span><input id="q" type="search" placeholder="Cari ticker / nama… mis. BBCA, bitcoin" autocomplete="off"><button id="qx" hidden>✕</button></div>
+  <div class="search"><span>🔍</span><input id="q" type="search" placeholder="Cari ticker / nama… mis. BBCA, bitcoin, Tesla" autocomplete="off"><button id="qx" hidden>✕</button></div>
   <div class="cnt" id="cnt"></div>
   <div class="hint">👆 <b>Ketuk kartu</b> untuk analisa mendalam</div>
   <div class="list" id="list"></div>
@@ -374,7 +383,7 @@ const SL_BAND_MIN = 4, SL_BAND_MAX = 12;
 const SL_MIN_LBL = SL_BAND_MIN, SL_MAX_LBL = SL_BAND_MAX;
 /* Batas konsentrasi 1 nama (% modal) — dipakai bersama oleh rumus sizing DAN teks panduan. */
 const POS_CAP = 0.20;
-/* pembanding yang BENAR per pasar: IDX→IHSG, US→S&P 500, CRYPTO→BTC
+/* pembanding yang BENAR per pasar: IDX→IHSG, CRYPTO→BTC
    (sebelumnya semua pasar salah dibandingkan dengan IHSG) */
 const BENCH = (mkt) => {
   const b = (REGIME && REGIME.bench && REGIME.bench[mkt]) || null;
@@ -408,7 +417,32 @@ function drawChart(svg, series, color="#1aa35f", splits){
     g+=`<line x1="${x}" y1="${pad-3}" x2="${x}" y2="${h-pad}" stroke="#b7791f" stroke-width="1" stroke-dasharray="3 3"/>`;
     g+=`<text x="${x}" y="${pad-5}" fill="#b7791f" font-size="7.5" text-anchor="middle">split ${sp.ratio||""}</text>`;
   });
+  const nice=(x)=>{ const e=Math.pow(10,Math.floor(Math.log10(x))), f=x/e; return (f<1.5?1:f<3?2:f<7?5:10)*e; };
+  const step=nice(span/4), ticks=[]; for(let t=Math.ceil(min/step)*step; t<=max+step*1e-6; t+=step) ticks.push(+t.toPrecision(12));
+  ticks.forEach(v=>{ const y=Y(v).toFixed(1); g=`<line x1="${pad}" y1="${y}" x2="${w-pad}" y2="${y}" stroke="#6f8f80" stroke-opacity=".22" stroke-width="1" stroke-dasharray="2 4"/>`+g; });
   svg.innerHTML=g;
+  return {min,max,span,pad,h,w,ticks};
+}
+
+/* label harga + crosshair sentuh/geser pada grafik modal */
+function chartOverlay(wrap, svg, s, series, m){
+  wrap.querySelectorAll(".yl,.xh,.xd,.xt").forEach(e=>e.remove());
+  const vals=series.map(p=>p.c), pct=v=>(((m.h-m.pad)-((v-m.min)/m.span)*(m.h-m.pad*2))/m.h*100);
+  const mk=(cls,txt,top)=>{ const e=document.createElement("span"); e.className=cls; e.textContent=txt; if(top!=null) e.style.top=top+"%"; wrap.appendChild(e); return e; };
+  (m.ticks||[]).forEach(v=>mk("yl",CUR(s,v),pct(v)));
+  const last=vals[vals.length-1]; mk("yl last"+(last<vals[0]?" dn":""),CUR(s,last),pct(last));
+  const xh=mk("xh"), xd=mk("xd"), xt=mk("xt");
+  const show=ev=>{
+    const r=svg.getBoundingClientRect(); let f=(ev.clientX-r.left)/r.width; f=Math.max(0,Math.min(1,f));
+    const fx=(f*m.w-m.pad)/(m.w-m.pad*2), i=Math.max(0,Math.min(vals.length-1,Math.round(fx*(vals.length-1))));
+    const px=(m.pad+i*(m.w-m.pad*2)/Math.max(1,vals.length-1))/m.w*100, py=pct(vals[i]);
+    xh.style.left=px+"%"; xh.style.display="block"; xd.style.left=px+"%"; xd.style.top=py+"%"; xd.style.display="block";
+    xt.innerHTML=`<b>${CUR(s,vals[i])}</b>${series[i].d}`; xt.style.display="block";
+    const tw=xt.offsetWidth/2, ww=wrap.clientWidth, cx=px/100*ww; xt.style.left=Math.max(tw+2,Math.min(ww-tw-2,cx))+"px";
+  };
+  const hide=()=>{ xh.style.display=xd.style.display=xt.style.display="none"; };
+  wrap.onpointerdown=wrap.onpointermove=e=>{ if(e.pointerType==="mouse"||e.buttons||e.type==="pointerdown") show(e); };
+  wrap.onpointerleave=wrap.onpointerup=wrap.onpointercancel=hide;
 }
 
 /* ---------- analisa ---------- */
@@ -538,10 +572,8 @@ function analyze(s){
   if(RB && RB.bearish){
     const lvl = (RB.ma200!=null && RB.px!=null && RB.ma200>0)
       ? ` (${RB.label} di bawah MA200)` : "";
-    RISK.push(`<b>Rezim ${s.market==="IDX"?"pasar bearish":s.market==="US"?"pasar AS bearish":"crypto bearish"}</b>${lvl} — peluang tiap sinyal lebih kecil; kurangi ukuran posisi.`);
+    RISK.push(`<b>Rezim ${s.market==="IDX"?"pasar bearish":"crypto bearish"}</b>${lvl} — peluang tiap sinyal lebih kecil; kurangi ukuran posisi.`);
   }
-  if(s.market!=="IDX" && REGIME && REGIME.us && REGIME.us.riskOff)
-    RISK.push("<b>Risk-off global</b> (S&amp;P 500 di bawah MA200 / VIX &gt;30) — aset berisiko tertekan; skor sudah otomatis dikali 0,90.");
   if(s.rsi!=null && s.rsi>70) RISK.push("RSI overbought — rawan koreksi jangka pendek.");
   if(s.earnGrowth!=null && s.earnGrowth<0) RISK.push("Laba sedang menurun (earnings growth negatif) — waspadai <i>value trap</i>.");
   if(s.revGrowth!=null && s.revGrowth<0) RISK.push("Pendapatan turun — permintaan melemah.");
@@ -610,10 +642,6 @@ function caHTML(s){
     chips+=ch("🚦", a.limitPct!=null?("ARB ±"+a.limitPct+"% · ARA ±"+a.araPct+"%"):("batas Rp"+a.limitRp));
     if(a.isArb) chips+=ch("⛔","sentuh ARB","bear");
     if(a.streak>1) chips+=ch("🔁","ARB "+a.streak+" hari","warn");
-  } else if(s.market==="US"){
-    if(s.earnInDays!=null && s.earnInDays>=0) chips+=ch(s.earnInDays<=3?"⚠️":"📅","earnings "+s.earnInDays+" hari", s.earnInDays<=3?"bear":"");
-    if(s.shortPct!=null) chips+=ch("📉","short "+((s.shortPct>1?s.shortPct:s.shortPct*100).toFixed(1))+"%");
-    if(s.mom121!=null) chips+=ch(s.mom121>=0?"📈":"📉","mom 12-1 "+(s.mom121>=0?"+":"")+s.mom121.toFixed(1)+"%");
   } else {
     if(s.cycle) chips+=ch("🔻","fase "+s.cycle.phase);
     if(s.fng) chips+=ch("😨","F&G "+s.fng.v+" ("+s.fng.label+")");
@@ -643,7 +671,6 @@ function tags(s){
     if(g.includes("spekulatif")) t.push(["Spekulatif","warn"]);
     if(g.includes("earnings_dekat")) t.push(["Earnings dekat","warn"]);
     if(g.includes("short_tinggi")) t.push(["Short tinggi","warn"]);
-    if(g.includes("subdollar")) t.push(["Di bawah $1","warn"]);
     if(g.includes("waspada_bursa")) t.push(["Waspada bursa","warn"]);
     if(g.includes("arbToday")) t.push(["ARB hari ini","bad"]);
     if(g.includes("valueTrap")) t.push(["Value trap","bad"]);
@@ -933,7 +960,6 @@ function entryAdviceHTML(s){
   const boxCls = e.cls==="ok"?"ok":(e.cls==="bear"?"no":"no");
   let mk="";
   if(s.market==="IDX") mk=`<span class="rchip sm warn"><i>🇮🇩</i>ARA/ARB: jangan kejar saat mendekati ARA; ARB tak bisa dijual</span>`;
-  else if(s.market==="US") mk=`<span class="rchip sm"><i>🇺🇸</i>tanpa ARA/ARB · hindari ≤3 hari earnings · pajak dividen 30%</span>`;
   else mk=`<span class="rchip sm"><i>₿</i>24/7 tanpa ARA/ARB · likuiditas akhir pekan tipis</span>`;
   return `<div class="sec">
     <h3><span class="ico">🎯</span> Saran Masuk (per saham)</h3>
@@ -1003,6 +1029,22 @@ function btEntryHTML(s,bt){
     <h3 style="margin-top:12px"><span class="ico">💰</span> Berapa yang dibeli</h3>
     <p class="plan">Maksimal <b>${BT.N} saham</b>, masing-masing <b>${100/BT.N}% dari modal</b>. Kandidat lebih banyak dari slot kosong → pilih yang <b>kenaikan 120 harinya paling besar</b>. Saham yang baru dijual: tunggu ${BT.cool} hari bursa sebelum beli lagi.</p>
     <p class="plan" style="color:var(--muted)">Angka dihitung dari close terakhir ${CUR(s,px)} (${fmtTgl(t0)}); angka pasti ikut harga beli sebenarnya besok pagi.</p>
+  </div>`;
+}
+
+/* level harga ringkas (IDX) — selalu tampil di badan modal, tidak perlu buka PLAN */
+function btLevelsCompact(s,bt){
+  const px=s.px, sl=px*(1-BT.hardStop/100), tp=px*(1+BT.tp/100), batal=px*(1+BT.gapMax/100);
+  const ma50t = bt.ma50!=null ? CUR(s,bt.ma50) : "—";
+  return `<div class="sec">
+    <h3><span class="ico">💲</span> Level Harga${bt.ok?"":" (gambaran, belum boleh beli)"}</h3>
+    <div class="lvl">
+      <div class="b en"><div class="k">BELI DI HARGA</div><div class="v">${CUR(s,px)} – ${CUR(s,batal)}</div><div class="s">open &gt; ${CUR(s,batal)} → jangan beli</div></div>
+      <div class="b sl"><div class="k">STOP LOSS</div><div class="v">≤ ${CUR(s,sl)}</div><div class="s">turun ${BT.hardStop}% dari harga beli</div></div>
+      <div class="b tp"><div class="k">TAKE PROFIT</div><div class="v">≥ ${CUR(s,tp)}</div><div class="s">naik ${BT.tp}% dari harga beli</div></div>
+      <div class="b sl"><div class="k">JUAL KALAU CLOSE &lt; MA${BT.exitMA}</div><div class="v">&lt; ${ma50t}</div><div class="s">dicek tiap sore</div></div>
+    </div>
+    <p class="plan" style="color:var(--muted)">Dihitung dari harga terakhir ${CUR(s,px)}. Langkah lengkap ada di tombol 🎯 PLAN.</p>
   </div>`;
 }
 
@@ -1296,7 +1338,7 @@ function openModal(i){
   const BM=BENCH(s.market);
   const bb=bestBuy(s);
   const bt=(s.market==="IDX")?btIdx(s):null;
-  const bbFoot = bb.usMom ? `<div style="font-size:.7rem;color:#8b96a8;margin-top:8px">Aturan US: 3 saham momentum 12-1 terbaik (bobot sama, hold 1 bulan) + filter S&amp;P500 &gt; MA200. Backtest 1991–2026: ±33%/th, DD −43%, 11 dari 35 tahun &lt;10%. <b>Bias survivorship:</b> tanpa 14 saham pemenang hindsight turun ke ±16%/th. Bukan jaminan stabil per tahun.</div>` : `<div style="font-size:.7rem;color:#8b96a8;margin-top:8px">Ambang ${bb.bench}: skor ≥ ${bb.min} · dekat high 52 minggu (≥94% puncak) · volume ≥1,5× · tren ≥20/28 · relatif ≥8/12 · rejim sehat · tanpa flag merah.</div>`;
+  const bbFoot = `<div style="font-size:.7rem;color:#8b96a8;margin-top:8px">Ambang ${bb.bench}: skor ≥ ${bb.min} · dekat high 52 minggu (≥94% puncak) · volume ≥1,5× · tren ≥20/28 · relatif ≥8/12 · rejim sehat · tanpa flag merah.</div>`;
   const bbHTMLscore = bb.ok
     ? `<div class="bbbox ok"><div class="bbt">⭐ BEST BUY — semua syarat terpenuhi</div><ul>${bb.good.map(g=>`<li>✓ ${g}</li>`).join("")}${bb.warns.map(w=>`<li style="color:#946200">⚠ ${w}</li>`).join("")}</ul>${bbFoot}</div>`
     : bb.ready
@@ -1308,11 +1350,11 @@ function openModal(i){
     : `<div class="bbbox no"><div class="bbt">Tidak masuk (aturan uji backtest)</div><ul>${bt.checks.filter(x=>!x.ok).map(x=>`<li class="blk">✕ ${x.k} — ${x.v}</li>`).join("")}${bt.checks.filter(x=>x.ok).map(x=>`<li style="color:#8ba487">✓ ${x.k}</li>`).join("")}</ul>${btFoot}</div>`);
   const bbHTML = bbHTMLscore;
   document.getElementById("mTk").textContent=s.ticker;
-  document.getElementById("mNm").textContent=(s.name||"")+" · "+(s.sector||(s.market==="CRYPTO"?"Kripto":s.market==="US"?"US":"IDX"));
+  document.getElementById("mNm").textContent=(s.name||"")+" · "+(s.sector||(s.market==="CRYPTO"?"Kripto":"IDX"));
   document.getElementById("mPx").textContent=CUR(s,shPx(s));
   const chUp=(shChg(s)||0)>=0;
   document.getElementById("mChg").innerHTML=`<span class="${chUp?"up":"down"}">${chUp?"▲":"▼"} ${PCT(shChg(s))} hari ini${shSesiTag(s)}</span>`;
-  // rencana IDX = popup di samping harga (toggle PLAN); US/CRYPTO tetap blok "Level, Entry & Exit" di body
+  // rencana IDX = popup di samping harga (toggle PLAN); CRYPTO tetap blok "Level, Entry & Exit" di body
   const planBtn=document.getElementById("planBtn"), planPop=document.getElementById("planPop");
   planBtn.hidden=!bt;
   planPop.hidden=true;
@@ -1324,13 +1366,13 @@ function openModal(i){
       <button class="rchip sm" data-r="1y">📈 1 tahun</button>
       <button class="rchip sm" data-r="all">📊 Semua${s.ipo?` · sejak ${s.ipo}`:""}</button>
     </div>
-    <svg class="mchart" viewBox="0 0 320 130" preserveAspectRatio="none"></svg>
+    <div class="mcw" id="mcw"><svg class="mchart" viewBox="0 0 320 130" preserveAspectRatio="none"></svg></div>
     <div class="mrange" id="mrLbl"></div>
     <div id="mrSplit" style="margin-top:4px"></div>
 
     <div class="verdict">${a.verdict}</div>
     ${bbHTML}
-    ${(bt||s.market==="US")?"":entryAdviceHTML(s)}
+    ${bt?btLevelsCompact(s,bt):entryAdviceHTML(s)}
 
     <div class="sec">
       <h3><span class="ico">🎯</span> Ringkasan Skor</h3>
@@ -1385,7 +1427,7 @@ function openModal(i){
       ${newsHTML(s)}
     </div>
 
-    ${(bt||s.market==="US")?"":`<div class="sec">
+    ${bt?"":`<div class="sec">
       <h3><span class="ico">🧭</span> Level, Entry &amp; Exit</h3>
       <div class="lvl">
         <div class="b en"><div class="k">Entry acuan</div><div class="v">${CUR(s,a.exit.entry2)}</div></div>
@@ -1443,7 +1485,7 @@ function openModal(i){
       const a=ser[0].d, b=ser[ser.length-1].d;
       const yrs=(new Date(b)-new Date(a))/(365.25*86400000);
       const splits=(s.splits||[]).filter(x=>x.d>=a&&x.d<=b);
-      drawChart(svg, ser, "#1aa35f", splits);
+      const cm=drawChart(svg, ser, "#1aa35f", splits); chartOverlay(body.querySelector("#mcw"), svg, s, ser, cm);
       lbl.innerHTML=`<span>${a}</span><span>${mode==="all"?"Semua":"1 tahun"}${yrs>=1.5?" · "+yrs.toFixed(1)+" thn":""}</span><span>${b}</span>`;
       spn.innerHTML = splits.length ? `<span style="font-size:.66rem;color:#6f8f80">Penanda stock split: </span>`+splits.map(x=>`<span class="rchip warn" style="font-size:.68rem;padding:3px 8px;margin:2px"><i>✂️</i>${x.d} · ${x.ratio}</span>`).join("") : "";
       body.querySelectorAll("[data-r]").forEach(x=>x.classList.toggle("ok", x.getAttribute("data-r")===mode));
@@ -1492,19 +1534,13 @@ document.getElementById("planX").addEventListener("click",()=>{document.getEleme
   el.innerHTML="<i>📅</i>data per <b>"+tgl+" WITA</b>"+umurTxt;
 })();
 const cnt = m => DATA.filter(x=>x.market===m).length;
-document.getElementById("foot").textContent=`IDX ${cnt("IDX")} · US ${cnt("US")} · Crypto ${cnt("CRYPTO")} — ${DATA.length} instrumen${DATA.filter(x=>x.excluded).length?` · ⛔ ${DATA.filter(x=>x.excluded).length} dikecualikan`:""}`;
+document.getElementById("foot").textContent=`IDX ${cnt("IDX")} · Crypto ${cnt("CRYPTO")} — ${DATA.length} instrumen${DATA.filter(x=>x.excluded).length?` · ⛔ ${DATA.filter(x=>x.excluded).length} dikecualikan`:""}`;
 
 (function(){
   const b=document.getElementById("regimeBar");
   if(!REGIME){ b.innerHTML=""; return; }
   b.className="regime "+(REGIME.bearish?"bear":"bull");
   const d = REGIME.chg1d!=null ? ` · hari ini <b>${PCT(REGIME.chg1d)}</b>` : "";
-  let us="";
-  if(REGIME.us){
-    const u=REGIME.us;
-    const lab=u.riskOff?"🔴 RISK-OFF":u.riskOn?"🟢 RISK-ON":"⚪ netral";
-    us=`<br><b>${lab} (AS)</b> — S&amp;P ${u.spx!=null?Math.round(u.spx):"—"}${u.ma200?` vs MA200 ${Math.round(u.ma200)}`:""}${u.vix!=null?` · VIX ${u.vix.toFixed(1)}`:""}${u.tnx!=null?` · US10Y ${u.tnx.toFixed(2)}%`:""}${u.dxy!=null?` · DXY ${u.dxy.toFixed(1)}`:""}.${u.riskOff?"<br>Risk-off global menekan semua pasar (termasuk IHSG &amp; crypto) — kurangi eksposur / naikkan syarat skor.":""}`;
-  }
   let sanity="";
   if(REGIME.suspectIndex) sanity=`<br>⚠️ <b>Cek kesehatan data:</b> pergerakan IHSG hari ini TIDAK didukung oleh mayoritas saham (median ${(REGIME.breadth&&REGIME.breadth.medianChg!=null)?REGIME.breadth.medianChg.toFixed(1)+"%":"—"}). Kemungkinan gangguan data — verifikasi dulu sebelum mengambil keputusan.`;
   else if(REGIME.crashConfirmed) sanity=`<br>✅ Koreksi hari ini <b>terkonfirmasi breadth</b> (median saham ${(REGIME.breadth&&REGIME.breadth.medianChg!=null)?REGIME.breadth.medianChg.toFixed(1)+"%":"—"}, ${REGIME.breadth&&REGIME.breadth.shareNearArb!=null?Math.round(REGIME.breadth.shareNearArb*100):0}% mendekati ARB) → koreksi nyata, bukan glitch data.`;
@@ -1513,8 +1549,8 @@ document.getElementById("foot").textContent=`IDX ${cnt("IDX")} · US ${cnt("US")
     const c=REGIME.bench.CRYPTO;
     cr=`<br><b>${c.bearish?"🐻 Crypto bearish":"🐂 Crypto netral/bullish"}</b> — BTC ${c.px!=null?Math.round(c.px).toLocaleString("en-US"):"—"}${c.chg1d!=null?` · hari ini ${PCT(c.chg1d)}`:""}${c.ma200?` vs MA200 ${Math.round(c.ma200).toLocaleString("en-US")} (di ${c.px<c.ma200?"bawah":"atas"})`:""}.`;
   }
-  b.innerHTML=`<b>${REGIME.bearish?"🐻 Pasar BEARISH":"🐂 Pasar netral/bullish"}</b> — IHSG ${ID(REGIME.px)}${d}${REGIME.ma200?` · ${REGIME.px<REGIME.ma200?"di bawah":"di atas"} MA200 (${ID(REGIME.ma200)})`:""}${REGIME.ret6m!=null?` · 6 bln ${PCT(REGIME.ret6m)}`:""}.${REGIME.bearish?"<br>Saat IHSG di bawah MA200, sinyal beli individual lebih rawan gagal — perketat disiplin & kecilkan ukuran posisi (skor sudah otomatis dikali 0,85).":""}${sanity}${us}${cr}
-  <br><span style="font-size:.78em;color:#8b96a8">Pembanding tiap pasar: <b>IDX → IHSG</b> · <b>US → S&amp;P 500</b> · <b>Crypto → BTC</b> (dipakai otomatis di kartu &amp; modal masing-masing).</span>`;
+  b.innerHTML=`<b>${REGIME.bearish?"🐻 Pasar BEARISH":"🐂 Pasar netral/bullish"}</b> — IHSG ${ID(REGIME.px)}${d}${REGIME.ma200?` · ${REGIME.px<REGIME.ma200?"di bawah":"di atas"} MA200 (${ID(REGIME.ma200)})`:""}${REGIME.ret6m!=null?` · 6 bln ${PCT(REGIME.ret6m)}`:""}.${REGIME.bearish?"<br>Saat IHSG di bawah MA200, sinyal beli individual lebih rawan gagal — perketat disiplin & kecilkan ukuran posisi (skor sudah otomatis dikali 0,85).":""}${sanity}${cr}
+  <br><span style="font-size:.78em;color:#8b96a8">Pembanding tiap pasar: <b>IDX → IHSG</b> · <b>Crypto → BTC</b> (dipakai otomatis di kartu &amp; modal masing-masing).</span>`;
 })();
 (function(){
   var b=document.getElementById("regimeBar"); if(!b||!REGIME) return;
@@ -1522,7 +1558,6 @@ document.getElementById("foot").textContent=`IDX ${cnt("IDX")} · US ${cnt("US")
   var ar=function(px,ma){ if(px==null||ma==null) return ""; var up=px>=ma; return '<span class="rr '+(up?"up":"dn")+'">'+(up?"▲":"▼")+' MA200</span>'; };
   var h="";
   h+='<span class="rchip '+(REGIME.bearish?"bear":"ok")+'"><i>'+(REGIME.bearish?"🐻":"🐂")+'</i>IHSG <b>'+ID(REGIME.px)+'</b>'+(REGIME.chg1d!=null?' <span class="rr '+(REGIME.chg1d>=0?"up":"dn")+'">'+pv(REGIME.chg1d)+'</span>':"")+' '+ar(REGIME.px,REGIME.ma200)+'</span>';
-  if(REGIME.us){ var u=REGIME.us; h+='<span class="rchip '+(u.riskOff?"bear":"ok")+'"><i>'+(u.riskOff?"🔴":"🟢")+'</i>S&amp;P <b>'+Math.round(u.spx)+'</b> '+ar(u.spx,u.ma200)+(u.vix!=null?' <span class="rr">VIX '+u.vix.toFixed(0)+'</span>':"")+'</span>'; }
   var c=REGIME.bench&&REGIME.bench.CRYPTO;
   if(c){ h+='<span class="rchip '+(c.bearish?"bear":"ok")+'"><i>₿</i>BTC <b>'+ID(c.px)+'</b>'+(c.chg1d!=null?' <span class="rr '+(c.chg1d>=0?"up":"dn")+'">'+pv(c.chg1d)+'</span>':"")+' '+ar(c.px,c.ma200)+'</span>'; }
   if(REGIME.breadth&&REGIME.breadth.medianChg!=null){ var m=REGIME.breadth.medianChg; h+='<span class="rchip '+(m<0?"bear":"ok")+'"><i>📊</i>breadth <b>'+m.toFixed(1)+'%</b>'+(REGIME.breadth.shareNearArb!=null?' <span class="rr">'+Math.round(REGIME.breadth.shareNearArb*100)+'% ARB</span>':"")+'</span>'; }
@@ -1577,35 +1612,20 @@ renderList=function(m){ _renderListBase(m); liveBadge(); if(curMkt==="CRYPTO" &&
 setInterval(()=>{ if(curMkt==="CRYPTO" && !document.hidden) liveFetch(); }, LIVE_EVERY);
 document.addEventListener("visibilitychange",()=>{ if(!document.hidden && curMkt==="CRYPTO" && (!LIVE_AT || Date.now()-LIVE_AT>LIVE_EVERY)) liveFetch(); });
 
-/* ---------- HARGA LIVE SAHAM IDX & US (quotes-live.json) ----------
+/* ---------- HARGA LIVE SAHAM IDX (quotes-live.json) ----------
    Yahoo tidak mengirim header CORS, jadi browser TIDAK BISA memanggilnya langsung.
    quotes-live.js mengunduhnya di Termux (cron tiap 5 menit saat bursa buka) → file kecil
    yang dibaca di sini. Jujur soal waktu: yang ditampilkan waktu Yahoo, bukan waktu unduh.
    Kalau harga sudah basi (>15 menit) atau bursa tutup, badge menyatakan apa adanya. */
 const LIVE_SHARES_EVERY=120000;
 let SH_AT=null, SH_ERR=false, SH_DATA=null;
-const SH_SRC={IDX:"IDX", US:"AS"};
+const SH_SRC={IDX:"IDX"};
 function umur(ts){ return ts? (Date.now()/1000-ts) : null; }   // detik sejak waktu Yahoo
 function shFresh(w){ return w!=null && w<=900; }                 // <=15 menit dianggap segar
-// Harga & %perubahan yang DITAMPILKAN. s.px tetap = penutupan resmi (dipakai indikator,
-// rencana entry/exit, dan skor). Saat pra/pasca-bursa AS, tampilan pakai harga sesi itu
-// supaya tidak menampilkan harga kemarin seolah harga sekarang — dan diberi label.
-function shPx(s){
-  if(s&&s.liveSesi&&s.liveSesi!=="regular"&&s.pxLive!=null&&shFresh(umur(s.liveTs))) return s.pxLive;
-  return s?s.px:null;
-}
-function shChg(s){
-  if(s&&s.liveSesi&&s.liveSesi!=="regular"&&s.chgLive!=null&&shFresh(umur(s.liveTs))) return s.chgLive;
-  return s?s.chg1d:null;
-}
-function shSesiTag(s){
-  if(!s||!s.liveSesi||s.liveSesi==="regular") return "";
-  const nm=s.liveSesi==="pre"?"pra-bursa":"pasca-bursa";
-  const w=umur(s.liveTs);
-  if(!shFresh(w)||w<0) return "";
-  // harga pra/pasca-bursa sudah tampil besar di kartu — cukup sebut sesinya
-  return ` <span style="color:var(--muted)">· ${nm}</span>`;
-}
+// Harga & %perubahan yang DITAMPILKAN = penutupan/harga terbaru (s.px, s.chg1d).
+function shPx(s){ return s?s.px:null; }
+function shChg(s){ return s?s.chg1d:null; }
+function shSesiTag(s){ return ""; }
 function shBadge(){
   const el=document.getElementById("liveBadge"); if(!el) return;
   if(curMkt==="CRYPTO"){ /* badge crypto diurus liveBadge() */ return; }
@@ -1637,13 +1657,7 @@ async function liveShares(force){
     DATA.forEach(s=>{
       if(s.market==="CRYPTO"||!s.symbol) return;
       const v=SH_DATA.q[s.symbol]; if(!v) return;
-      const ext=v[4];   // [px, chg, ts, "pre"|"post"] harga pra/pasca-bursa (hanya US)
       let px=v[0], chg=v[1], ts=v[2], sesi="regular";
-      if(ext&&ext[2]&&(!ts||ext[2]>ts)){
-        // pakai harga pra/pasca-bursa hanya kalau memang lebih baru DAN masih wajar
-        // (Yahoo kadang menyisakan preMarketPrice dari sesi lama)
-        if(umur(ext[2])<=900){ px=ext[0]; chg=ext[1]; ts=ext[2]; sesi=ext[3]; }
-      }
       if(px==null||!(px>0)) return;
       s.pxLive=px; s.chgLive=chg!=null?chg:null; s.liveTs=ts||null; s.liveSesi=sesi; s.liveAt=ts?ts*1000:null;
       if(sesi==="regular"){ s.px=px; if(chg!=null) s.chg1d=chg; }
