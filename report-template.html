@@ -998,6 +998,22 @@ function btEntryHTML(s,bt){
   </div>`;
 }
 
+/* level harga ringkas (IDX) — selalu tampil di badan modal, tidak perlu buka PLAN */
+function btLevelsCompact(s,bt){
+  const px=s.px, sl=px*(1-BT.hardStop/100), tp=px*(1+BT.tp/100), batal=px*(1+BT.gapMax/100);
+  const ma50t = bt.ma50!=null ? CUR(s,bt.ma50) : "—";
+  return `<div class="sec">
+    <h3><span class="ico">💲</span> Level Harga${bt.ok?"":" (gambaran, belum boleh beli)"}</h3>
+    <div class="lvl">
+      <div class="b en"><div class="k">BELI DI HARGA</div><div class="v">${CUR(s,px)} – ${CUR(s,batal)}</div><div class="s">open &gt; ${CUR(s,batal)} → jangan beli</div></div>
+      <div class="b sl"><div class="k">STOP LOSS</div><div class="v">≤ ${CUR(s,sl)}</div><div class="s">turun ${BT.hardStop}% dari harga beli</div></div>
+      <div class="b tp"><div class="k">TAKE PROFIT</div><div class="v">≥ ${CUR(s,tp)}</div><div class="s">naik ${BT.tp}% dari harga beli</div></div>
+      <div class="b sl"><div class="k">JUAL KALAU CLOSE &lt; MA${BT.exitMA}</div><div class="v">&lt; ${ma50t}</div><div class="s">dicek tiap sore</div></div>
+    </div>
+    <p class="plan" style="color:var(--muted)">Dihitung dari harga terakhir ${CUR(s,px)}. Langkah lengkap ada di tombol 🎯 PLAN.</p>
+  </div>`;
+}
+
 /* ---------- POSISI SAYA (IDX) — harga & tanggal beli disimpan di browser ini saja (localStorage) ---------- */
 const POS_KEY="posIDX";
 function posLoad(){ try{ return JSON.parse(localStorage.getItem(POS_KEY)||"{}")||{}; }catch(e){ return {}; } }
@@ -1322,7 +1338,7 @@ function openModal(i){
 
     <div class="verdict">${a.verdict}</div>
     ${bbHTML}
-    ${bt?"":entryAdviceHTML(s)}
+    ${bt?btLevelsCompact(s,bt):entryAdviceHTML(s)}
 
     <div class="sec">
       <h3><span class="ico">🎯</span> Ringkasan Skor</h3>
