@@ -131,6 +131,15 @@
   .modal .close{position:absolute;top:16px;right:18px;width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.08);border:none;color:var(--text);font-size:1.1rem;display:grid;place-items:center;cursor:pointer}
   .modal .body{padding:4px 18px 30px;overflow-y:auto;-webkit-overflow-scrolling:touch}
   .modal svg.mchart{width:100%;height:130px;display:block;margin:6px 0 4px}
+  .mcw{position:relative;margin:6px 0 4px;touch-action:pan-y;-webkit-user-select:none;user-select:none}
+  .mcw svg.mchart{margin:0}
+  .mcw .yl{position:absolute;left:4px;font-size:.62rem;font-weight:600;color:var(--muted);background:rgba(255,255,255,.78);padding:0 4px;border-radius:4px;transform:translateY(-50%);pointer-events:none;line-height:1.35}
+  .mcw .yl.last{left:auto;right:4px;color:#fff;background:#1aa35f;font-weight:700}
+  .mcw .yl.last.dn{background:#e5484d}
+  .mcw .xh{position:absolute;top:0;bottom:0;width:1px;background:#6f8f80;opacity:.7;pointer-events:none;display:none}
+  .mcw .xd{position:absolute;width:9px;height:9px;margin:-4.5px 0 0 -4.5px;border-radius:50%;background:#fff;border:2px solid #1aa35f;pointer-events:none;display:none}
+  .mcw .xt{position:absolute;top:2px;background:#0f3d2a;color:#fff;font-size:.66rem;line-height:1.3;padding:3px 8px;border-radius:7px;white-space:nowrap;pointer-events:none;display:none;transform:translateX(-50%)}
+  .mcw .xt b{display:block;font-size:.74rem}
   .mrange{display:flex;justify-content:space-between;font-size:.66rem;color:var(--muted);margin-bottom:14px}
   .sec{margin-top:16px}
   .sec h3{font-size:.86rem;display:flex;align-items:center;gap:8px;margin-bottom:8px;letter-spacing:.2px}
@@ -408,7 +417,30 @@ function drawChart(svg, series, color="#1aa35f", splits){
     g+=`<line x1="${x}" y1="${pad-3}" x2="${x}" y2="${h-pad}" stroke="#b7791f" stroke-width="1" stroke-dasharray="3 3"/>`;
     g+=`<text x="${x}" y="${pad-5}" fill="#b7791f" font-size="7.5" text-anchor="middle">split ${sp.ratio||""}</text>`;
   });
+  [max,(max+min)/2,min].forEach(v=>{ const y=Y(v).toFixed(1); g=`<line x1="${pad}" y1="${y}" x2="${w-pad}" y2="${y}" stroke="#6f8f80" stroke-opacity=".22" stroke-width="1" stroke-dasharray="2 4"/>`+g; });
   svg.innerHTML=g;
+  return {min,max,span,pad,h,w};
+}
+
+/* label harga + crosshair sentuh/geser pada grafik modal */
+function chartOverlay(wrap, svg, s, series, m){
+  wrap.querySelectorAll(".yl,.xh,.xd,.xt").forEach(e=>e.remove());
+  const vals=series.map(p=>p.c), pct=v=>(((m.h-m.pad)-((v-m.min)/m.span)*(m.h-m.pad*2))/m.h*100);
+  const mk=(cls,txt,top)=>{ const e=document.createElement("span"); e.className=cls; e.textContent=txt; if(top!=null) e.style.top=top+"%"; wrap.appendChild(e); return e; };
+  mk("yl",CUR(s,m.max),pct(m.max)); mk("yl",CUR(s,m.min),pct(m.min));
+  const last=vals[vals.length-1]; mk("yl last"+(last<vals[0]?" dn":""),CUR(s,last),pct(last));
+  const xh=mk("xh"), xd=mk("xd"), xt=mk("xt");
+  const show=ev=>{
+    const r=svg.getBoundingClientRect(); let f=(ev.clientX-r.left)/r.width; f=Math.max(0,Math.min(1,f));
+    const fx=(f*m.w-m.pad)/(m.w-m.pad*2), i=Math.max(0,Math.min(vals.length-1,Math.round(fx*(vals.length-1))));
+    const px=(m.pad+i*(m.w-m.pad*2)/Math.max(1,vals.length-1))/m.w*100, py=pct(vals[i]);
+    xh.style.left=px+"%"; xh.style.display="block"; xd.style.left=px+"%"; xd.style.top=py+"%"; xd.style.display="block";
+    xt.innerHTML=`<b>${CUR(s,vals[i])}</b>${series[i].d}`; xt.style.display="block";
+    const tw=xt.offsetWidth/2, ww=wrap.clientWidth, cx=px/100*ww; xt.style.left=Math.max(tw+2,Math.min(ww-tw-2,cx))+"px";
+  };
+  const hide=()=>{ xh.style.display=xd.style.display=xt.style.display="none"; };
+  wrap.onpointerdown=wrap.onpointermove=e=>{ if(e.pointerType==="mouse"||e.buttons||e.type==="pointerdown") show(e); };
+  wrap.onpointerleave=wrap.onpointerup=wrap.onpointercancel=hide;
 }
 
 /* ---------- analisa ---------- */
@@ -1332,7 +1364,7 @@ function openModal(i){
       <button class="rchip sm" data-r="1y">📈 1 tahun</button>
       <button class="rchip sm" data-r="all">📊 Semua${s.ipo?` · sejak ${s.ipo}`:""}</button>
     </div>
-    <svg class="mchart" viewBox="0 0 320 130" preserveAspectRatio="none"></svg>
+    <div class="mcw" id="mcw"><svg class="mchart" viewBox="0 0 320 130" preserveAspectRatio="none"></svg></div>
     <div class="mrange" id="mrLbl"></div>
     <div id="mrSplit" style="margin-top:4px"></div>
 
@@ -1451,7 +1483,7 @@ function openModal(i){
       const a=ser[0].d, b=ser[ser.length-1].d;
       const yrs=(new Date(b)-new Date(a))/(365.25*86400000);
       const splits=(s.splits||[]).filter(x=>x.d>=a&&x.d<=b);
-      drawChart(svg, ser, "#1aa35f", splits);
+      const cm=drawChart(svg, ser, "#1aa35f", splits); chartOverlay(body.querySelector("#mcw"), svg, s, ser, cm);
       lbl.innerHTML=`<span>${a}</span><span>${mode==="all"?"Semua":"1 tahun"}${yrs>=1.5?" · "+yrs.toFixed(1)+" thn":""}</span><span>${b}</span>`;
       spn.innerHTML = splits.length ? `<span style="font-size:.66rem;color:#6f8f80">Penanda stock split: </span>`+splits.map(x=>`<span class="rchip warn" style="font-size:.68rem;padding:3px 8px;margin:2px"><i>✂️</i>${x.d} · ${x.ratio}</span>`).join("") : "";
       body.querySelectorAll("[data-r]").forEach(x=>x.classList.toggle("ok", x.getAttribute("data-r")===mode));
